@@ -194,4 +194,13 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
         
         emit Claimed(msg.sender, refund);
     }
+    
+    // Admin functions
+    function pause() external onlyOwner {
+        _pause();
+    }
+    
+    function unpause() external onlyOwner {
+        _unpause();
+    }
 }
