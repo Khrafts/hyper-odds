@@ -299,4 +299,62 @@ contract MarketTest is Test {
         market.deposit(1, 200e18);
         vm.stopPrank();
     }
+    
+    // Task 5.4 tests - ingestResolution
+    function testMarketIngestResolutionOnlyOracle() public {
+        initializeMarket();
+        
+        // Warp to resolve time
+        vm.warp(resolveTime);
+        
+        // Non-oracle cannot resolve
+        vm.prank(user1);
+        vm.expectRevert("Only oracle");
+        market.ingestResolution(1, keccak256("data"));
+        
+        // Oracle can resolve
+        vm.prank(oracle);
+        market.ingestResolution(1, keccak256("data"));
+        
+        assertTrue(market.resolved());
+        assertEq(market.winningOutcome(), 1);
+        assertEq(market.resolutionDataHash(), keccak256("data"));
+    }
+    
+    function testMarketIngestResolutionBeforeResolveTime() public {
+        initializeMarket();
+        
+        // Try to resolve before resolve time
+        vm.prank(oracle);
+        vm.expectRevert("Too early to resolve");
+        market.ingestResolution(1, keccak256("data"));
+        
+        // Warp to resolve time and try again
+        vm.warp(resolveTime);
+        vm.prank(oracle);
+        market.ingestResolution(1, keccak256("data"));
+        
+        assertTrue(market.resolved());
+    }
+    
+    function testMarketIngestResolutionDoubleResolve() public {
+        initializeMarket();
+        vm.warp(resolveTime);
+        
+        vm.startPrank(oracle);
+        market.ingestResolution(1, keccak256("data"));
+        
+        vm.expectRevert("Already resolved");
+        market.ingestResolution(0, keccak256("other"));
+        vm.stopPrank();
+    }
+    
+    function testMarketIngestResolutionInvalidOutcome() public {
+        initializeMarket();
+        vm.warp(resolveTime);
+        
+        vm.prank(oracle);
+        vm.expectRevert("Invalid outcome");
+        market.ingestResolution(2, keccak256("data"));
+    }
 }

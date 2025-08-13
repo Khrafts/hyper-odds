@@ -103,7 +103,16 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
     }
 
     function ingestResolution(uint8 outcome, bytes32 dataHash) external override {
-        // Implementation will be added in Task 5.4
+        require(msg.sender == oracle, "Only oracle");
+        require(block.timestamp >= resolveTime, "Too early to resolve");
+        require(!resolved, "Already resolved");
+        require(outcome <= 1, "Invalid outcome");
+        
+        resolved = true;
+        winningOutcome = outcome;
+        resolutionDataHash = dataHash;
+        
+        emit Resolved(outcome, dataHash);
     }
 
     function claim() external {
