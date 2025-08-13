@@ -1,0 +1,212 @@
+type Protocol @entity {
+  id: ID! # "1"
+  totalMarkets: BigInt!
+  activeMarkets: BigInt!
+  resolvedMarkets: BigInt!
+  cancelledMarkets: BigInt!
+  totalVolume: BigDecimal!
+  totalFees: BigDecimal!
+  totalUsers: BigInt!
+  totalDeposits: BigInt!
+  totalClaims: BigInt!
+}
+
+type Market @entity {
+  id: ID! # market address
+  creator: User!
+  title: String!
+  description: String!
+  
+  # Subject
+  subjectKind: String! # HL_METRIC, TOKEN_PRICE, GENERIC
+  metricId: Bytes!
+  token: Bytes
+  valueDecimals: Int!
+  
+  # Predicate
+  predicateOp: String! # GT, GTE, LT, LTE, EQ, NEQ
+  threshold: BigInt!
+  
+  # Window
+  windowKind: String! # SNAPSHOT_AT, TIME_AVERAGE, EXTREMUM
+  windowStart: BigInt!
+  windowEnd: BigInt!
+  
+  # Oracle
+  primarySourceId: Bytes!
+  fallbackSourceId: Bytes!
+  roundingDecimals: Int!
+  
+  # Economics
+  feeBps: Int!
+  creatorFeeShareBps: Int!
+  maxTotalPool: BigDecimal!
+  
+  # Timing
+  cutoffTime: BigInt!
+  resolveTime: BigInt!
+  
+  # State
+  isProtocolMarket: Boolean!
+  resolved: Boolean!
+  cancelled: Boolean!
+  winningOutcome: Int
+  resolutionDataHash: Bytes
+  
+  # Pools
+  poolNo: BigDecimal!
+  poolYes: BigDecimal!
+  totalPool: BigDecimal!
+  feeCollected: BigDecimal!
+  
+  # Metadata
+  createdAt: BigInt!
+  createdAtBlock: BigInt!
+  createdAtTx: Bytes!
+  resolvedAt: BigInt
+  resolvedAtBlock: BigInt
+  resolvedAtTx: Bytes
+  
+  # Relations
+  deposits: [Deposit!]! @derivedFrom(field: "market")
+  claims: [Claim!]! @derivedFrom(field: "market")
+  positions: [Position!]! @derivedFrom(field: "market")
+}
+
+type User @entity {
+  id: ID! # user address
+  
+  # Stats
+  totalDeposited: BigDecimal!
+  totalClaimed: BigDecimal!
+  totalProfit: BigDecimal!
+  marketsCreated: BigInt!
+  marketsParticipated: BigInt!
+  
+  # Relations
+  createdMarkets: [Market!]! @derivedFrom(field: "creator")
+  deposits: [Deposit!]! @derivedFrom(field: "user")
+  claims: [Claim!]! @derivedFrom(field: "user")
+  positions: [Position!]! @derivedFrom(field: "user")
+  
+  # Metadata
+  firstSeenAt: BigInt!
+  firstSeenAtBlock: BigInt!
+  lastActiveAt: BigInt!
+  lastActiveAtBlock: BigInt!
+}
+
+type Position @entity {
+  id: ID! # market-user
+  market: Market!
+  user: User!
+  
+  # Stakes
+  stakeNo: BigDecimal!
+  stakeYes: BigDecimal!
+  totalStake: BigDecimal!
+  
+  # Outcome
+  claimed: Boolean!
+  payout: BigDecimal!
+  profit: BigDecimal!
+  
+  # Metadata
+  createdAt: BigInt!
+  updatedAt: BigInt!
+  claimedAt: BigInt
+}
+
+type Deposit @entity {
+  id: ID! # tx-logIndex
+  market: Market!
+  user: User!
+  outcome: Int! # 0 = NO, 1 = YES
+  amount: BigDecimal!
+  
+  # Metadata
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  transactionHash: Bytes!
+  logIndex: BigInt!
+}
+
+type Claim @entity {
+  id: ID! # tx-logIndex
+  market: Market!
+  user: User!
+  payout: BigDecimal!
+  
+  # Metadata
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  transactionHash: Bytes!
+  logIndex: BigInt!
+}
+
+type MarketCreated @entity {
+  id: ID! # tx-logIndex
+  market: Market!
+  creator: User!
+  
+  # Metadata
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  transactionHash: Bytes!
+  logIndex: BigInt!
+}
+
+type Resolution @entity {
+  id: ID! # tx-logIndex
+  market: Market!
+  outcome: Int!
+  dataHash: Bytes!
+  
+  # Metadata
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  transactionHash: Bytes!
+  logIndex: BigInt!
+}
+
+# Time-based aggregations for analytics
+type DailySnapshot @entity {
+  id: ID! # day-timestamp
+  date: BigInt!
+  
+  # Market stats
+  marketsCreated: BigInt!
+  marketsResolved: BigInt!
+  activeMarkets: BigInt!
+  
+  # Volume stats
+  volumeDeposited: BigDecimal!
+  volumeClaimed: BigDecimal!
+  feesGenerated: BigDecimal!
+  
+  # User stats
+  activeUsers: BigInt!
+  newUsers: BigInt!
+  
+  # Cumulative stats
+  cumulativeMarkets: BigInt!
+  cumulativeVolume: BigDecimal!
+  cumulativeFees: BigDecimal!
+  cumulativeUsers: BigInt!
+}
+
+type HourlySnapshot @entity {
+  id: ID! # hour-timestamp
+  date: BigInt!
+  
+  # Market stats
+  marketsCreated: BigInt!
+  marketsResolved: BigInt!
+  
+  # Volume stats
+  volumeDeposited: BigDecimal!
+  volumeClaimed: BigDecimal!
+  
+  # User stats
+  activeUsers: BigInt!
+}

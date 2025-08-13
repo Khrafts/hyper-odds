@@ -1,0 +1,62 @@
+specVersion: 0.0.5
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: MarketFactory
+    network: hyperliquid
+    source:
+      address: "0x0000000000000000000000000000000000000000" # To be filled after deployment
+      abi: MarketFactory
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Market
+        - User
+        - MarketCreated
+        - Protocol
+      abis:
+        - name: MarketFactory
+          file: ../contracts/out/MarketFactory.sol/MarketFactory.json
+        - name: ParimutuelMarketImplementation
+          file: ../contracts/out/ParimutuelMarketImplementation.sol/ParimutuelMarketImplementation.json
+      eventHandlers:
+        - event: MarketCreated(indexed address,indexed address,(string,string,(uint8,bytes32,address,uint8),(uint8,int256),(uint8,uint64,uint64),(bytes32,bytes32,uint8),uint64,address,(uint16,uint16,uint256),bool))
+          handler: handleMarketCreated
+        - event: StakeReleased(indexed address,indexed address,uint256)
+          handler: handleStakeReleased
+      file: ./src/factory.ts
+
+templates:
+  - kind: ethereum
+    name: ParimutuelMarket
+    network: hyperliquid
+    source:
+      abi: ParimutuelMarketImplementation
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Market
+        - User
+        - Position
+        - Deposit
+        - Claim
+        - Resolution
+      abis:
+        - name: ParimutuelMarketImplementation
+          file: ../contracts/out/ParimutuelMarketImplementation.sol/ParimutuelMarketImplementation.json
+      eventHandlers:
+        - event: Deposited(indexed address,uint8,uint256)
+          handler: handleDeposited
+        - event: Resolved(uint8,bytes32)
+          handler: handleResolved
+        - event: Claimed(indexed address,uint256)
+          handler: handleClaimed
+        - event: Cancelled()
+          handler: handleCancelled
+      file: ./src/market.ts

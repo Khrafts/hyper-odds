@@ -1,0 +1,19 @@
+{
+  "name": "@hyper-odds/shared",
+  "version": "1.0.0",
+  "description": "Shared types, ABIs, and utilities for Hyper-Odds",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "ethers": "^6.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  }
+}

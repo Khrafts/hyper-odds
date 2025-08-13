@@ -1,0 +1,22 @@
+{
+  "name": "@hyper-odds/indexer",
+  "version": "1.0.0",
+  "description": "Subgraph indexer for Hyper-Odds prediction markets",
+  "scripts": {
+    "codegen": "graph codegen",
+    "build": "graph build",
+    "deploy": "graph deploy --product hosted-service",
+    "deploy:local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001",
+    "create:local": "graph create --node http://localhost:8020/ hyper-odds/prediction-markets",
+    "remove:local": "graph remove --node http://localhost:8020/ hyper-odds/prediction-markets",
+    "test": "graph test"
+  },
+  "dependencies": {
+    "@graphprotocol/graph-ts": "^0.31.0",
+    "@hyper-odds/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@graphprotocol/graph-cli": "^0.60.0",
+    "matchstick-as": "^0.5.2"
+  }
+}
