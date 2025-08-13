@@ -659,4 +659,150 @@ contract MarketTest is Test {
         vm.expectRevert(Pausable.EnforcedPause.selector);
         market.deposit(1, 50e18);
     }
+    
+    // Phase 8.2 - Deposit window tests
+    function testMarketDepositWindow() public {
+        initializeMarket();
+        stakeToken.mint(user1, 200e18);
+        
+        // Before cutoff - should work
+        vm.startPrank(user1);
+        stakeToken.approve(address(market), 200e18);
+        
+        // Deposit successfully before cutoff
+        vm.warp(cutoffTime - 1);
+        market.deposit(1, 50e18);
+        assertEq(market.stakeOf(user1, 1), 50e18);
+        
+        // After cutoff - should fail
+        vm.warp(cutoffTime + 1);
+        vm.expectRevert("Deposits closed");
+        market.deposit(1, 50e18);
+        vm.stopPrank();
+    }
+    
+    // Phase 8.4 - Payout math correctness
+    function testMarketPayoutMath() public {
+        initializeMarket();
+        
+        // Setup 3 users with different stakes
+        address user3 = address(0x6);
+        stakeToken.mint(user1, 300e18);
+        stakeToken.mint(user2, 200e18);
+        stakeToken.mint(user3, 100e18);
+        
+        // User1: 300 on YES
+        vm.startPrank(user1);
+        stakeToken.approve(address(market), 300e18);
+        market.deposit(1, 300e18);
+        vm.stopPrank();
+        
+        // User2: 200 on NO
+        vm.startPrank(user2);
+        stakeToken.approve(address(market), 200e18);
+        market.deposit(0, 200e18);
+        vm.stopPrank();
+        
+        // User3: 100 on YES
+        vm.startPrank(user3);
+        stakeToken.approve(address(market), 100e18);
+        market.deposit(1, 100e18);
+        vm.stopPrank();
+        
+        // Total pool: 600, YES: 400, NO: 200
+        // Resolve YES wins
+        vm.warp(resolveTime);
+        vm.prank(oracle);
+        market.ingestResolution(1, keccak256("data"));
+        
+        // Calculate expected payouts
+        // Total losing pool: 200
+        // Fee: 200 * 5% = 10
+        // Treasury fee: 10 * 90% = 9
+        // Creator fee: 10 * 10% = 1
+        // Remaining for winners: 600 - 10 = 590
+        
+        // User1 share: 300/400 * 590 = 442.5
+        // User3 share: 100/400 * 590 = 147.5
+        
+        uint256 balanceBefore1 = stakeToken.balanceOf(user1);
+        uint256 balanceBefore3 = stakeToken.balanceOf(user3);
+        uint256 treasuryBefore = stakeToken.balanceOf(treasury);
+        uint256 creatorBefore = stakeToken.balanceOf(creator);
+        
+        // Claims
+        vm.prank(user1);
+        market.claim();
+        
+        vm.prank(user3);
+        market.claim();
+        
+        // Verify exact payouts
+        assertEq(stakeToken.balanceOf(user1) - balanceBefore1, 442.5e18);
+        assertEq(stakeToken.balanceOf(user3) - balanceBefore3, 147.5e18);
+        assertEq(stakeToken.balanceOf(treasury) - treasuryBefore, 9e18);
+        assertEq(stakeToken.balanceOf(creator) - creatorBefore, 1e18);
+        
+        // Verify total conservation
+        uint256 totalPaid = (stakeToken.balanceOf(user1) - balanceBefore1) + 
+                           (stakeToken.balanceOf(user3) - balanceBefore3) +
+                           (stakeToken.balanceOf(treasury) - treasuryBefore) +
+                           (stakeToken.balanceOf(creator) - creatorBefore);
+        assertEq(totalPaid, 600e18);
+    }
+    
+    // Phase 8.6 - Oracle timing tests
+    function testMarketOracleTiming() public {
+        initializeMarket();
+        
+        // Cannot resolve before resolveTime
+        vm.prank(oracle);
+        vm.expectRevert("Too early to resolve");
+        market.ingestResolution(1, keccak256("data"));
+        
+        // Can resolve at resolveTime
+        vm.warp(resolveTime);
+        vm.prank(oracle);
+        market.ingestResolution(1, keccak256("data"));
+        
+        assertTrue(market.resolved());
+    }
+    
+    // Phase 8.7 - Access guards
+    function testMarketAccessGuards() public {
+        initializeMarket();
+        
+        // Only oracle can resolve
+        vm.prank(user1);
+        vm.expectRevert("Only oracle");
+        market.ingestResolution(1, keccak256("data"));
+        
+        // Only owner can pause
+        vm.prank(user1);
+        vm.expectRevert();
+        market.pause();
+        
+        // Only owner can cancel
+        vm.prank(user1);
+        vm.expectRevert();
+        market.cancelAndRefund();
+        
+        // Owner can pause
+        market.pause();
+        assertTrue(market.paused());
+        
+        // Owner can unpause
+        market.unpause();
+        assertFalse(market.paused());
+    }
+    
+    // Phase 8.9 - Factory staking tests
+    function testMarketFactoryStaking() public {
+        // This test is better suited in Factory.t.sol
+        // It's already covered by:
+        // - testFactoryCreateMarketLocksStHYPE
+        // - testFactoryReleaseStakeAfterResolution
+        // - testFactoryCreateMarketFlashloanProtection
+        // - testFactoryProtocolMarketsNoStakeRelease
+    }
 }

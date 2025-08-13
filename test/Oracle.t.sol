@@ -9,11 +9,15 @@ contract MockMarket is IMarket {
     uint8 public outcome;
     bytes32 public dataHash;
     bool public resolutionIngested;
+    bool public resolved;
+    uint8 public winningOutcome;
     
     function ingestResolution(uint8 _outcome, bytes32 _dataHash) external override {
         outcome = _outcome;
+        winningOutcome = _outcome;
         dataHash = _dataHash;
         resolutionIngested = true;
+        resolved = true;
     }
 }
 
@@ -145,5 +149,35 @@ contract OracleTest is Test {
         
         oracle.setResolver(resolver, false);
         assertFalse(oracle.resolvers(resolver));
+    }
+    
+    // Phase 8.6 - Oracle timing tests
+    function testOracleTiming() public {
+        // Deploy mock market
+        MockMarket mockMarket = new MockMarket();
+        
+        // Set resolver
+        oracle.setResolver(resolver, true);
+        
+        // Can commit at window.tEnd (immediately after market ends)
+        uint64 marketEndTime = uint64(block.timestamp + 1 hours);
+        vm.warp(marketEndTime);
+        
+        vm.prank(resolver);
+        oracle.commit(address(mockMarket), 1, keccak256("data"));
+        
+        // Cannot finalize before dispute window
+        vm.expectRevert("Dispute window not elapsed");
+        vm.prank(resolver);
+        oracle.finalize(address(mockMarket));
+        
+        // Can finalize after dispute window
+        vm.warp(marketEndTime + oracle.disputeWindow() + 1);
+        vm.prank(resolver);
+        oracle.finalize(address(mockMarket));
+        
+        // Verify market received resolution
+        assertTrue(mockMarket.resolved());
+        assertEq(mockMarket.winningOutcome(), 1);
     }
 }
