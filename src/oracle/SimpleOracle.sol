@@ -28,7 +28,19 @@ contract SimpleOracle is IOracle, Ownable {
     }
 
     function commit(address market, uint8 outcome, bytes32 dataHash) external override {
-        // Implementation will be added in Task 4.3
+        require(resolvers[msg.sender] || msg.sender == owner(), "Not authorized");
+        require(!pending[market].committed, "Already committed");
+        require(outcome <= 1, "Invalid outcome");
+        
+        pending[market] = Pending({
+            outcome: outcome,
+            dataHash: dataHash,
+            commitTime: uint64(block.timestamp),
+            committed: true,
+            finalized: false
+        });
+        
+        emit Committed(market, outcome, dataHash, uint64(block.timestamp));
     }
 
     function finalize(address market) external override {
