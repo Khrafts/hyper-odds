@@ -169,4 +169,29 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
     function userInfo(address user) external view returns (uint256[2] memory) {
         return stakeOf[user];
     }
+    
+    function cancelAndRefund() external onlyOwner {
+        require(!resolved, "Already resolved");
+        
+        // Mark as resolved with special outcome
+        resolved = true;
+        winningOutcome = 2; // Special value indicating cancellation
+        
+        // Pause to prevent further deposits
+        _pause();
+    }
+    
+    function emergencyClaim() external nonReentrant {
+        require(resolved && winningOutcome == 2, "Not cancelled");
+        require(!claimed[msg.sender], "Already claimed");
+        
+        claimed[msg.sender] = true;
+        
+        uint256 refund = stakeOf[msg.sender][0] + stakeOf[msg.sender][1];
+        require(refund > 0, "Nothing to refund");
+        
+        stakeToken.safeTransfer(msg.sender, refund);
+        
+        emit Claimed(msg.sender, refund);
+    }
 }

@@ -5,6 +5,7 @@ import { Test } from "forge-std/Test.sol";
 import { ParimutuelMarketImplementation } from "../src/ParimutuelMarketImplementation.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 
 contract MockERC20 is ERC20 {
     constructor() ERC20("Mock Token", "MOCK") {
@@ -568,5 +569,94 @@ contract MarketTest is Test {
         info = market.userInfo(user1);
         assertEq(info[0], 25e18);
         assertEq(info[1], 50e18);
+    }
+    
+    // Task 5.7 tests - emergency cancel
+    function testMarketCancelAndRefund() public {
+        initializeMarket();
+        
+        // Users deposit
+        stakeToken.mint(user1, 100e18);
+        stakeToken.mint(user2, 100e18);
+        
+        vm.prank(user1);
+        stakeToken.approve(address(market), 60e18);
+        vm.prank(user1);
+        market.deposit(1, 60e18);
+        
+        vm.prank(user2);
+        stakeToken.approve(address(market), 40e18);
+        vm.prank(user2);
+        market.deposit(0, 40e18);
+        
+        // Owner cancels
+        market.cancelAndRefund();
+        
+        assertTrue(market.resolved());
+        assertEq(market.winningOutcome(), 2); // Cancelled
+        assertTrue(market.paused());
+        
+        // Users can claim refunds
+        uint256 balanceBefore1 = stakeToken.balanceOf(user1);
+        vm.prank(user1);
+        market.emergencyClaim();
+        assertEq(stakeToken.balanceOf(user1) - balanceBefore1, 60e18);
+        
+        uint256 balanceBefore2 = stakeToken.balanceOf(user2);
+        vm.prank(user2);
+        market.emergencyClaim();
+        assertEq(stakeToken.balanceOf(user2) - balanceBefore2, 40e18);
+    }
+    
+    function testMarketCannotCancelAfterResolution() public {
+        initializeMarket();
+        
+        // Resolve market
+        vm.warp(resolveTime);
+        vm.prank(oracle);
+        market.ingestResolution(1, keccak256("data"));
+        
+        // Cannot cancel after resolution
+        vm.expectRevert("Already resolved");
+        market.cancelAndRefund();
+    }
+    
+    function testMarketOnlyOwnerCanCancel() public {
+        initializeMarket();
+        
+        vm.prank(user1);
+        vm.expectRevert();
+        market.cancelAndRefund();
+    }
+    
+    function testMarketCannotClaimNormallyAfterCancel() public {
+        initializeMarket();
+        
+        stakeToken.mint(user1, 100e18);
+        vm.prank(user1);
+        stakeToken.approve(address(market), 50e18);
+        vm.prank(user1);
+        market.deposit(1, 50e18);
+        
+        market.cancelAndRefund();
+        
+        // Normal claim should fail (outcome 2 is out of bounds for array)
+        vm.prank(user1);
+        vm.expectRevert();
+        market.claim();
+    }
+    
+    function testMarketCannotDepositAfterCancel() public {
+        initializeMarket();
+        
+        market.cancelAndRefund();
+        
+        stakeToken.mint(user1, 100e18);
+        vm.prank(user1);
+        stakeToken.approve(address(market), 50e18);
+        
+        vm.prank(user1);
+        vm.expectRevert(Pausable.EnforcedPause.selector);
+        market.deposit(1, 50e18);
     }
 }
