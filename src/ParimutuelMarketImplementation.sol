@@ -48,9 +48,42 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
     }
 
     function initialize(
-        // Parameters will be added in Task 5.2
+        address _stakeToken,
+        address _treasury,
+        address _creator,
+        address _oracle,
+        uint64 _cutoffTime,
+        uint64 _resolveTime,
+        uint256 _maxTotalPool,
+        bytes32 _subject,
+        bytes32 _predicate,
+        bytes32 _windowSpec
     ) external {
-        // Implementation will be added in Task 5.2
+        require(!initialized, "Already initialized");
+        require(_stakeToken != address(0), "Invalid stake token");
+        require(_treasury != address(0), "Invalid treasury");
+        require(_creator != address(0), "Invalid creator");
+        require(_oracle != address(0), "Invalid oracle");
+        require(_cutoffTime > block.timestamp, "Cutoff time in past");
+        require(_resolveTime > _cutoffTime, "Resolve time before cutoff");
+        require(_maxTotalPool > 0, "Invalid max pool");
+        
+        initialized = true;
+        
+        stakeToken = IERC20(_stakeToken);
+        treasury = _treasury;
+        creator = _creator;
+        oracle = _oracle;
+        cutoffTime = _cutoffTime;
+        resolveTime = _resolveTime;
+        maxTotalPool = _maxTotalPool;
+        subject = _subject;
+        predicate = _predicate;
+        windowSpec = _windowSpec;
+        
+        // Set fixed fees (5% protocol, 10% creator share of protocol fee)
+        feeBps = 500; // 5%
+        creatorFeeShareBps = 1000; // 10% of protocol fee
     }
 
     function deposit(uint8 outcome, uint256 amount) external {
