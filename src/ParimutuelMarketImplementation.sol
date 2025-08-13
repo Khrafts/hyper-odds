@@ -86,8 +86,20 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
         creatorFeeShareBps = 1000; // 10% of protocol fee
     }
 
-    function deposit(uint8 outcome, uint256 amount) external {
-        // Implementation will be added in Task 5.3
+    function deposit(uint8 outcome, uint256 amount) external whenNotPaused nonReentrant {
+        require(block.timestamp < cutoffTime, "Deposits closed");
+        require(outcome <= 1, "Invalid outcome");
+        require(amount > 0, "Zero amount");
+        
+        uint256 newTotalPool = pool[0] + pool[1] + amount;
+        require(newTotalPool <= maxTotalPool, "Pool cap exceeded");
+        
+        stakeToken.safeTransferFrom(msg.sender, address(this), amount);
+        
+        pool[outcome] += amount;
+        stakeOf[msg.sender][outcome] += amount;
+        
+        emit Deposited(msg.sender, outcome, amount);
     }
 
     function ingestResolution(uint8 outcome, bytes32 dataHash) external override {

@@ -207,4 +207,96 @@ contract MarketTest is Test {
             keccak256("window")
         );
     }
+    
+    // Helper function to initialize market
+    function initializeMarket() internal {
+        market.initialize(
+            address(stakeToken),
+            treasury,
+            creator,
+            oracle,
+            cutoffTime,
+            resolveTime,
+            1000e18,
+            keccak256("subject"),
+            keccak256("predicate"),
+            keccak256("window")
+        );
+    }
+    
+    // Task 5.3 tests - deposit
+    function testMarketDepositHappyPath() public {
+        initializeMarket();
+        
+        // Give users tokens
+        stakeToken.mint(user1, 100e18);
+        stakeToken.mint(user2, 100e18);
+        
+        // User1 deposits on YES
+        vm.startPrank(user1);
+        stakeToken.approve(address(market), 50e18);
+        market.deposit(1, 50e18);
+        vm.stopPrank();
+        
+        assertEq(market.pool(1), 50e18);
+        assertEq(market.stakeOf(user1, 1), 50e18);
+        
+        // User2 deposits on NO
+        vm.startPrank(user2);
+        stakeToken.approve(address(market), 30e18);
+        market.deposit(0, 30e18);
+        vm.stopPrank();
+        
+        assertEq(market.pool(0), 30e18);
+        assertEq(market.stakeOf(user2, 0), 30e18);
+    }
+    
+    function testMarketDepositAfterCutoff() public {
+        initializeMarket();
+        stakeToken.mint(user1, 100e18);
+        
+        // Warp past cutoff time
+        vm.warp(cutoffTime + 1);
+        
+        vm.startPrank(user1);
+        stakeToken.approve(address(market), 50e18);
+        vm.expectRevert("Deposits closed");
+        market.deposit(1, 50e18);
+        vm.stopPrank();
+    }
+    
+    function testMarketDepositInvalidOutcome() public {
+        initializeMarket();
+        stakeToken.mint(user1, 100e18);
+        
+        vm.startPrank(user1);
+        stakeToken.approve(address(market), 50e18);
+        vm.expectRevert("Invalid outcome");
+        market.deposit(2, 50e18);
+        vm.stopPrank();
+    }
+    
+    function testMarketDepositZeroAmount() public {
+        initializeMarket();
+        
+        vm.prank(user1);
+        vm.expectRevert("Zero amount");
+        market.deposit(1, 0);
+    }
+    
+    function testMarketDepositPoolCapExceeded() public {
+        initializeMarket();
+        stakeToken.mint(user1, 2000e18);
+        
+        vm.startPrank(user1);
+        stakeToken.approve(address(market), 2000e18);
+        
+        // First deposit OK
+        market.deposit(1, 900e18);
+        
+        // Second deposit would exceed cap
+        vm.expectRevert("Pool cap exceeded");
+        market.deposit(1, 200e18);
+        vm.stopPrank();
+    }
 }
