@@ -55,4 +55,8 @@ contract SimpleOracle is IOracle, Ownable {
         
         emit Finalized(market, p.outcome);
     }
+    
+    function setResolver(address resolver, bool authorized) external onlyOwner {
+        resolvers[resolver] = authorized;
+    }
 }
