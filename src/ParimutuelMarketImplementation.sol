@@ -115,8 +115,51 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
         emit Resolved(outcome, dataHash);
     }
 
-    function claim() external {
-        // Implementation will be added in Task 5.5
+    function claim() external nonReentrant {
+        require(resolved, "Not resolved");
+        require(!claimed[msg.sender], "Already claimed");
+        
+        uint256 userStake = stakeOf[msg.sender][winningOutcome];
+        require(userStake > 0, "No winning stake");
+        
+        claimed[msg.sender] = true;
+        
+        uint256 totalWinningPool = pool[winningOutcome];
+        uint256 totalLosingPool = pool[1 - winningOutcome];
+        
+        // Calculate fee only once (first claimer)
+        if (feeCollected == 0 && totalLosingPool > 0) {
+            feeCollected = (totalLosingPool * feeBps) / 10000;
+            
+            // Split fee: 90% treasury, 10% creator
+            uint256 creatorFee = (feeCollected * creatorFeeShareBps) / 10000;
+            uint256 treasuryFee = feeCollected - creatorFee;
+            
+            if (treasuryFee > 0) {
+                stakeToken.safeTransfer(treasury, treasuryFee);
+            }
+            if (creatorFee > 0) {
+                stakeToken.safeTransfer(creator, creatorFee);
+            }
+            
+            emit Skimmed(treasury, creator, treasuryFee, creatorFee);
+        }
+        
+        // Calculate payout
+        uint256 payout;
+        if (totalLosingPool == 0) {
+            // No losers, just return stake
+            payout = userStake;
+        } else {
+            // Return stake plus share of losing pool minus fees
+            uint256 availableWinnings = totalLosingPool - feeCollected;
+            uint256 winningsShare = (availableWinnings * userStake) / totalWinningPool;
+            payout = userStake + winningsShare;
+        }
+        
+        stakeToken.safeTransfer(msg.sender, payout);
+        
+        emit Claimed(msg.sender, payout);
     }
 
     function totalPool() public view returns (uint256) {

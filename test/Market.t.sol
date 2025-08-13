@@ -357,4 +357,191 @@ contract MarketTest is Test {
         vm.expectRevert("Invalid outcome");
         market.ingestResolution(2, keccak256("data"));
     }
+    
+    // Task 5.5 tests - claim
+    function testMarketClaimTwoUsersProRata() public {
+        initializeMarket();
+        
+        // Setup: User1 bets 60 on YES, User2 bets 40 on YES, User3 bets 100 on NO
+        stakeToken.mint(user1, 100e18);
+        stakeToken.mint(user2, 100e18);
+        address user3 = address(0x6);
+        stakeToken.mint(user3, 100e18);
+        
+        vm.prank(user1);
+        stakeToken.approve(address(market), 60e18);
+        vm.prank(user1);
+        market.deposit(1, 60e18); // YES
+        
+        vm.prank(user2);
+        stakeToken.approve(address(market), 40e18);
+        vm.prank(user2);
+        market.deposit(1, 40e18); // YES
+        
+        vm.prank(user3);
+        stakeToken.approve(address(market), 100e18);
+        vm.prank(user3);
+        market.deposit(0, 100e18); // NO
+        
+        // Resolve to YES wins
+        vm.warp(resolveTime);
+        vm.prank(oracle);
+        market.ingestResolution(1, keccak256("data"));
+        
+        // Calculate expected payouts
+        // Total pool: 200, Winning pool: 100 (YES), Losing pool: 100 (NO)
+        // Fee: 5% of losing pool = 5
+        // Available winnings: 95
+        // User1 gets: 60 + (95 * 60/100) = 60 + 57 = 117
+        // User2 gets: 40 + (95 * 40/100) = 40 + 38 = 78
+        
+        uint256 balanceBefore1 = stakeToken.balanceOf(user1);
+        vm.prank(user1);
+        market.claim();
+        assertEq(stakeToken.balanceOf(user1) - balanceBefore1, 117e18);
+        
+        uint256 balanceBefore2 = stakeToken.balanceOf(user2);
+        vm.prank(user2);
+        market.claim();
+        assertEq(stakeToken.balanceOf(user2) - balanceBefore2, 78e18);
+        
+        // Check fees were distributed (5% = 5e18, treasury gets 4.5, creator gets 0.5)
+        assertEq(stakeToken.balanceOf(treasury), 45e17); // 4.5
+        assertEq(stakeToken.balanceOf(creator), 5e17); // 0.5
+    }
+    
+    function testMarketClaimOneSidedPool() public {
+        initializeMarket();
+        
+        // Only YES bets
+        stakeToken.mint(user1, 100e18);
+        stakeToken.mint(user2, 100e18);
+        
+        vm.prank(user1);
+        stakeToken.approve(address(market), 60e18);
+        vm.prank(user1);
+        market.deposit(1, 60e18);
+        
+        vm.prank(user2);
+        stakeToken.approve(address(market), 40e18);
+        vm.prank(user2);
+        market.deposit(1, 40e18);
+        
+        // Resolve to YES
+        vm.warp(resolveTime);
+        vm.prank(oracle);
+        market.ingestResolution(1, keccak256("data"));
+        
+        // Users just get their stake back
+        uint256 balanceBefore1 = stakeToken.balanceOf(user1);
+        vm.prank(user1);
+        market.claim();
+        assertEq(stakeToken.balanceOf(user1) - balanceBefore1, 60e18);
+        
+        uint256 balanceBefore2 = stakeToken.balanceOf(user2);
+        vm.prank(user2);
+        market.claim();
+        assertEq(stakeToken.balanceOf(user2) - balanceBefore2, 40e18);
+        
+        // No fees since no losing pool
+        assertEq(stakeToken.balanceOf(treasury), 0);
+        assertEq(stakeToken.balanceOf(creator), 0);
+    }
+    
+    function testMarketClaimTwiceReverts() public {
+        initializeMarket();
+        
+        stakeToken.mint(user1, 100e18);
+        vm.prank(user1);
+        stakeToken.approve(address(market), 50e18);
+        vm.prank(user1);
+        market.deposit(1, 50e18);
+        
+        vm.warp(resolveTime);
+        vm.prank(oracle);
+        market.ingestResolution(1, keccak256("data"));
+        
+        vm.prank(user1);
+        market.claim();
+        
+        vm.prank(user1);
+        vm.expectRevert("Already claimed");
+        market.claim();
+    }
+    
+    function testMarketClaimBeforeResolution() public {
+        initializeMarket();
+        
+        stakeToken.mint(user1, 100e18);
+        vm.prank(user1);
+        stakeToken.approve(address(market), 50e18);
+        vm.prank(user1);
+        market.deposit(1, 50e18);
+        
+        vm.prank(user1);
+        vm.expectRevert("Not resolved");
+        market.claim();
+    }
+    
+    function testMarketClaimNoWinningStake() public {
+        initializeMarket();
+        
+        stakeToken.mint(user1, 100e18);
+        vm.prank(user1);
+        stakeToken.approve(address(market), 50e18);
+        vm.prank(user1);
+        market.deposit(0, 50e18); // Bet on NO
+        
+        vm.warp(resolveTime);
+        vm.prank(oracle);
+        market.ingestResolution(1, keccak256("data")); // YES wins
+        
+        vm.prank(user1);
+        vm.expectRevert("No winning stake");
+        market.claim();
+    }
+    
+    function testMarketFeeSkimOnce() public {
+        initializeMarket();
+        
+        // Setup stakes
+        stakeToken.mint(user1, 100e18);
+        stakeToken.mint(user2, 100e18);
+        address user3 = address(0x6);
+        stakeToken.mint(user3, 100e18);
+        
+        vm.prank(user1);
+        stakeToken.approve(address(market), 50e18);
+        vm.prank(user1);
+        market.deposit(1, 50e18);
+        
+        vm.prank(user2);
+        stakeToken.approve(address(market), 50e18);
+        vm.prank(user2);
+        market.deposit(1, 50e18);
+        
+        vm.prank(user3);
+        stakeToken.approve(address(market), 100e18);
+        vm.prank(user3);
+        market.deposit(0, 100e18);
+        
+        // Resolve
+        vm.warp(resolveTime);
+        vm.prank(oracle);
+        market.ingestResolution(1, keccak256("data"));
+        
+        // First claim triggers fee
+        vm.prank(user1);
+        market.claim();
+        
+        uint256 treasuryBalanceAfterFirst = stakeToken.balanceOf(treasury);
+        uint256 creatorBalanceAfterFirst = stakeToken.balanceOf(creator);
+        
+        // Second claim should not trigger fee again
+        vm.prank(user2);
+        market.claim();
+        
+        assertEq(stakeToken.balanceOf(treasury), treasuryBalanceAfterFirst);
+        assertEq(stakeToken.balanceOf(creator), creatorBalanceAfterFirst);
+    }
 }
