@@ -5,10 +5,14 @@
   "scripts": {
     "codegen": "graph codegen",
     "build": "graph build",
-    "deploy": "graph deploy --product hosted-service",
-    "deploy:local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001",
-    "create:local": "graph create --node http://localhost:8020/ hyper-odds/prediction-markets",
-    "remove:local": "graph remove --node http://localhost:8020/ hyper-odds/prediction-markets",
+    "login": "goldsky login",
+    "deploy": "goldsky subgraph deploy hyper-odds/1.0.0",
+    "deploy:staging": "goldsky subgraph deploy hyper-odds-staging/1.0.0",
+    "list": "goldsky subgraph list",
+    "logs": "goldsky subgraph log hyper-odds/1.0.0",
+    "pause": "goldsky subgraph pause hyper-odds/1.0.0",
+    "start": "goldsky subgraph start hyper-odds/1.0.0",
+    "delete": "goldsky subgraph delete hyper-odds/1.0.0",
     "test": "graph test"
   },
   "dependencies": {
