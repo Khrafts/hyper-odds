@@ -9,6 +9,8 @@ import { SimpleOracle } from "../src/oracle/SimpleOracle.sol";
 import { MarketTypes } from "../src/types/MarketParams.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { MockWHYPE } from "./mocks/MockWHYPE.sol";
+import { MockHyperLiquidStaking as MockHLS } from "./mocks/MockHyperLiquidStaking.sol";
 
 contract MockERC20 is ERC20 {
     constructor(string memory name, string memory symbol) ERC20(name, symbol) {
@@ -20,21 +22,6 @@ contract MockERC20 is ERC20 {
     }
 }
 
-contract MockHyperLiquidStaking {
-    mapping(address => uint256) public balanceOf;
-    
-    function stake(uint256 amount) external {
-        balanceOf[msg.sender] += amount;
-    }
-    
-    function unstake(uint256 amount) external {
-        balanceOf[msg.sender] -= amount;
-    }
-    
-    function getRewards(address) external pure returns (uint256) {
-        return 0;
-    }
-}
 
 contract FactoryTest is Test {
     MarketFactory factory;
@@ -42,8 +29,8 @@ contract FactoryTest is Test {
     stHYPE stHypeToken;
     SimpleOracle oracle;
     MockERC20 stakeToken;
-    MockERC20 hypeToken;
-    MockHyperLiquidStaking hlStaking;
+    MockWHYPE whype;
+    MockHLS hlStaking;
     
     address treasury = address(0x1);
     address user = address(0x2);
@@ -52,11 +39,14 @@ contract FactoryTest is Test {
     function setUp() public {
         // Deploy mocks
         stakeToken = new MockERC20("USDC", "USDC");
-        hypeToken = new MockERC20("HYPE", "HYPE");
-        hlStaking = new MockHyperLiquidStaking();
+        whype = new MockWHYPE();
+        hlStaking = new MockHLS();
+        
+        // Fund staking contract with native HYPE for rewards
+        vm.deal(address(hlStaking), 10000e18);
         
         // Deploy stHYPE
-        stHypeToken = new stHYPE(address(hypeToken), address(hlStaking));
+        stHypeToken = new stHYPE(address(whype), address(hlStaking));
         
         // Deploy oracle
         oracle = new SimpleOracle(600);
@@ -113,10 +103,12 @@ contract FactoryTest is Test {
     
     // Task 6.2 tests - createMarket with stHYPE lock
     function testFactoryCreateMarketLocksStHYPE() public {
-        // Give user HYPE and deposit to get stHYPE
-        hypeToken.mint(user, 2000e18);
+        // Give user native HYPE and wrap it to WHYPE
+        vm.deal(user, 2000e18);
+        vm.prank(user);
+        whype.deposit{value: 2000e18}();
         vm.startPrank(user);
-        hypeToken.approve(address(stHypeToken), 2000e18);
+        whype.approve(address(stHypeToken), 2000e18);
         stHypeToken.deposit(2000e18);
         
         // Approve factory to spend stHYPE
@@ -136,9 +128,11 @@ contract FactoryTest is Test {
     
     function testFactoryCreateMarketCorrectParams() public {
         // Setup user with stHYPE
-        hypeToken.mint(user, 2000e18);
+        vm.deal(user, 2000e18);
+        vm.prank(user);
+        whype.deposit{value: 2000e18}();
         vm.startPrank(user);
-        hypeToken.approve(address(stHypeToken), 2000e18);
+        whype.approve(address(stHypeToken), 2000e18);
         stHypeToken.deposit(2000e18);
         stHypeToken.approve(address(factory), 1000e18);
         
@@ -173,10 +167,12 @@ contract FactoryTest is Test {
     function testFactoryCreateMarketWithPermit() public {
         vm.skip(true); // Skip due to signature complexity in test environment
         return;
-        // Give user HYPE and deposit to get stHYPE
-        hypeToken.mint(user, 2000e18);
+        // Give user native HYPE and wrap it to WHYPE
+        vm.deal(user, 2000e18);
+        vm.prank(user);
+        whype.deposit{value: 2000e18}();
         vm.startPrank(user);
-        hypeToken.approve(address(stHypeToken), 2000e18);
+        whype.approve(address(stHypeToken), 2000e18);
         stHypeToken.deposit(2000e18);
         vm.stopPrank();
         
@@ -205,8 +201,11 @@ contract FactoryTest is Test {
         
         // Re-setup with the address that has the private key
         address signer = vm.addr(privateKey);
-        hypeToken.mint(signer, 2000e18);
-        hypeToken.approve(address(stHypeToken), 2000e18);
+        vm.deal(signer, 2000e18);
+        vm.prank(signer);
+        whype.deposit{value: 2000e18}();
+        vm.prank(signer);
+        whype.approve(address(stHypeToken), 2000e18);
         stHypeToken.deposit(2000e18);
         
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, permitHash);
@@ -250,9 +249,11 @@ contract FactoryTest is Test {
     // Task 6.5 tests - releaseStake
     function testFactoryReleaseStakeAfterResolution() public {
         // Create market first
-        hypeToken.mint(user, 2000e18);
+        vm.deal(user, 2000e18);
+        vm.prank(user);
+        whype.deposit{value: 2000e18}();
         vm.startPrank(user);
-        hypeToken.approve(address(stHypeToken), 2000e18);
+        whype.approve(address(stHypeToken), 2000e18);
         stHypeToken.deposit(2000e18);
         stHypeToken.approve(address(factory), 1000e18);
         
@@ -278,9 +279,11 @@ contract FactoryTest is Test {
     
     function testFactoryCannotReleaseBeforeResolution() public {
         // Create market
-        hypeToken.mint(user, 2000e18);
+        vm.deal(user, 2000e18);
+        vm.prank(user);
+        whype.deposit{value: 2000e18}();
         vm.startPrank(user);
-        hypeToken.approve(address(stHypeToken), 2000e18);
+        whype.approve(address(stHypeToken), 2000e18);
         stHypeToken.deposit(2000e18);
         stHypeToken.approve(address(factory), 1000e18);
         

@@ -3,32 +3,42 @@ pragma solidity ^0.8.20;
 
 import { Test } from "forge-std/Test.sol";
 import { stHYPE } from "../src/staking/stHYPE.sol";
-import { MockHYPE } from "./mocks/MockHYPE.sol";
+import { MockWHYPE } from "./mocks/MockWHYPE.sol";
 import { MockHyperLiquidStaking } from "./mocks/MockHyperLiquidStaking.sol";
 
 contract stHYPETest is Test {
     stHYPE public sthype;
-    MockHYPE public hype;
+    MockWHYPE public whype;
     MockHyperLiquidStaking public staking;
     
     address alice = address(0x1);
     address bob = address(0x2);
     
     function setUp() public {
-        hype = new MockHYPE();
-        staking = new MockHyperLiquidStaking(address(hype));
-        sthype = new stHYPE(address(hype), address(staking));
+        whype = new MockWHYPE();
+        staking = new MockHyperLiquidStaking();
+        sthype = new stHYPE(address(whype), address(staking));
         
-        // Mint HYPE to test users
-        hype.mint(alice, 10000e18);
-        hype.mint(bob, 10000e18);
+        // Give test users native HYPE by dealing ETH (native token)
+        vm.deal(alice, 10000e18);
+        vm.deal(bob, 10000e18);
+        
+        // Users need to wrap their native HYPE to WHYPE first
+        vm.prank(alice);
+        whype.deposit{value: 10000e18}();
+        
+        vm.prank(bob);
+        whype.deposit{value: 10000e18}();
+        
+        // Fund the staking contract with native HYPE for rewards
+        vm.deal(address(staking), 10000e18);
     }
     
     function testStHYPEDeposit() public {
         uint256 depositAmount = 1000e18;
         
         vm.startPrank(alice);
-        hype.approve(address(sthype), depositAmount);
+        whype.approve(address(sthype), depositAmount);
         
         uint256 sharesBefore = sthype.balanceOf(alice);
         uint256 shares = sthype.deposit(depositAmount);
@@ -45,11 +55,11 @@ contract stHYPETest is Test {
         
         // First deposit
         vm.startPrank(alice);
-        hype.approve(address(sthype), depositAmount);
+        whype.approve(address(sthype), depositAmount);
         uint256 shares = sthype.deposit(depositAmount);
         
         // Check balance before withdraw
-        uint256 hypeBalanceBefore = hype.balanceOf(alice);
+        uint256 hypeBalanceBefore = whype.balanceOf(alice);
         
         // Withdraw
         uint256 assets = sthype.withdraw(shares);
@@ -58,7 +68,7 @@ contract stHYPETest is Test {
         // Allow for small rounding differences in ERC4626
         uint256 expectedAssets = depositAmount + (depositAmount * 100) / 10000;
         assertApproxEqAbs(assets, expectedAssets, 1e15); // Allow 0.001 token difference
-        assertEq(hype.balanceOf(alice) - hypeBalanceBefore, assets);
+        assertEq(whype.balanceOf(alice) - hypeBalanceBefore, assets);
         assertEq(sthype.balanceOf(alice), 0);
         vm.stopPrank();
     }
@@ -69,7 +79,7 @@ contract stHYPETest is Test {
         
         // Deposit from alice
         vm.startPrank(alice);
-        hype.approve(address(sthype), 1000e18);
+        whype.approve(address(sthype), 1000e18);
         sthype.deposit(1000e18);
         vm.stopPrank();
         
@@ -79,7 +89,7 @@ contract stHYPETest is Test {
         
         // Deposit from bob (after alice, so exchange rate matters)
         vm.startPrank(bob);
-        hype.approve(address(sthype), 1000e18);
+        whype.approve(address(sthype), 1000e18);
         uint256 bobShares = sthype.deposit(1000e18);
         vm.stopPrank();
         
@@ -92,11 +102,13 @@ contract stHYPETest is Test {
         address owner = vm.addr(privateKey);
         
         // Mint HYPE to owner
-        hype.mint(owner, 1000e18);
+        vm.deal(owner, 1000e18);
+        vm.prank(owner);
+        whype.deposit{value: 1000e18}();
         
         // Deposit first
         vm.startPrank(owner);
-        hype.approve(address(sthype), 1000e18);
+        whype.approve(address(sthype), 1000e18);
         sthype.deposit(1000e18);
         vm.stopPrank();
         
@@ -141,7 +153,7 @@ contract stHYPETest is Test {
         
         // After deposit
         vm.startPrank(alice);
-        hype.approve(address(sthype), 1000e18);
+        whype.approve(address(sthype), 1000e18);
         sthype.deposit(1000e18);
         vm.stopPrank();
         
@@ -160,7 +172,7 @@ contract stHYPETest is Test {
     function testStHYPETransfer() public {
         // Deposit first
         vm.startPrank(alice);
-        hype.approve(address(sthype), 1000e18);
+        whype.approve(address(sthype), 1000e18);
         uint256 shares = sthype.deposit(1000e18);
         
         // Transfer stHYPE to bob
