@@ -7,12 +7,15 @@
     "build": "forge build",
     "test": "forge test",
     "test:gas": "forge test --gas-report",
+    "test:coverage": "forge coverage",
+    "test:fuzz": "forge test --match-test testFuzz",
+    "test:invariant": "forge test --match-test invariant",
+    "fmt": "forge fmt",
+    "anvil": "anvil",
     "deploy:local": "forge script script/DeployAll.s.sol --rpc-url http://localhost:8545 --broadcast",
-    "clean": "forge clean",
-    "format": "forge fmt"
+    "deploy:testnet": "forge script script/DeployAll.s.sol --rpc-url $RPC_URL --broadcast --verify",
+    "clean": "forge clean"
   },
-  "files": [
-    "src/**/*.sol",
-    "out/**/*.json"
-  ]
+  "author": "",
+  "license": "MIT"
 }
