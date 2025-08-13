@@ -104,9 +104,12 @@ contract stHYPETest is Test {
         uint256 deadline = block.timestamp + 1 hours;
         uint256 value = 500e18;
         
-        bytes32 permitHash = keccak256(
+        // OpenZeppelin's ERC20Permit uses this typehash
+        bytes32 PERMIT_TYPEHASH = keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+        
+        bytes32 structHash = keccak256(
             abi.encode(
-                sthype.PERMIT_TYPEHASH(),
+                PERMIT_TYPEHASH,
                 owner,
                 alice,
                 value,
@@ -116,7 +119,7 @@ contract stHYPETest is Test {
         );
         
         bytes32 digest = keccak256(
-            abi.encodePacked("\x19\x01", sthype.DOMAIN_SEPARATOR(), permitHash)
+            abi.encodePacked("\x19\x01", sthype.DOMAIN_SEPARATOR(), structHash)
         );
         
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);

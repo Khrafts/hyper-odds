@@ -8,6 +8,9 @@ test = "test"
 out = "out"
 evm_version = "cancun"
 ffi = false
+remappings = [
+    "@openzeppelin/=lib/openzeppelin-contracts/"
+]
 
 [fmt]
 line_length = 100

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import { IERC20 } from "./IERC20.sol";
-import { IERC20Permit } from "./IERC20Permit.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 
 interface IstHYPE is IERC20, IERC20Permit {
     function deposit(uint256 hypeAmount) external returns (uint256 stHypeAmount);
