@@ -49,7 +49,7 @@ contract MarketFactory is Ownable {
         oracle = _oracle;
     }
 
-    function createMarket(MarketTypes.MarketParams memory p) external returns (address) {
+    function createMarket(MarketTypes.MarketParams memory p) public returns (address) {
         require(implementation != address(0), "Implementation not set");
         
         // Check stHYPE allowance and balance
@@ -100,7 +100,11 @@ contract MarketFactory is Ownable {
         bytes32 r,
         bytes32 s
     ) external returns (address) {
-        // Implementation will be added in Task 6.3
+        // Use permit for gasless approval
+        stHYPE.permit(msg.sender, address(this), STAKE_PER_MARKET, deadline, v, r, s);
+        
+        // Now call createMarket
+        return createMarket(p);
     }
 
     function createProtocolMarket(MarketTypes.MarketParams memory p) external onlyOwner returns (address) {
