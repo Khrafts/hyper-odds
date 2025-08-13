@@ -50,7 +50,47 @@ contract MarketFactory is Ownable {
     }
 
     function createMarket(MarketTypes.MarketParams memory p) external returns (address) {
-        // Implementation will be added in Task 6.2
+        require(implementation != address(0), "Implementation not set");
+        
+        // Check stHYPE allowance and balance
+        require(IERC20(address(stHYPE)).balanceOf(msg.sender) >= STAKE_PER_MARKET, "Insufficient stHYPE balance");
+        require(IERC20(address(stHYPE)).allowance(msg.sender, address(this)) >= STAKE_PER_MARKET, "Insufficient stHYPE allowance");
+        
+        // Lock stHYPE (actual transfer required for flashloan protection)
+        IERC20(address(stHYPE)).safeTransferFrom(msg.sender, address(this), STAKE_PER_MARKET);
+        
+        // Deploy clone
+        address market = implementation.clone();
+        
+        // Initialize market with fixed fees (5% protocol, 10% creator share)
+        ParimutuelMarketImplementation(market).initialize(
+            address(stakeToken),
+            treasury,
+            p.creator,
+            oracle,
+            p.cutoffTime,
+            p.cutoffTime + (p.window.tEnd - p.window.tStart), // resolveTime
+            p.econ.maxTotalPool,
+            keccak256(abi.encode(p.subject)),
+            keccak256(abi.encode(p.predicate)),
+            keccak256(abi.encode(p.window))
+        );
+        
+        // Track creator and locked stake
+        marketCreator[market] = msg.sender;
+        creatorLockedStake[msg.sender] += STAKE_PER_MARKET;
+        
+        emit MarketCreated(
+            market,
+            msg.sender,
+            keccak256(abi.encode(p.subject)),
+            keccak256(abi.encode(p.predicate)),
+            keccak256(abi.encode(p.window)),
+            false
+        );
+        emit StakeLocked(msg.sender, market, STAKE_PER_MARKET);
+        
+        return market;
     }
 
     function createMarketWithPermit(
