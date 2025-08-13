@@ -108,7 +108,39 @@ contract MarketFactory is Ownable {
     }
 
     function createProtocolMarket(MarketTypes.MarketParams memory p) external onlyOwner returns (address) {
-        // Implementation will be added in Task 6.4
+        require(implementation != address(0), "Implementation not set");
+        
+        // Deploy clone (no stHYPE required for protocol markets)
+        address market = implementation.clone();
+        
+        // Initialize market with fixed fees
+        ParimutuelMarketImplementation(market).initialize(
+            address(stakeToken),
+            treasury,
+            p.creator,
+            oracle,
+            p.cutoffTime,
+            p.cutoffTime + (p.window.tEnd - p.window.tStart), // resolveTime
+            p.econ.maxTotalPool,
+            keccak256(abi.encode(p.subject)),
+            keccak256(abi.encode(p.predicate)),
+            keccak256(abi.encode(p.window))
+        );
+        
+        // Mark as protocol market
+        protocolMarkets[market] = true;
+        marketCreator[market] = msg.sender;
+        
+        emit MarketCreated(
+            market,
+            msg.sender,
+            keccak256(abi.encode(p.subject)),
+            keccak256(abi.encode(p.predicate)),
+            keccak256(abi.encode(p.window)),
+            true // isProtocolMarket
+        );
+        
+        return market;
     }
 
     function releaseStake(address market) external {
