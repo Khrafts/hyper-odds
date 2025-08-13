@@ -144,7 +144,26 @@ contract MarketFactory is Ownable {
     }
 
     function releaseStake(address market) external {
-        // Implementation will be added in Task 6.5
+        require(marketCreator[market] != address(0), "Market not found");
+        require(!protocolMarkets[market], "Protocol market has no stake");
+        
+        address creator = marketCreator[market];
+        require(msg.sender == creator, "Not market creator");
+        
+        // Check market is resolved
+        require(ParimutuelMarketImplementation(market).resolved(), "Market not resolved");
+        
+        // Release stake
+        uint256 stakeToRelease = STAKE_PER_MARKET;
+        require(creatorLockedStake[creator] >= stakeToRelease, "Insufficient locked stake");
+        
+        creatorLockedStake[creator] -= stakeToRelease;
+        IERC20(address(stHYPE)).safeTransfer(creator, stakeToRelease);
+        
+        // Clear mapping to prevent double release
+        delete marketCreator[market];
+        
+        emit StakeReleased(creator, market, stakeToRelease);
     }
 
     function setTreasury(address _treasury) external onlyOwner {
