@@ -163,10 +163,10 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
     }
 
     function totalPool() public view returns (uint256) {
-        // Implementation will be added in Task 5.6
+        return pool[0] + pool[1];
     }
 
     function userInfo(address user) external view returns (uint256[2] memory) {
-        // Implementation will be added in Task 5.6
+        return stakeOf[user];
     }
 }

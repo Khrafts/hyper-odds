@@ -544,4 +544,29 @@ contract MarketTest is Test {
         assertEq(stakeToken.balanceOf(treasury), treasuryBalanceAfterFirst);
         assertEq(stakeToken.balanceOf(creator), creatorBalanceAfterFirst);
     }
+    
+    // Task 5.6 tests - view helpers
+    function testMarketViewHelpers() public {
+        initializeMarket();
+        
+        stakeToken.mint(user1, 100e18);
+        
+        // Initial state
+        assertEq(market.totalPool(), 0);
+        uint256[2] memory info = market.userInfo(user1);
+        assertEq(info[0], 0);
+        assertEq(info[1], 0);
+        
+        // After deposit
+        vm.startPrank(user1);
+        stakeToken.approve(address(market), 75e18);
+        market.deposit(0, 25e18);
+        market.deposit(1, 50e18);
+        vm.stopPrank();
+        
+        assertEq(market.totalPool(), 75e18);
+        info = market.userInfo(user1);
+        assertEq(info[0], 25e18);
+        assertEq(info[1], 50e18);
+    }
 }
