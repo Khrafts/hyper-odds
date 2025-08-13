@@ -24,7 +24,7 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
     bytes32 public subject;
     bytes32 public predicate;
     bytes32 public windowSpec;
-    
+
     // Mutable state
     uint256[2] public pool; // pool[0]=NO, pool[1]=YES
     mapping(address => uint256[2]) public stakeOf;
@@ -33,10 +33,10 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
     bytes32 public resolutionDataHash;
     uint256 public feeCollected;
     mapping(address => bool) public claimed;
-    
+
     // Initialization guard
     bool private initialized;
-    
+
     // Events
     event Deposited(address indexed user, uint8 outcome, uint256 amount);
     event Resolved(uint8 winningOutcome, bytes32 dataHash);
@@ -67,9 +67,9 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
         require(_cutoffTime > block.timestamp, "Cutoff time in past");
         require(_resolveTime > _cutoffTime, "Resolve time before cutoff");
         require(_maxTotalPool > 0, "Invalid max pool");
-        
+
         initialized = true;
-        
+
         stakeToken = IERC20(_stakeToken);
         treasury = _treasury;
         creator = _creator;
@@ -80,7 +80,7 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
         subject = _subject;
         predicate = _predicate;
         windowSpec = _windowSpec;
-        
+
         // Set fixed fees (5% protocol, 10% creator share of protocol fee)
         feeBps = 500; // 5%
         creatorFeeShareBps = 1000; // 10% of protocol fee
@@ -90,15 +90,15 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
         require(block.timestamp < cutoffTime, "Deposits closed");
         require(outcome <= 1, "Invalid outcome");
         require(amount > 0, "Zero amount");
-        
+
         uint256 newTotalPool = pool[0] + pool[1] + amount;
         require(newTotalPool <= maxTotalPool, "Pool cap exceeded");
-        
+
         stakeToken.safeTransferFrom(msg.sender, address(this), amount);
-        
+
         pool[outcome] += amount;
         stakeOf[msg.sender][outcome] += amount;
-        
+
         emit Deposited(msg.sender, outcome, amount);
     }
 
@@ -107,44 +107,44 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
         require(block.timestamp >= resolveTime, "Too early to resolve");
         require(!resolved, "Already resolved");
         require(outcome <= 1, "Invalid outcome");
-        
+
         resolved = true;
         winningOutcome = outcome;
         resolutionDataHash = dataHash;
-        
+
         emit Resolved(outcome, dataHash);
     }
 
     function claim() external nonReentrant {
         require(resolved, "Not resolved");
         require(!claimed[msg.sender], "Already claimed");
-        
+
         uint256 userStake = stakeOf[msg.sender][winningOutcome];
         require(userStake > 0, "No winning stake");
-        
+
         claimed[msg.sender] = true;
-        
+
         uint256 totalWinningPool = pool[winningOutcome];
         uint256 totalLosingPool = pool[1 - winningOutcome];
-        
+
         // Calculate fee only once (first claimer)
         if (feeCollected == 0 && totalLosingPool > 0) {
             feeCollected = (totalLosingPool * feeBps) / 10000;
-            
+
             // Split fee: 90% treasury, 10% creator
             uint256 creatorFee = (feeCollected * creatorFeeShareBps) / 10000;
             uint256 treasuryFee = feeCollected - creatorFee;
-            
+
             if (treasuryFee > 0) {
                 stakeToken.safeTransfer(treasury, treasuryFee);
             }
             if (creatorFee > 0) {
                 stakeToken.safeTransfer(creator, creatorFee);
             }
-            
+
             emit Skimmed(treasury, creator, treasuryFee, creatorFee);
         }
-        
+
         // Calculate payout
         uint256 payout;
         if (totalLosingPool == 0) {
@@ -156,9 +156,9 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
             uint256 winningsShare = (availableWinnings * userStake) / totalWinningPool;
             payout = userStake + winningsShare;
         }
-        
+
         stakeToken.safeTransfer(msg.sender, payout);
-        
+
         emit Claimed(msg.sender, payout);
     }
 
@@ -169,37 +169,37 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
     function userInfo(address user) external view returns (uint256[2] memory) {
         return stakeOf[user];
     }
-    
+
     function cancelAndRefund() external onlyOwner {
         require(!resolved, "Already resolved");
-        
+
         // Mark as resolved with special outcome
         resolved = true;
         winningOutcome = 2; // Special value indicating cancellation
-        
+
         // Pause to prevent further deposits
         _pause();
     }
-    
+
     function emergencyClaim() external nonReentrant {
         require(resolved && winningOutcome == 2, "Not cancelled");
         require(!claimed[msg.sender], "Already claimed");
-        
+
         claimed[msg.sender] = true;
-        
+
         uint256 refund = stakeOf[msg.sender][0] + stakeOf[msg.sender][1];
         require(refund > 0, "Nothing to refund");
-        
+
         stakeToken.safeTransfer(msg.sender, refund);
-        
+
         emit Claimed(msg.sender, refund);
     }
-    
+
     // Admin functions
     function pause() external onlyOwner {
         _pause();
     }
-    
+
     function unpause() external onlyOwner {
         _unpause();
     }

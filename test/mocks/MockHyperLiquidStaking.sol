@@ -17,7 +17,7 @@ contract MockHyperLiquidStaking is IHyperLiquidStaking {
     function unstake(uint256 amount) external override {
         // For simplicity in testing, we'll allow unstaking if total is sufficient
         require(totalStaked >= amount, "Insufficient total stake");
-        
+
         // Reduce balance of the caller
         if (balanceOf[msg.sender] >= amount) {
             balanceOf[msg.sender] -= amount;
@@ -25,13 +25,13 @@ contract MockHyperLiquidStaking is IHyperLiquidStaking {
             balanceOf[msg.sender] = 0;
         }
         totalStaked -= amount;
-        
+
         // Add some rewards (1% for testing)
         uint256 rewards = (amount * rewardRate) / 10000;
         uint256 totalAmount = amount + rewards;
-        
+
         // Send native HYPE back with rewards
-        (bool success, ) = msg.sender.call{value: totalAmount}("");
+        (bool success,) = msg.sender.call{ value: totalAmount }("");
         require(success, "Transfer failed");
     }
 
@@ -43,7 +43,7 @@ contract MockHyperLiquidStaking is IHyperLiquidStaking {
     function setRewardRate(uint256 newRate) external {
         rewardRate = newRate;
     }
-    
+
     // Allow contract to receive native HYPE
-    receive() external payable {}
+    receive() external payable { }
 }

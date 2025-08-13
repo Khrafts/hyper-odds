@@ -10,12 +10,12 @@ contract CreateProtocolMarket is Script {
     function run() external {
         // Load environment variables
         address factoryAddress = vm.envAddress("FACTORY");
-        
+
         MarketFactory factory = MarketFactory(factoryAddress);
-        
+
         // Create daily volume, price, and TVL markets
         MarketTypes.MarketParams[] memory markets = new MarketTypes.MarketParams[](3);
-        
+
         // Market 1: Daily Volume > $500M
         markets[0] = MarketTypes.MarketParams({
             title: "HL Daily Volume > $500M",
@@ -49,7 +49,7 @@ contract CreateProtocolMarket is Script {
             }),
             isProtocolMarket: true
         });
-        
+
         // Market 2: HYPE Price > $30
         markets[1] = MarketTypes.MarketParams({
             title: "HYPE Price > $30",
@@ -83,7 +83,7 @@ contract CreateProtocolMarket is Script {
             }),
             isProtocolMarket: true
         });
-        
+
         // Market 3: TVL > $1B
         markets[2] = MarketTypes.MarketParams({
             title: "HL TVL > $1B",
@@ -117,21 +117,21 @@ contract CreateProtocolMarket is Script {
             }),
             isProtocolMarket: true
         });
-        
+
         console.log("Creating protocol markets...");
         console.log("Factory:", factoryAddress);
         console.log("Owner:", msg.sender);
-        
+
         vm.startBroadcast();
-        
+
         for (uint256 i = 0; i < markets.length; i++) {
             console.log("Creating market", i + 1, ":", markets[i].title);
             address market = factory.createProtocolMarket(markets[i]);
             console.log("Market created at:", market);
         }
-        
+
         vm.stopBroadcast();
-        
+
         console.log("All protocol markets created successfully");
     }
 }

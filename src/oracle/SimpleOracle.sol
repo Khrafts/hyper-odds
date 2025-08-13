@@ -31,7 +31,7 @@ contract SimpleOracle is IOracle, Ownable {
         require(resolvers[msg.sender] || msg.sender == owner(), "Not authorized");
         require(!pending[market].committed, "Already committed");
         require(outcome <= 1, "Invalid outcome");
-        
+
         pending[market] = Pending({
             outcome: outcome,
             dataHash: dataHash,
@@ -39,7 +39,7 @@ contract SimpleOracle is IOracle, Ownable {
             committed: true,
             finalized: false
         });
-        
+
         emit Committed(market, outcome, dataHash, uint64(block.timestamp));
     }
 
@@ -48,14 +48,14 @@ contract SimpleOracle is IOracle, Ownable {
         require(p.committed, "Not committed");
         require(!p.finalized, "Already finalized");
         require(block.timestamp >= p.commitTime + disputeWindow, "Dispute window not elapsed");
-        
+
         p.finalized = true;
-        
+
         IMarket(market).ingestResolution(p.outcome, p.dataHash);
-        
+
         emit Finalized(market, p.outcome);
     }
-    
+
     function setResolver(address resolver, bool authorized) external onlyOwner {
         resolvers[resolver] = authorized;
     }

@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 contract MockHYPE {
     mapping(address => uint256) public balanceOf;
     mapping(address => mapping(address => uint256)) public allowance;
-    
+
     string public constant name = "Mock HYPE";
     string public constant symbol = "HYPE";
     uint8 public constant decimals = 18;

@@ -12,9 +12,9 @@ contract CreateMarket is Script {
         // Load environment variables
         address factoryAddress = vm.envAddress("FACTORY");
         address sthype = vm.envAddress("STHYPE");
-        
+
         MarketFactory factory = MarketFactory(factoryAddress);
-        
+
         // Build MarketParams for HL daily volume > $100M
         MarketTypes.MarketParams memory params = MarketTypes.MarketParams({
             title: "HL Daily Volume > $100M",
@@ -28,7 +28,7 @@ contract CreateMarket is Script {
             predicate: MarketTypes.PredicateParams({
                 op: MarketTypes.PredicateOp.GT,
                 threshold: int256(100_000_000e18) // $100M with 18 decimals
-            }),
+             }),
             window: MarketTypes.WindowParams({
                 kind: MarketTypes.WindowKind.SNAPSHOT_AT,
                 tStart: uint64(block.timestamp),
@@ -45,31 +45,31 @@ contract CreateMarket is Script {
                 feeBps: 500, // 5%
                 creatorFeeShareBps: 1000, // 10% of protocol fee
                 maxTotalPool: 1_000_000e18 // 1M stake tokens
-            }),
+             }),
             isProtocolMarket: false
         });
-        
+
         console.log("Creating market for HL Daily Volume > $100M");
         console.log("Factory:", factoryAddress);
         console.log("stHYPE:", sthype);
         console.log("Creator:", msg.sender);
-        
+
         vm.startBroadcast();
-        
+
         // Approve stHYPE spending
         uint256 stakeRequired = factory.STAKE_PER_MARKET();
         console.log("Approving", stakeRequired / 1e18, "stHYPE...");
         IERC20(sthype).approve(factoryAddress, stakeRequired);
-        
+
         // Create market
         console.log("Creating market...");
         address market = factory.createMarket(params);
-        
+
         console.log("Market created at:", market);
         console.log("Title:", params.title);
         console.log("Cutoff time:", params.cutoffTime);
         console.log("Resolve time:", params.window.tEnd);
-        
+
         vm.stopBroadcast();
     }
 }

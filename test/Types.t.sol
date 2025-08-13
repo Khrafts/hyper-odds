@@ -20,7 +20,7 @@ contract TypesTest is Test {
             predicate: MarketTypes.PredicateParams({
                 op: MarketTypes.PredicateOp.GT,
                 threshold: 1_000_000_000 * 100 // $1B with 2 decimals
-            }),
+             }),
             window: MarketTypes.WindowParams({
                 kind: MarketTypes.WindowKind.SNAPSHOT_AT,
                 tStart: 0,
@@ -94,7 +94,7 @@ contract TypesTest is Test {
             predicate: MarketTypes.PredicateParams({
                 op: MarketTypes.PredicateOp.GT,
                 threshold: 500_000_000 * 100 // $500M
-            }),
+             }),
             window: MarketTypes.WindowParams({
                 kind: MarketTypes.WindowKind.SNAPSHOT_AT,
                 tStart: 0,
@@ -132,8 +132,8 @@ contract TypesTest is Test {
             }),
             predicate: MarketTypes.PredicateParams({
                 op: MarketTypes.PredicateOp.GTE,
-                threshold: 30 * 10**8 // $30 with 8 decimals
-            }),
+                threshold: 30 * 10 ** 8 // $30 with 8 decimals
+             }),
             window: MarketTypes.WindowParams({
                 kind: MarketTypes.WindowKind.SNAPSHOT_AT,
                 tStart: 0,
@@ -156,7 +156,7 @@ contract TypesTest is Test {
 
         assertEq(uint8(params.subject.kind), uint8(MarketTypes.SubjectKind.TOKEN_PRICE));
         assertEq(params.subject.token, address(0x456));
-        assertEq(params.predicate.threshold, 30 * 10**8);
+        assertEq(params.predicate.threshold, 30 * 10 ** 8);
         assertEq(uint8(params.predicate.op), uint8(MarketTypes.PredicateOp.GTE));
     }
 }

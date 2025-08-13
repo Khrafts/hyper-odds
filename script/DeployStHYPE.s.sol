@@ -11,28 +11,28 @@ contract DeployStHYPE is Script {
         address whypeToken = vm.envAddress("WHYPE_TOKEN");
         address hlStaking = vm.envAddress("HL_STAKING");
         address owner = vm.envOr("OWNER", msg.sender);
-        
+
         console.log("Deploying stHYPE...");
         console.log("WHYPE Token:", whypeToken);
         console.log("HL Staking:", hlStaking);
         console.log("Owner:", owner);
-        
+
         vm.startBroadcast();
-        
+
         // Deploy stHYPE
         stHYPE sthype = new stHYPE(whypeToken, hlStaking);
-        
+
         console.log("stHYPE deployed at:", address(sthype));
-        
+
         // Transfer ownership if needed
         if (owner != msg.sender) {
             console.log("Transferring ownership to:", owner);
             // Note: stHYPE doesn't have Ownable, so no transfer needed
             // If it had Ownable, we would do: sthype.transferOwnership(owner);
         }
-        
+
         vm.stopBroadcast();
-        
+
         // Verify initial exchange rate
         uint256 exchangeRate = sthype.exchangeRate();
         console.log("Initial exchange rate:", exchangeRate);

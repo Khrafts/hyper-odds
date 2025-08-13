@@ -12,14 +12,14 @@ contract PauseAndCancel is Script {
         bool shouldPause = vm.envBool("PAUSE");
         bool shouldUnpause = vm.envBool("UNPAUSE");
         bool shouldCancel = vm.envBool("CANCEL");
-        
+
         ParimutuelMarketImplementation market = ParimutuelMarketImplementation(marketAddress);
-        
+
         console.log("Market:", marketAddress);
         console.log("Current paused state:", market.paused());
-        
+
         vm.startBroadcast();
-        
+
         // Handle pause/unpause
         if (shouldPause && !market.paused()) {
             console.log("Pausing market...");
@@ -30,7 +30,7 @@ contract PauseAndCancel is Script {
             market.unpause();
             console.log("Market unpaused");
         }
-        
+
         // Handle cancel (only if not resolved)
         if (shouldCancel) {
             // Check if market is already resolved
@@ -42,16 +42,16 @@ contract PauseAndCancel is Script {
                 console.log("Market cancelled, all deposits refunded");
             }
         }
-        
+
         vm.stopBroadcast();
-        
+
         // Print final state
         console.log("Final paused state:", market.paused());
         if (shouldCancel && !market.resolved()) {
             console.log("Market has been cancelled");
         }
     }
-    
+
     function help() external pure {
         console.log("Usage:");
         console.log("  Set MARKET=<address> to specify the market");

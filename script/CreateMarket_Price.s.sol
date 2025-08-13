@@ -13,9 +13,9 @@ contract CreateMarket_Price is Script {
         address factoryAddress = vm.envAddress("FACTORY");
         address sthype = vm.envAddress("STHYPE");
         address whypeToken = vm.envAddress("WHYPE_TOKEN");
-        
+
         MarketFactory factory = MarketFactory(factoryAddress);
-        
+
         // Build MarketParams for HYPE price > $25 at snapshot
         MarketTypes.MarketParams memory params = MarketTypes.MarketParams({
             title: "HYPE Price > $25",
@@ -29,12 +29,12 @@ contract CreateMarket_Price is Script {
             predicate: MarketTypes.PredicateParams({
                 op: MarketTypes.PredicateOp.GT,
                 threshold: int256(25e18) // $25 with 18 decimals
-            }),
+             }),
             window: MarketTypes.WindowParams({
                 kind: MarketTypes.WindowKind.SNAPSHOT_AT,
                 tStart: uint64(block.timestamp),
                 tEnd: uint64(block.timestamp + 3 days) // Snapshot in 3 days
-            }),
+             }),
             oracle: MarketTypes.OracleSpec({
                 primarySourceId: keccak256("coingecko"),
                 fallbackSourceId: keccak256("binance"),
@@ -46,34 +46,34 @@ contract CreateMarket_Price is Script {
                 feeBps: 500, // 5%
                 creatorFeeShareBps: 1000, // 10% of protocol fee
                 maxTotalPool: 500_000e18 // 500K stake tokens
-            }),
+             }),
             isProtocolMarket: false
         });
-        
+
         console.log("Creating market for HYPE Price > $25");
         console.log("Factory:", factoryAddress);
         console.log("stHYPE:", sthype);
         console.log("WHYPE Token:", whypeToken);
         console.log("Creator:", msg.sender);
-        
+
         vm.startBroadcast();
-        
+
         // Approve stHYPE spending
         uint256 stakeRequired = factory.STAKE_PER_MARKET();
         console.log("Approving", stakeRequired / 1e18, "stHYPE...");
         IERC20(sthype).approve(factoryAddress, stakeRequired);
-        
+
         // Create market
         console.log("Creating market...");
         address market = factory.createMarket(params);
-        
+
         console.log("Market created at:", market);
         console.log("Title:", params.title);
         console.log("Threshold: $", uint256(params.predicate.threshold) / 1e18);
         console.log("Snapshot time:", params.window.tEnd);
         console.log("Cutoff time:", params.cutoffTime);
         console.log("Resolve time:", params.window.tEnd);
-        
+
         vm.stopBroadcast();
     }
 }
