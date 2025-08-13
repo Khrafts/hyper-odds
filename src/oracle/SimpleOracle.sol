@@ -44,6 +44,15 @@ contract SimpleOracle is IOracle, Ownable {
     }
 
     function finalize(address market) external override {
-        // Implementation will be added in Task 4.4
+        Pending storage p = pending[market];
+        require(p.committed, "Not committed");
+        require(!p.finalized, "Already finalized");
+        require(block.timestamp >= p.commitTime + disputeWindow, "Dispute window not elapsed");
+        
+        p.finalized = true;
+        
+        IMarket(market).ingestResolution(p.outcome, p.dataHash);
+        
+        emit Finalized(market, p.outcome);
     }
 }
