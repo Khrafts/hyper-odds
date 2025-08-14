@@ -132,6 +132,13 @@ contract stHYPE is ERC4626, ERC20Permit, IstHYPE {
         return super.nonces(owner);
     }
 
+    // ============ Testnet Functions ============
+    
+    // Testnet mint function for easy testing (skip the complex ETH mechanics)
+    function testnetMint(address to, uint256 amount) external {
+        _mint(to, amount);
+    }
+
     // ============ Backward Compatibility ============
 
     // Keep these for compatibility with existing code

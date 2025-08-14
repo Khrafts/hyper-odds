@@ -7,6 +7,11 @@ import { IWHYPE } from "../../src/interfaces/IWHYPE.sol";
 contract MockWHYPE is ERC20, IWHYPE {
     constructor() ERC20("Wrapped HYPE", "WHYPE") { }
 
+    // Testnet mint function for easy testing
+    function mint(address to, uint256 amount) public {
+        _mint(to, amount);
+    }
+
     function deposit() public payable override {
         _mint(msg.sender, msg.value);
         emit Deposit(msg.sender, msg.value);
@@ -15,7 +20,12 @@ contract MockWHYPE is ERC20, IWHYPE {
     function withdraw(uint256 wad) public override {
         require(balanceOf(msg.sender) >= wad, "Insufficient balance");
         _burn(msg.sender, wad);
-        payable(msg.sender).transfer(wad);
+        
+        // For testnet: only send ETH if we have enough balance
+        if (address(this).balance >= wad) {
+            payable(msg.sender).transfer(wad);
+        }
+        // Always emit the event for tracking
         emit Withdrawal(msg.sender, wad);
     }
 

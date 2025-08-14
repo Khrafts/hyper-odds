@@ -4,11 +4,11 @@ schema:
 dataSources:
   - kind: ethereum
     name: MarketFactory
-    network: hyperliquid
+    network: arbitrum-sepolia
     source:
-      address: "0x1234567890123456789012345678901234567890" # Dummy factory address
+      address: "0x535597b756572fA206AB8510eb2a156fd931987E" # Deployed factory address
       abi: MarketFactory
-      startBlock: 1000000
+      startBlock: 183983794
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
@@ -33,7 +33,7 @@ dataSources:
 templates:
   - kind: ethereum
     name: ParimutuelMarket
-    network: hyperliquid
+    network: arbitrum-sepolia
     source:
       abi: ParimutuelMarketImplementation
     mapping:

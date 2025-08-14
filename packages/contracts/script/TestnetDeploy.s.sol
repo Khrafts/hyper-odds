@@ -2,24 +2,28 @@
 pragma solidity ^0.8.28;
 
 import "forge-std/Script.sol";
-import "../src/staking/MockWHYPE.sol";
-import "../src/staking/MockHyperLiquidStaking.sol";
+import "../test/mocks/MockWHYPE.sol";
+import "../test/mocks/MockHyperLiquidStaking.sol";
 import "../src/staking/stHYPE.sol";
 import "../test/mocks/MockERC20.sol";
-import "../src/Oracle.sol";
+import "../src/oracle/SimpleOracle.sol";
 import "../src/MarketFactory.sol";
 import "../src/ParimutuelMarketImplementation.sol";
-import "../src/interfaces/IMarketFactory.sol";
-import "../src/types/MarketTypes.sol";
+import "../src/interfaces/IMarket.sol";
+import "../src/types/MarketParams.sol";
 
 contract TestnetDeploy is Script {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address deployer = vm.addr(deployerPrivateKey);
         
-        // Get config from env
+        // Get config from env (use deployer as default instead of zero)
         address treasury = vm.envOr("TREASURY", deployer);
         address resolverEOA = vm.envOr("RESOLVER_EOA", deployer);
+        
+        // Override zero addresses with deployer for testnet
+        if (treasury == address(0)) treasury = deployer;
+        if (resolverEOA == address(0)) resolverEOA = deployer;
         
         console.log("Deploying to testnet with:");
         console.log("  Deployer:", deployer);
@@ -46,8 +50,8 @@ contract TestnetDeploy is Script {
         
         // 3. Deploy Oracle
         console.log("\n3. Deploying Oracle...");
-        Oracle oracle = new Oracle(600); // 10 minute dispute window for testnet
-        oracle.addResolver(resolverEOA, true);
+        SimpleOracle oracle = new SimpleOracle(600); // 10 minute dispute window for testnet
+        oracle.setResolver(resolverEOA, true);
         console.log("  Oracle:", address(oracle));
         console.log("  Resolver added:", resolverEOA);
         
@@ -59,63 +63,70 @@ contract TestnetDeploy is Script {
         // 5. Deploy Factory
         console.log("\n5. Deploying MarketFactory...");
         MarketFactory factory = new MarketFactory(
-            address(implementation),
-            address(stHypeToken),
-            address(oracle),
-            treasury,
-            address(mockUSDC)
+            address(mockUSDC), // stake token
+            address(stHypeToken), // stHYPE
+            treasury, // treasury
+            address(oracle) // oracle
         );
+        
+        // Set the implementation
+        factory.setImplementation(address(implementation));
         console.log("  Factory:", address(factory));
         
         // 6. Mint test tokens
         console.log("\n6. Minting test tokens...");
-        whype.mint(deployer, 10000 * 1e18);
-        mockUSDC.mint(deployer, 10000 * 1e6);
-        console.log("  Minted 10,000 WHYPE to deployer");
+        
+        // Mint WHYPE and USDC for testing
+        whype.mint(deployer, 2000 ether); // 2000 WHYPE for multiple markets
+        mockUSDC.mint(deployer, 10000 * 1e6); // 10,000 USDC
+        
+        console.log("  Minted 2000 WHYPE to deployer");
         console.log("  Minted 10,000 USDC to deployer");
         
-        // 7. Create a test market
-        console.log("\n7. Creating test market...");
+        // 7. Mint stHYPE for market creation (skip complex deposit mechanics for testnet)
+        console.log("\n7. Minting stHYPE for market testing...");
         
-        // Approve stHYPE to spend WHYPE for staking
-        whype.approve(address(stHypeToken), 100 * 1e18);
+        // Directly mint stHYPE for testing (1500 stHYPE)
+        stHypeToken.testnetMint(deployer, 1500 ether);
+        uint256 stHypeBalance = stHypeToken.balanceOf(deployer);
+        console.log("  stHYPE balance:", stHypeBalance);
         
-        // Deposit WHYPE to get stHYPE
-        stHypeToken.deposit(100 * 1e18, deployer);
+        // 8. Create test market
+        console.log("\n8. Creating test market...");
         
-        // Approve factory to spend stHYPE
-        stHypeToken.approve(address(factory), 100 * 1e18);
+        // Approve factory to spend stHYPE (1000 stHYPE minimum)
+        stHypeToken.approve(address(factory), 1001 ether);
         
-        // Create market params
-        MarketParams memory params = MarketParams({
+        // Create market params using MarketTypes library
+        MarketTypes.MarketParams memory params = MarketTypes.MarketParams({
             title: "Will ETH be above $3000 in 1 hour?",
             description: "Test market for testnet deployment",
-            subject: SubjectParams({
-                kind: SubjectKind.TOKEN_PRICE,
+            subject: MarketTypes.SubjectParams({
+                kind: MarketTypes.SubjectKind.TOKEN_PRICE,
                 metricId: bytes32(0),
                 token: address(0), // ETH
                 valueDecimals: 8
             }),
-            predicate: PredicateParams({
-                op: PredicateOp.GT,
+            predicate: MarketTypes.PredicateParams({
+                op: MarketTypes.PredicateOp.GT,
                 threshold: 3000 * 1e8 // $3000 with 8 decimals
             }),
-            window: WindowParams({
-                kind: WindowKind.SNAPSHOT_AT,
+            window: MarketTypes.WindowParams({
+                kind: MarketTypes.WindowKind.SNAPSHOT_AT,
                 tStart: uint64(block.timestamp),
                 tEnd: uint64(block.timestamp + 1 hours)
             }),
-            oracle: OracleParams({
+            oracle: MarketTypes.OracleSpec({
                 primarySourceId: bytes32("COINBASE"),
                 fallbackSourceId: bytes32("BINANCE"),
                 roundingDecimals: 2
             }),
             cutoffTime: uint64(block.timestamp + 30 minutes),
             creator: deployer,
-            econ: EconomicsParams({
+            econ: MarketTypes.Economics({
                 feeBps: 500, // 5%
                 creatorFeeShareBps: 2000, // 20% of fees
-                maxTotalPool: 1000000 * 1e6 // 1M USDC max
+                maxTotalPool: 10 * 1e6 // 10 USDC max for testing
             }),
             isProtocolMarket: false
         });

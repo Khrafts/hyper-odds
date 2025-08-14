@@ -31,6 +31,19 @@ export interface GoldskyWebhookPayload {
   entity: string;
 }
 
+export interface MarketCreated {
+  id: string;
+  market: string;
+  creator: string;
+  subjectHash: string;
+  predicateHash: string;
+  windowSpecHash: string;
+  isProtocolMarket: boolean;
+  blockNumber: string;
+  timestamp: string;
+  transactionHash: string;
+}
+
 export interface ResolutionResult {
   success: boolean;
   outcome?: number;
