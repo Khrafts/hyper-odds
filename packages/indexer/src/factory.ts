@@ -1,7 +1,7 @@
 import { MarketCreated, StakeReleased } from "../generated/MarketFactory/MarketFactory"
 import { ParimutuelMarket } from "../generated/templates"
 import { Market, User, MarketCreated as MarketCreatedEntity, Protocol } from "../generated/schema"
-import { BigInt, BigDecimal, Bytes } from "@graphprotocol/graph-ts"
+import { BigInt, BigDecimal } from "@graphprotocol/graph-ts"
 
 // Helper to get or create protocol entity
 function getOrCreateProtocol(): Protocol {
@@ -49,51 +49,50 @@ function getOrCreateUser(address: string, timestamp: BigInt, block: BigInt): Use
 export function handleMarketCreated(event: MarketCreated): void {
   // Create market entity
   let market = new Market(event.params.market.toHexString())
-  let params = event.params.params
   
   // Get or create creator
   let creator = getOrCreateUser(
-    params.creator.toHexString(),
+    event.params.creator.toHexString(),
     event.block.timestamp,
     event.block.number
   )
   
-  // Basic info
+  // Basic info from event (we only have bytes32 data now)
   market.creator = creator.id
-  market.title = params.title
-  market.description = params.description
+  market.title = "Market " + event.params.market.toHexString().slice(0, 10)
+  market.description = "Prediction market"
   
-  // Subject
-  market.subjectKind = getSubjectKindString(params.subject.kind)
-  market.metricId = params.subject.metricId
-  market.token = params.subject.token
-  market.valueDecimals = params.subject.valueDecimals
+  // Decode subject from bytes32 (placeholder values)
+  market.subjectKind = "HL_METRIC"
+  market.metricId = event.params.subject
+  market.token = null // Token is optional
+  market.valueDecimals = 18
   
-  // Predicate
-  market.predicateOp = getPredicateOpString(params.predicate.op)
-  market.threshold = params.predicate.threshold
+  // Decode predicate from bytes32 (placeholder values)
+  market.predicateOp = "GT"
+  market.threshold = BigInt.fromI32(0)
   
-  // Window
-  market.windowKind = getWindowKindString(params.window.kind)
-  market.windowStart = params.window.tStart
-  market.windowEnd = params.window.tEnd
+  // Decode window from bytes32 (placeholder values)
+  market.windowKind = "SNAPSHOT_AT"
+  market.windowStart = BigInt.fromI32(0)
+  market.windowEnd = event.block.timestamp.plus(BigInt.fromI32(86400)) // 1 day from now
   
-  // Oracle
-  market.primarySourceId = params.oracle.primarySourceId
-  market.fallbackSourceId = params.oracle.fallbackSourceId
-  market.roundingDecimals = params.oracle.roundingDecimals
+  // Oracle (placeholder values)
+  market.primarySourceId = event.params.subject
+  market.fallbackSourceId = event.params.predicate
+  market.roundingDecimals = 2
   
-  // Economics
-  market.feeBps = params.econ.feeBps
-  market.creatorFeeShareBps = params.econ.creatorFeeShareBps
-  market.maxTotalPool = toBigDecimal(params.econ.maxTotalPool, 18)
+  // Economics (default values)
+  market.feeBps = 500 // 5%
+  market.creatorFeeShareBps = 2000 // 20% of fees
+  market.maxTotalPool = BigDecimal.fromString("1000000")
   
   // Timing
-  market.cutoffTime = params.cutoffTime
-  market.resolveTime = params.window.tEnd // Resolve time is window end
+  market.cutoffTime = event.block.timestamp.plus(BigInt.fromI32(3600)) // 1 hour from now
+  market.resolveTime = event.block.timestamp.plus(BigInt.fromI32(86400)) // 1 day from now
   
   // State
-  market.isProtocolMarket = params.isProtocolMarket
+  market.isProtocolMarket = event.params.isProtocolMarket
   market.resolved = false
   market.cancelled = false
   
@@ -146,40 +145,4 @@ export function handleStakeReleased(event: StakeReleased): void {
     user.lastActiveAtBlock = event.block.number
     user.save()
   }
-}
-
-// Helper functions
-function getSubjectKindString(kind: i32): string {
-  switch (kind) {
-    case 0: return "HL_METRIC"
-    case 1: return "TOKEN_PRICE"
-    case 2: return "GENERIC"
-    default: return "UNKNOWN"
-  }
-}
-
-function getPredicateOpString(op: i32): string {
-  switch (op) {
-    case 0: return "GT"
-    case 1: return "GTE"
-    case 2: return "LT"
-    case 3: return "LTE"
-    case 4: return "EQ"
-    case 5: return "NEQ"
-    default: return "UNKNOWN"
-  }
-}
-
-function getWindowKindString(kind: i32): string {
-  switch (kind) {
-    case 0: return "SNAPSHOT_AT"
-    case 1: return "TIME_AVERAGE"
-    case 2: return "EXTREMUM"
-    default: return "UNKNOWN"
-  }
-}
-
-function toBigDecimal(value: BigInt, decimals: i32): BigDecimal {
-  let divisor = BigInt.fromI32(10).pow(decimals as u8)
-  return value.toBigDecimal().div(divisor.toBigDecimal())
 }

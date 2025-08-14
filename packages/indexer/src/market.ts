@@ -1,8 +1,7 @@
 import { 
   Deposited,
   Resolved,
-  Claimed,
-  Cancelled
+  Claimed
 } from "../generated/templates/ParimutuelMarket/ParimutuelMarketImplementation"
 import { 
   Market,
@@ -161,14 +160,14 @@ export function handleResolved(event: Resolved): void {
   
   // Update market state
   market.resolved = true
-  market.winningOutcome = event.params.outcome
+  market.winningOutcome = event.params.winningOutcome
   market.resolutionDataHash = event.params.dataHash
   market.resolvedAt = event.block.timestamp
   market.resolvedAtBlock = event.block.number
   market.resolvedAtTx = event.transaction.hash
   
   // Calculate fees (5% of losing pool)
-  let losingPool = event.params.outcome == 0 ? market.poolYes : market.poolNo
+  let losingPool = event.params.winningOutcome == 0 ? market.poolYes : market.poolNo
   let fee = losingPool.times(BigDecimal.fromString("0.05"))
   market.feeCollected = fee
   
@@ -179,7 +178,7 @@ export function handleResolved(event: Resolved): void {
     event.transaction.hash.toHexString() + "-" + event.logIndex.toString()
   )
   resolution.market = marketId
-  resolution.outcome = event.params.outcome
+  resolution.outcome = event.params.winningOutcome
   resolution.dataHash = event.params.dataHash
   resolution.timestamp = event.block.timestamp
   resolution.blockNumber = event.block.number
@@ -242,26 +241,6 @@ export function handleClaimed(event: Claimed): void {
   protocol.save()
 }
 
-export function handleCancelled(event: Cancelled): void {
-  let marketId = event.address.toHexString()
-  let market = Market.load(marketId)
-  if (market == null) return
-  
-  // Update market state
-  market.cancelled = true
-  market.resolved = true
-  market.winningOutcome = 2 // Cancelled outcome
-  market.resolvedAt = event.block.timestamp
-  market.resolvedAtBlock = event.block.number
-  market.resolvedAtTx = event.transaction.hash
-  market.save()
-  
-  // Update protocol stats
-  let protocol = getProtocol()
-  protocol.activeMarkets = protocol.activeMarkets.minus(BigInt.fromI32(1))
-  protocol.cancelledMarkets = protocol.cancelledMarkets.plus(BigInt.fromI32(1))
-  protocol.save()
-}
 
 // Helper function
 function toBigDecimal(value: BigInt, decimals: i32): BigDecimal {
