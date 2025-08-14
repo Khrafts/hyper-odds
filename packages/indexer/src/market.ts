@@ -243,7 +243,9 @@ export function handleClaimed(event: Claimed): void {
 
 
 // Helper function
+// @ts-ignore - AssemblyScript types (i32, u8) are correct for subgraph
 function toBigDecimal(value: BigInt, decimals: i32): BigDecimal {
+  // @ts-ignore
   let divisor = BigInt.fromI32(10).pow(decimals as u8)
   return value.toBigDecimal().div(divisor.toBigDecimal())
 }
