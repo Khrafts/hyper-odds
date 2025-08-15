@@ -1,12 +1,15 @@
 {
-  "name": "frontend",
+  "name": "hyperodds",
   "version": "0.1.0",
+  "description": "Modern prediction markets frontend for Hyperliquid-based protocols",
+  "author": "HyperOdds Team",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "react": "19.1.0",
