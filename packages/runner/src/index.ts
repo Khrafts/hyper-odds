@@ -21,8 +21,9 @@ async function main() {
     const contractService = new ContractService(wallet, config.oracleAddress);
     const resolutionService = new ResolutionService(contractService, hyperliquidAPI);
     
-    // Initialize job scheduler
+    // Initialize job scheduler with persistence
     const jobScheduler = new JobScheduler(resolutionService);
+    await jobScheduler.initialize();
     
     // Initialize event listener
     const eventListener = new EventListener(jobScheduler);
@@ -61,9 +62,9 @@ async function main() {
     });
     
     // Cancel scheduled job endpoint
-    app.delete('/job/:marketId', (req, res) => {
+    app.delete('/job/:marketId', async (req, res) => {
       const marketId = req.params.marketId;
-      const cancelled = jobScheduler.cancelJob(marketId);
+      const cancelled = await jobScheduler.cancelJob(marketId);
       
       if (cancelled) {
         res.json({ success: true, message: 'Job cancelled' });
@@ -88,7 +89,7 @@ async function main() {
       logger.info(`Received ${signal}, shutting down gracefully...`);
       
       await eventListener.stop();
-      jobScheduler.destroy();
+      await jobScheduler.destroy();
       
       process.exit(0);
     };

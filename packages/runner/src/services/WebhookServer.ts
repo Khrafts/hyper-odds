@@ -125,9 +125,9 @@ export class WebhookServer {
     });
 
     // Cancel scheduled job endpoint
-    this.app.delete('/job/:marketId', (req: Request, res: Response) => {
+    this.app.delete('/job/:marketId', async (req: Request, res: Response) => {
       const marketId = req.params.marketId;
-      const cancelled = this.jobScheduler.cancelJob(marketId);
+      const cancelled = await this.jobScheduler.cancelJob(marketId);
       
       if (cancelled) {
         res.json({ success: true, message: 'Job cancelled' });
