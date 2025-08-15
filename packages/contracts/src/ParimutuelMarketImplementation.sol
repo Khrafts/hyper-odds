@@ -18,6 +18,7 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
     address public oracle;
     uint64 public cutoffTime;
     uint64 public resolveTime;
+    uint64 public createdAt; // Market creation timestamp
     uint16 public feeBps; // Fixed at 500 (5%)
     uint16 public creatorFeeShareBps; // Fixed at 1000 (10% of protocol fee)
     uint256 public maxTotalPool;
@@ -74,6 +75,7 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
         require(_timeDecayBps <= 5000, "Time decay too high"); // Max 50% spread
 
         initialized = true;
+        createdAt = uint64(block.timestamp);
 
         stakeToken = IERC20(_stakeToken);
         treasury = _treasury;
@@ -96,10 +98,14 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
         if (timeDecayBps == 0) return 10000; // No decay, 1.0x multiplier
         
         uint256 timeRemaining = cutoffTime > block.timestamp ? cutoffTime - block.timestamp : 0;
-        // Use resolve time as a proxy for total market duration
-        uint256 totalTime = resolveTime > cutoffTime ? resolveTime - cutoffTime : 86400; // Default 1 day if not available
+        uint256 totalMarketTime = cutoffTime - createdAt;
         
-        uint256 timeRatio = timeRemaining > totalTime ? 10000 : (timeRemaining * 10000) / totalTime;
+        // Prevent division by zero
+        if (totalMarketTime == 0) {
+            return 10000; // If market duration is 0, no decay
+        }
+        
+        uint256 timeRatio = (timeRemaining * 10000) / totalMarketTime;
         if (timeRatio > 10000) timeRatio = 10000; // Cap at 100%
         
         // Formula: multiplier = 1.0 - halfSpread + (timeRatio * timeDecayBps) / 10000
