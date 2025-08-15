@@ -48,6 +48,7 @@ contract MarketTest is Test {
             cutoffTime,
             resolveTime,
             1000e18,
+            0, // No time decay for basic tests
             keccak256("subject"),
             keccak256("predicate"),
             keccak256("window")
@@ -73,6 +74,7 @@ contract MarketTest is Test {
             cutoffTime,
             resolveTime,
             1000e18,
+            0, // No time decay for basic tests
             keccak256("subject"),
             keccak256("predicate"),
             keccak256("window")
@@ -87,6 +89,7 @@ contract MarketTest is Test {
             cutoffTime,
             resolveTime,
             1000e18,
+            0, // No time decay for basic tests
             keccak256("subject"),
             keccak256("predicate"),
             keccak256("window")
@@ -104,6 +107,7 @@ contract MarketTest is Test {
             uint64(block.timestamp - 1),
             resolveTime,
             1000e18,
+            0, // No time decay for basic tests
             keccak256("subject"),
             keccak256("predicate"),
             keccak256("window")
@@ -122,6 +126,7 @@ contract MarketTest is Test {
             cutoffTime,
             cutoffTime - 1,
             1000e18,
+            0, // No time decay for basic tests
             keccak256("subject"),
             keccak256("predicate"),
             keccak256("window")
@@ -139,6 +144,7 @@ contract MarketTest is Test {
             cutoffTime,
             resolveTime,
             1000e18,
+            0, // No time decay for basic tests
             keccak256("subject"),
             keccak256("predicate"),
             keccak256("window")
@@ -155,6 +161,7 @@ contract MarketTest is Test {
             cutoffTime,
             resolveTime,
             1000e18,
+            0, // No time decay for basic tests
             keccak256("subject"),
             keccak256("predicate"),
             keccak256("window")
@@ -171,6 +178,7 @@ contract MarketTest is Test {
             cutoffTime,
             resolveTime,
             1000e18,
+            0, // No time decay for basic tests
             keccak256("subject"),
             keccak256("predicate"),
             keccak256("window")
@@ -187,6 +195,7 @@ contract MarketTest is Test {
             cutoffTime,
             resolveTime,
             1000e18,
+            0, // No time decay for basic tests
             keccak256("subject"),
             keccak256("predicate"),
             keccak256("window")
@@ -203,6 +212,7 @@ contract MarketTest is Test {
             cutoffTime,
             resolveTime,
             0,
+            0, // No time decay for basic tests
             keccak256("subject"),
             keccak256("predicate"),
             keccak256("window")
@@ -219,6 +229,7 @@ contract MarketTest is Test {
             cutoffTime,
             resolveTime,
             1000e18,
+            0, // No time decay for basic tests
             keccak256("subject"),
             keccak256("predicate"),
             keccak256("window")

@@ -2,8 +2,8 @@
 pragma solidity ^0.8.28;
 
 import "forge-std/Script.sol";
-import "../src/interfaces/IParimutuelMarket.sol";
-import "../src/types/MarketTypes.sol";
+import "../src/ParimutuelMarketImplementation.sol";
+import "../src/types/MarketParams.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract InteractTestnet is Script {
@@ -17,7 +17,7 @@ contract InteractTestnet is Script {
         IERC20(stakeToken).approve(market, amount);
         
         // Make deposit
-        IParimutuelMarket(market).deposit(outcome, amount);
+        ParimutuelMarketImplementation(market).deposit(outcome, amount);
         
         console.log("Deposited", amount, "to outcome", outcome);
         
@@ -29,7 +29,7 @@ contract InteractTestnet is Script {
         
         vm.startBroadcast(deployerPrivateKey);
         
-        IParimutuelMarket(market).claim();
+        ParimutuelMarketImplementation(market).claim();
         
         console.log("Claimed winnings from market", market);
         
@@ -37,32 +37,31 @@ contract InteractTestnet is Script {
     }
     
     function checkMarket(address market) external view {
-        IParimutuelMarket m = IParimutuelMarket(market);
+        ParimutuelMarketImplementation m = ParimutuelMarketImplementation(market);
         
         console.log("\n=== Market Status ===");
         console.log("Address:", market);
-        console.log("Pool YES:", m.poolYes());
-        console.log("Pool NO:", m.poolNo());
+        console.log("Pool YES:", m.pool(1));
+        console.log("Pool NO:", m.pool(0));
+        console.log("Total Pool:", m.totalPool());
         console.log("Resolved:", m.resolved());
-        console.log("Cancelled:", m.cancelled());
         
         if (m.resolved()) {
             console.log("Winning outcome:", m.winningOutcome());
         }
         
-        // Get market params
-        MarketParams memory params = m.params();
         console.log("\n=== Market Details ===");
-        console.log("Title:", params.title);
-        console.log("Cutoff time:", params.cutoffTime);
-        console.log("Resolve time:", params.window.tEnd);
+        console.log("Cutoff time:", m.cutoffTime());
+        console.log("Resolve time:", m.resolveTime());
+        console.log("Time decay BPS:", m.timeDecayBps());
+        console.log("Current time multiplier:", m.getTimeMultiplier());
         
         uint256 timeLeft = 0;
-        if (block.timestamp < params.cutoffTime) {
-            timeLeft = params.cutoffTime - block.timestamp;
+        if (block.timestamp < m.cutoffTime()) {
+            timeLeft = m.cutoffTime() - block.timestamp;
             console.log("Time until cutoff:", timeLeft, "seconds");
-        } else if (block.timestamp < params.window.tEnd) {
-            timeLeft = params.window.tEnd - block.timestamp;
+        } else if (block.timestamp < m.resolveTime()) {
+            timeLeft = m.resolveTime() - block.timestamp;
             console.log("Time until resolution:", timeLeft, "seconds");
         } else {
             console.log("Ready for resolution!");

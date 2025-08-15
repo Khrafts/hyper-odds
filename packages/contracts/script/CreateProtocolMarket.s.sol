@@ -45,7 +45,8 @@ contract CreateProtocolMarket is Script {
             econ: MarketTypes.Economics({
                 feeBps: 500,
                 creatorFeeShareBps: 1000,
-                maxTotalPool: 10_000_000e18
+                maxTotalPool: 10_000_000e18,
+                timeDecayBps: 1000 // 10% time decay spread for protocol markets
             }),
             isProtocolMarket: true
         });
@@ -79,7 +80,8 @@ contract CreateProtocolMarket is Script {
             econ: MarketTypes.Economics({
                 feeBps: 500,
                 creatorFeeShareBps: 1000,
-                maxTotalPool: 5_000_000e18
+                maxTotalPool: 5_000_000e18,
+                timeDecayBps: 1000 // 10% time decay spread for protocol markets
             }),
             isProtocolMarket: true
         });
@@ -113,7 +115,8 @@ contract CreateProtocolMarket is Script {
             econ: MarketTypes.Economics({
                 feeBps: 500,
                 creatorFeeShareBps: 1000,
-                maxTotalPool: 10_000_000e18
+                maxTotalPool: 10_000_000e18,
+                timeDecayBps: 1000 // 10% time decay spread for protocol markets
             }),
             isProtocolMarket: true
         });

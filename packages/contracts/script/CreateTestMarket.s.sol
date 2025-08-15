@@ -62,7 +62,8 @@ contract CreateTestMarket is Script {
             econ: MarketTypes.Economics({
                 feeBps: 500, // 5%
                 creatorFeeShareBps: 2000, // 20% of fees
-                maxTotalPool: 100000 * 1e6 // 100k USDC max
+                maxTotalPool: 100000 * 1e6, // 100k USDC max
+                timeDecayBps: 3000 // 30% time decay spread for test markets
             }),
             isProtocolMarket: false
         });

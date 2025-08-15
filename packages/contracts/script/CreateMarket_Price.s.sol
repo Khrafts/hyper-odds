@@ -45,7 +45,8 @@ contract CreateMarket_Price is Script {
             econ: MarketTypes.Economics({
                 feeBps: 500, // 5%
                 creatorFeeShareBps: 1000, // 10% of protocol fee
-                maxTotalPool: 500_000e18 // 500K stake tokens
+                maxTotalPool: 500_000e18, // 500K stake tokens
+                timeDecayBps: 2500 // 25% time decay spread
              }),
             isProtocolMarket: false
         });

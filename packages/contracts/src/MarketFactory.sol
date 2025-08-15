@@ -48,6 +48,7 @@ contract MarketFactory is Ownable {
 
     function createMarket(MarketTypes.MarketParams memory p) public returns (address) {
         require(implementation != address(0), "Implementation not set");
+        require(p.econ.timeDecayBps <= 5000, "Time decay too high"); // Max 50% spread
 
         // Check stHYPE allowance and balance
         require(
@@ -74,6 +75,7 @@ contract MarketFactory is Ownable {
             p.cutoffTime,
             p.cutoffTime + (p.window.tEnd - p.window.tStart), // resolveTime
             p.econ.maxTotalPool,
+            p.econ.timeDecayBps,
             keccak256(abi.encode(p.subject)),
             keccak256(abi.encode(p.predicate)),
             keccak256(abi.encode(p.window))
@@ -116,6 +118,7 @@ contract MarketFactory is Ownable {
         returns (address)
     {
         require(implementation != address(0), "Implementation not set");
+        require(p.econ.timeDecayBps <= 5000, "Time decay too high"); // Max 50% spread
 
         // Deploy clone (no stHYPE required for protocol markets)
         address market = implementation.clone();
@@ -129,6 +132,7 @@ contract MarketFactory is Ownable {
             p.cutoffTime,
             p.cutoffTime + (p.window.tEnd - p.window.tStart), // resolveTime
             p.econ.maxTotalPool,
+            p.econ.timeDecayBps,
             keccak256(abi.encode(p.subject)),
             keccak256(abi.encode(p.predicate)),
             keccak256(abi.encode(p.window))

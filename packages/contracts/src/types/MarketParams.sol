@@ -48,6 +48,7 @@ library MarketTypes {
         uint16 feeBps;
         uint16 creatorFeeShareBps;
         uint256 maxTotalPool;
+        uint16 timeDecayBps;
     }
 
     struct MarketParams {

@@ -51,6 +51,7 @@ contract FuzzPayouts is Test {
             cutoffTime,
             resolveTime,
             100000e18, // Max pool
+            0, // No time decay for fuzz tests
             keccak256("subject"),
             keccak256("predicate"),
             keccak256("window")
@@ -339,7 +340,8 @@ contract MarketHandler is Test {
             econ: MarketTypes.Economics({
                 feeBps: 500,
                 creatorFeeShareBps: 1000,
-                maxTotalPool: 100000e18
+                maxTotalPool: 100000e18,
+                timeDecayBps: 0 // No time decay for fuzz tests
             }),
             isProtocolMarket: false
         });
@@ -384,7 +386,8 @@ contract MarketHandler is Test {
             econ: MarketTypes.Economics({
                 feeBps: 500,
                 creatorFeeShareBps: 1000,
-                maxTotalPool: 100000e18
+                maxTotalPool: 100000e18,
+                timeDecayBps: 0 // No time decay for fuzz tests
             }),
             isProtocolMarket: true
         });

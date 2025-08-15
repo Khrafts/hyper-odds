@@ -90,7 +90,8 @@ contract FactoryTest is Test {
             econ: MarketTypes.Economics({
                 feeBps: 500,
                 creatorFeeShareBps: 1000,
-                maxTotalPool: 1000000e18
+                maxTotalPool: 1000000e18,
+                timeDecayBps: 0 // No time decay for factory tests
             }),
             isProtocolMarket: false
         });

@@ -219,7 +219,8 @@ contract E2EHappyPath is Test {
             econ: MarketTypes.Economics({
                 feeBps: 500, // 5% fee
                 creatorFeeShareBps: 1000, // Creator gets 10% of fees
-                maxTotalPool: 10000e6 // Max 10,000 USDC
+                maxTotalPool: 10000e6, // Max 10,000 USDC
+                timeDecayBps: 0 // No time decay for E2E tests
              }),
             isProtocolMarket: false
         });
@@ -425,7 +426,8 @@ contract E2EHappyPath is Test {
             econ: MarketTypes.Economics({
                 feeBps: 500,
                 creatorFeeShareBps: 0, // All fees to treasury
-                maxTotalPool: 50000e6
+                maxTotalPool: 50000e6,
+                timeDecayBps: 0 // No time decay for E2E tests
             }),
             isProtocolMarket: true
         });

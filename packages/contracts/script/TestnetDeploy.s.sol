@@ -126,7 +126,8 @@ contract TestnetDeploy is Script {
             econ: MarketTypes.Economics({
                 feeBps: 500, // 5%
                 creatorFeeShareBps: 2000, // 20% of fees
-                maxTotalPool: 10 * 1e6 // 10 USDC max for testing
+                maxTotalPool: 10 * 1e6, // 10 USDC max for testing
+                timeDecayBps: 2500 // 25% time decay spread
             }),
             isProtocolMarket: false
         });

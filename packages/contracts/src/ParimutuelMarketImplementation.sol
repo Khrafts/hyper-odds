@@ -21,13 +21,16 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
     uint16 public feeBps; // Fixed at 500 (5%)
     uint16 public creatorFeeShareBps; // Fixed at 1000 (10% of protocol fee)
     uint256 public maxTotalPool;
+    uint16 public timeDecayBps; // Time decay spread (0-5000 bps, 0-50%)
     bytes32 public subject;
     bytes32 public predicate;
     bytes32 public windowSpec;
 
     // Mutable state
     uint256[2] public pool; // pool[0]=NO, pool[1]=YES
+    uint256[2] public totalEffectiveStakes; // Total effective stakes per outcome
     mapping(address => uint256[2]) public stakeOf;
+    mapping(address => uint256[2]) public userEffectiveStakes; // User effective stakes per outcome
     bool public resolved;
     uint8 public winningOutcome;
     bytes32 public resolutionDataHash;
@@ -55,6 +58,7 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
         uint64 _cutoffTime,
         uint64 _resolveTime,
         uint256 _maxTotalPool,
+        uint16 _timeDecayBps,
         bytes32 _subject,
         bytes32 _predicate,
         bytes32 _windowSpec
@@ -67,6 +71,7 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
         require(_cutoffTime > block.timestamp, "Cutoff time in past");
         require(_resolveTime > _cutoffTime, "Resolve time before cutoff");
         require(_maxTotalPool > 0, "Invalid max pool");
+        require(_timeDecayBps <= 5000, "Time decay too high"); // Max 50% spread
 
         initialized = true;
 
@@ -77,6 +82,7 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
         cutoffTime = _cutoffTime;
         resolveTime = _resolveTime;
         maxTotalPool = _maxTotalPool;
+        timeDecayBps = _timeDecayBps;
         subject = _subject;
         predicate = _predicate;
         windowSpec = _windowSpec;
@@ -84,6 +90,21 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
         // Set fixed fees (5% protocol, 10% creator share of protocol fee)
         feeBps = 500; // 5%
         creatorFeeShareBps = 1000; // 10% of protocol fee
+    }
+
+    function _calculateTimeMultiplier() internal view returns (uint256) {
+        if (timeDecayBps == 0) return 10000; // No decay, 1.0x multiplier
+        
+        uint256 timeRemaining = cutoffTime > block.timestamp ? cutoffTime - block.timestamp : 0;
+        // Use resolve time as a proxy for total market duration
+        uint256 totalTime = resolveTime > cutoffTime ? resolveTime - cutoffTime : 86400; // Default 1 day if not available
+        
+        uint256 timeRatio = timeRemaining > totalTime ? 10000 : (timeRemaining * 10000) / totalTime;
+        if (timeRatio > 10000) timeRatio = 10000; // Cap at 100%
+        
+        // Formula: multiplier = 1.0 - halfSpread + (timeRatio * timeDecayBps) / 10000
+        uint256 halfSpread = timeDecayBps / 2;
+        return 10000 - halfSpread + (timeRatio * timeDecayBps) / 10000;
     }
 
     function deposit(uint8 outcome, uint256 amount) external whenNotPaused nonReentrant {
@@ -96,8 +117,14 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
 
         stakeToken.safeTransferFrom(msg.sender, address(this), amount);
 
+        // Calculate effective stakes with time multiplier
+        uint256 timeMultiplier = _calculateTimeMultiplier();
+        uint256 effectiveAmount = (amount * timeMultiplier) / 10000;
+
         pool[outcome] += amount;
         stakeOf[msg.sender][outcome] += amount;
+        totalEffectiveStakes[outcome] += effectiveAmount;
+        userEffectiveStakes[msg.sender][outcome] += effectiveAmount;
 
         emit Deposited(msg.sender, outcome, amount);
     }
@@ -119,13 +146,13 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
         require(resolved, "Not resolved");
         require(!claimed[msg.sender], "Already claimed");
 
-        uint256 userStake = stakeOf[msg.sender][winningOutcome];
-        require(userStake > 0, "No winning stake");
+        uint256 userEffectiveStake = userEffectiveStakes[msg.sender][winningOutcome];
+        require(userEffectiveStake > 0, "No winning stake");
 
         claimed[msg.sender] = true;
 
-        uint256 totalWinningPool = pool[winningOutcome];
         uint256 totalLosingPool = pool[1 - winningOutcome];
+        uint256 totalWinningEffectiveStakes = totalEffectiveStakes[winningOutcome];
 
         // Calculate fee only once (first claimer)
         if (feeCollected == 0 && totalLosingPool > 0) {
@@ -145,16 +172,21 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
             emit Skimmed(treasury, creator, treasuryFee, creatorFee);
         }
 
-        // Calculate payout
+        // Calculate payout using effective stakes for winnings distribution
         uint256 payout;
+        uint256 userActualStake = stakeOf[msg.sender][winningOutcome];
+        
         if (totalLosingPool == 0) {
-            // No losers, just return stake
-            payout = userStake;
+            // No losers, just return actual stake
+            payout = userActualStake;
+        } else if (totalWinningEffectiveStakes == 0) {
+            // Edge case: no effective stakes, return actual stake
+            payout = userActualStake;
         } else {
-            // Return stake plus share of losing pool minus fees
+            // Return actual stake plus proportional share based on effective stakes
             uint256 availableWinnings = totalLosingPool - feeCollected;
-            uint256 winningsShare = (availableWinnings * userStake) / totalWinningPool;
-            payout = userStake + winningsShare;
+            uint256 winningsShare = (availableWinnings * userEffectiveStake) / totalWinningEffectiveStakes;
+            payout = userActualStake + winningsShare;
         }
 
         stakeToken.safeTransfer(msg.sender, payout);
@@ -168,6 +200,14 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
 
     function userInfo(address user) external view returns (uint256[2] memory) {
         return stakeOf[user];
+    }
+
+    function userEffectiveInfo(address user) external view returns (uint256[2] memory) {
+        return userEffectiveStakes[user];
+    }
+
+    function getTimeMultiplier() external view returns (uint256) {
+        return _calculateTimeMultiplier();
     }
 
     function cancelAndRefund() external onlyOwner {
@@ -187,6 +227,7 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
 
         claimed[msg.sender] = true;
 
+        // In cancellation, return actual stakes (not affected by time decay)
         uint256 refund = stakeOf[msg.sender][0] + stakeOf[msg.sender][1];
         require(refund > 0, "Nothing to refund");
 

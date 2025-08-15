@@ -36,7 +36,8 @@ contract TypesTest is Test {
             econ: MarketTypes.Economics({
                 feeBps: 500, // 5%
                 creatorFeeShareBps: 1000, // 10% of protocol fee
-                maxTotalPool: 1_000_000e18
+                maxTotalPool: 1_000_000e18,
+                timeDecayBps: 0 // No time decay for type tests
             }),
             isProtocolMarket: false
         });
@@ -110,7 +111,8 @@ contract TypesTest is Test {
             econ: MarketTypes.Economics({
                 feeBps: 500, // Fixed 5%
                 creatorFeeShareBps: 1000, // Fixed 10% of protocol fee
-                maxTotalPool: 10_000_000e18
+                maxTotalPool: 10_000_000e18,
+                timeDecayBps: 0 // No time decay for type tests
             }),
             isProtocolMarket: true
         });
@@ -149,7 +151,8 @@ contract TypesTest is Test {
             econ: MarketTypes.Economics({
                 feeBps: 500,
                 creatorFeeShareBps: 1000,
-                maxTotalPool: 500_000e18
+                maxTotalPool: 500_000e18,
+                timeDecayBps: 0 // No time decay for type tests
             }),
             isProtocolMarket: false
         });
