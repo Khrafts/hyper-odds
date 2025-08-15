@@ -54,7 +54,7 @@ export class WebhookServer {
     this.app.use(express.json());
     
     // Log ALL incoming requests
-    this.app.use((req, res, next) => {
+    this.app.use((req, _res, next) => {
       logger.info({
         method: req.method,
         url: req.url,

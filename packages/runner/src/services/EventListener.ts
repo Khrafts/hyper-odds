@@ -86,7 +86,7 @@ export class EventListener {
       logger.info({ eventCount: events.length }, 'Found recent MarketCreated events');
 
       for (const event of events) {
-        const [marketAddress, creator, isProtocolMarket] = event.args!;
+        const [marketAddress, creator, isProtocolMarket] = (event as any).args;
         const eventLogger = logger.child({
           marketAddress,
           creator,
