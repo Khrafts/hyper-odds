@@ -1,5 +1,4 @@
 import express, { Express, Request, Response } from 'express';
-import crypto from 'crypto';
 import PQueue from 'p-queue';
 import { ResolutionService } from './ResolutionService.js';
 import { ContractService } from './ContractService.js';
@@ -8,7 +7,7 @@ import { JobScheduler } from './JobScheduler.js';
 import { logger } from '../utils/logger.js';
 import { config } from '../config/index.js';
 import { ethers } from 'ethers';
-import type { GoldskyWebhookPayload, Market, MarketCreated } from '../types/index.js';
+import type { GoldskyWebhookPayload, MarketCreated } from '../types/index.js';
 
 export class WebhookServer {
   private app: Express;
@@ -53,6 +52,17 @@ export class WebhookServer {
   private setupRoutes(): void {
     // Parse JSON body
     this.app.use(express.json());
+    
+    // Log ALL incoming requests
+    this.app.use((req, res, next) => {
+      logger.info({
+        method: req.method,
+        url: req.url,
+        headers: req.headers,
+        body: req.body
+      }, 'Incoming request');
+      next();
+    });
 
     // Health check endpoint
     this.app.get('/health', (_req: Request, res: Response) => {
@@ -69,10 +79,16 @@ export class WebhookServer {
 
     // Webhook endpoint for MarketCreated events
     this.app.post('/webhook/market-created', async (req: Request, res: Response): Promise<void> => {
+      logger.info({ 
+        headers: req.headers,
+        body: req.body 
+      }, 'Received webhook request');
+      
       try {
         // Verify webhook signature
         if (config.webhookSecret) {
           const signature = req.headers['goldsky-webhook-secret'] as string;
+          logger.debug({ signature, expectedSecret: config.webhookSecret }, 'Verifying webhook signature');
           if (!this.verifyGoldskySignature(req.body, signature)) {
             logger.warn('Invalid webhook signature');
             res.status(401).json({ error: 'Invalid signature' });
@@ -127,7 +143,7 @@ export class WebhookServer {
     });
   }
 
-  private verifyGoldskySignature(payload: any, signature: string | undefined): boolean {
+  private verifyGoldskySignature(_payload: any, signature: string | undefined): boolean {
     if (!signature || !config.webhookSecret) {
       return false;
     }
@@ -208,7 +224,7 @@ export class WebhookServer {
         }
       );
 
-      const data = await response.json();
+      const data = await response.json() as any;
       
       if (!data.data?.market) {
         logger.error({ marketAddress }, 'Market not found in subgraph');

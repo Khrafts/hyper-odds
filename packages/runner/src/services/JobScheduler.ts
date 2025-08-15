@@ -6,7 +6,7 @@ interface ScheduledJob {
   marketId: string;
   title: string;
   resolveTime: number;
-  task: cron.ScheduledTask;
+  task: cron.ScheduledTask | { stop: () => void; destroy: () => void };
 }
 
 export class JobScheduler {
@@ -76,9 +76,8 @@ export class JobScheduler {
       task: {
         stop: () => clearTimeout(timeoutId),
         start: () => {},
-        destroy: () => clearTimeout(timeoutId),
-        getStatus: () => 'scheduled'
-      } as any
+        destroy: () => clearTimeout(timeoutId)
+      }
     };
 
     this.jobs.set(marketId, job);
@@ -114,7 +113,7 @@ export class JobScheduler {
       logger.info({ marketId, title }, 'Executing scheduled market resolution');
       await this.resolveMarket(marketId);
       this.jobs.delete(marketId);
-      task.destroy();
+      task.stop();
     }, {
       scheduled: true,
       timezone: "UTC"
@@ -171,7 +170,11 @@ export class JobScheduler {
     }
 
     job.task.stop();
-    job.task.destroy();
+    if ('destroy' in job.task) {
+      if ('destroy' in job.task) {
+        job.task.destroy();
+      }
+    }
     this.jobs.delete(marketId);
 
     logger.info({ marketId, title: job.title }, 'Cancelled scheduled resolution');
@@ -201,7 +204,11 @@ export class JobScheduler {
   destroy(): void {
     for (const job of this.jobs.values()) {
       job.task.stop();
-      job.task.destroy();
+      if ('destroy' in job.task) {
+        if ('destroy' in job.task) {
+        job.task.destroy();
+      }
+      }
     }
     this.jobs.clear();
     logger.info('All scheduled jobs cleared');
