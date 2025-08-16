@@ -1,4 +1,4 @@
-import { MarketCreated, StakeReleased } from "../generated/MarketFactory/MarketFactory"
+import { MarketCreated, StakeReleased, MarketFactory } from "../generated/MarketFactory/MarketFactory"
 import { ParimutuelMarket } from "../generated/templates"
 import { Market, User, MarketCreated as MarketCreatedEntity, Protocol } from "../generated/schema"
 import { BigInt, BigDecimal } from "@graphprotocol/graph-ts"
@@ -86,6 +86,7 @@ export function handleMarketCreated(event: MarketCreated): void {
   market.feeBps = 500 // 5%
   market.creatorFeeShareBps = 2000 // 20% of fees
   market.maxTotalPool = BigDecimal.fromString("1000000")
+  market.timeDecayBps = 0 // Default, will be updated by contract call
   
   // Timing
   market.cutoffTime = event.block.timestamp.plus(BigInt.fromI32(3600)) // 1 hour from now
@@ -101,6 +102,11 @@ export function handleMarketCreated(event: MarketCreated): void {
   market.poolYes = BigDecimal.fromString("0")
   market.totalPool = BigDecimal.fromString("0")
   market.feeCollected = BigDecimal.fromString("0")
+  
+  // Effective pools
+  market.effectivePoolNo = BigDecimal.fromString("0")
+  market.effectivePoolYes = BigDecimal.fromString("0")
+  market.totalEffectivePool = BigDecimal.fromString("0")
   
   // Metadata
   market.createdAt = event.block.timestamp

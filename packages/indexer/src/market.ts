@@ -1,7 +1,8 @@
 import { 
   Deposited,
   Resolved,
-  Claimed
+  Claimed,
+  ParimutuelMarketImplementation
 } from "../generated/templates/ParimutuelMarket/ParimutuelMarketImplementation"
 import { 
   Market,
@@ -73,6 +74,9 @@ function getOrCreatePosition(
     position.stakeNo = BigDecimal.fromString("0")
     position.stakeYes = BigDecimal.fromString("0")
     position.totalStake = BigDecimal.fromString("0")
+    position.effectiveStakeNo = BigDecimal.fromString("0")
+    position.effectiveStakeYes = BigDecimal.fromString("0")
+    position.totalEffectiveStake = BigDecimal.fromString("0")
     position.claimed = false
     position.payout = BigDecimal.fromString("0")
     position.profit = BigDecimal.fromString("0")
@@ -109,21 +113,37 @@ export function handleDeposited(event: Deposited): void {
     event.block.timestamp
   )
   
-  // Update position
+  // Get time multiplier from contract
+  let marketContract = ParimutuelMarketImplementation.bind(event.address)
+  let timeMultiplierResult = marketContract.try_getTimeMultiplier()
+  let timeMultiplier = timeMultiplierResult.reverted ? 
+    BigInt.fromI32(10000) : timeMultiplierResult.value
+  let timeMultiplierDecimal = toBigDecimal(timeMultiplier, 4) // 10000 = 1.0x
+  
+  // Calculate amounts
   let amount = toBigDecimal(event.params.amount, 18)
+  let effectiveAmount = amount.times(timeMultiplierDecimal)
+  
+  // Update position stakes
   if (event.params.outcome == 0) {
     position.stakeNo = position.stakeNo.plus(amount)
+    position.effectiveStakeNo = position.effectiveStakeNo.plus(effectiveAmount)
     market.poolNo = market.poolNo.plus(amount)
+    market.effectivePoolNo = market.effectivePoolNo.plus(effectiveAmount)
   } else {
     position.stakeYes = position.stakeYes.plus(amount)
+    position.effectiveStakeYes = position.effectiveStakeYes.plus(effectiveAmount)
     market.poolYes = market.poolYes.plus(amount)
+    market.effectivePoolYes = market.effectivePoolYes.plus(effectiveAmount)
   }
   position.totalStake = position.totalStake.plus(amount)
+  position.totalEffectiveStake = position.totalEffectiveStake.plus(effectiveAmount)
   position.updatedAt = event.block.timestamp
   position.save()
   
   // Update market pools
   market.totalPool = market.totalPool.plus(amount)
+  market.totalEffectivePool = market.totalEffectivePool.plus(effectiveAmount)
   market.save()
   
   // Create deposit entity
@@ -134,6 +154,8 @@ export function handleDeposited(event: Deposited): void {
   deposit.user = user.id
   deposit.outcome = event.params.outcome
   deposit.amount = amount
+  deposit.effectiveAmount = effectiveAmount
+  deposit.timeMultiplier = timeMultiplierDecimal
   deposit.timestamp = event.block.timestamp
   deposit.blockNumber = event.block.number
   deposit.transactionHash = event.transaction.hash

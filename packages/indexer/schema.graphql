@@ -41,6 +41,7 @@ type Market @entity {
   feeBps: Int!
   creatorFeeShareBps: Int!
   maxTotalPool: BigDecimal!
+  timeDecayBps: Int! # Time decay spread in basis points (0-5000)
   
   # Timing
   cutoffTime: BigInt!
@@ -58,6 +59,11 @@ type Market @entity {
   poolYes: BigDecimal!
   totalPool: BigDecimal!
   feeCollected: BigDecimal!
+  
+  # Effective Stakes (for time decay)
+  effectivePoolNo: BigDecimal!
+  effectivePoolYes: BigDecimal!
+  totalEffectivePool: BigDecimal!
   
   # Metadata
   createdAt: BigInt!
@@ -106,6 +112,11 @@ type Position @entity {
   stakeYes: BigDecimal!
   totalStake: BigDecimal!
   
+  # Effective Stakes (with time decay multipliers)
+  effectiveStakeNo: BigDecimal!
+  effectiveStakeYes: BigDecimal!
+  totalEffectiveStake: BigDecimal!
+  
   # Outcome
   claimed: Boolean!
   payout: BigDecimal!
@@ -123,6 +134,8 @@ type Deposit @entity {
   user: User!
   outcome: Int! # 0 = NO, 1 = YES
   amount: BigDecimal!
+  effectiveAmount: BigDecimal! # Amount after time decay multiplier
+  timeMultiplier: BigDecimal! # The multiplier applied (e.g., 1.125 for early, 0.875 for late)
   
   # Metadata
   timestamp: BigInt!
