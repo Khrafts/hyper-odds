@@ -1,8 +1,9 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract, useReadContracts } from 'wagmi'
 import { parseUnits, formatUnits, Address } from 'viem'
 import { getContractAddress, CONTRACTS, OUTCOME, ERC20_ABI } from '@/lib/web3/contracts'
 import { useChainId } from 'wagmi'
+import { useTradingStore, type Transaction } from '@/stores/use-trading-store'
 
 export interface TradingState {
   isLoading: boolean
@@ -16,6 +17,23 @@ export interface TradingState {
 export function useTradingHooks(marketAddress?: Address) {
   const { address: userAddress, isConnected } = useAccount()
   const chainId = useChainId()
+  
+  // Use Zustand store for transaction state
+  const {
+    tradingState: storeState,
+    startApproval,
+    startDeposit,
+    startClaim,
+    completeTransaction,
+    failTransaction,
+    setOptimisticBalance,
+    setOptimisticPools,
+    clearOptimisticUpdates,
+    getTransactionsByMarket,
+    isTransactionPending,
+  } = useTradingStore()
+  
+  // Local state for backward compatibility
   const [tradingState, setTradingState] = useState<TradingState>({
     isLoading: false,
     isSuccess: false,
@@ -145,6 +163,9 @@ export function useTradingHooks(marketAddress?: Address) {
     }
 
     try {
+      // Start approval in store
+      const txId = startApproval(marketAddress, amount)
+      
       setTradingState({
         isLoading: true,
         isSuccess: false,
@@ -163,6 +184,7 @@ export function useTradingHooks(marketAddress?: Address) {
       })
 
     } catch (error) {
+      failTransaction((error as Error).message)
       setTradingState({
         isLoading: false,
         isSuccess: false,
@@ -171,7 +193,7 @@ export function useTradingHooks(marketAddress?: Address) {
       })
       throw error
     }
-  }, [stakeTokenAddress, marketAddress, isConnected, writeContract])
+  }, [stakeTokenAddress, marketAddress, isConnected, writeContract, startApproval, failTransaction])
 
   // Deposit function
   const deposit = useCallback(async (outcome: 'YES' | 'NO', amount: string) => {
@@ -180,6 +202,9 @@ export function useTradingHooks(marketAddress?: Address) {
     }
 
     try {
+      // Start deposit in store
+      const txId = startDeposit(marketAddress, outcome, amount)
+      
       setTradingState({
         isLoading: true,
         isSuccess: false,
@@ -199,6 +224,7 @@ export function useTradingHooks(marketAddress?: Address) {
       })
 
     } catch (error) {
+      failTransaction((error as Error).message)
       setTradingState({
         isLoading: false,
         isSuccess: false,
@@ -207,7 +233,7 @@ export function useTradingHooks(marketAddress?: Address) {
       })
       throw error
     }
-  }, [marketAddress, isConnected, userAddress, writeContract])
+  }, [marketAddress, isConnected, userAddress, writeContract, startDeposit, failTransaction])
 
   // Combined approve and deposit function
   const approveAndDeposit = useCallback(async (outcome: 'YES' | 'NO', amount: string) => {
@@ -232,6 +258,9 @@ export function useTradingHooks(marketAddress?: Address) {
     }
 
     try {
+      // Start claim in store
+      const txId = startClaim(marketAddress)
+      
       setTradingState({
         isLoading: true,
         isSuccess: false,
@@ -246,6 +275,7 @@ export function useTradingHooks(marketAddress?: Address) {
       })
 
     } catch (error) {
+      failTransaction((error as Error).message)
       setTradingState({
         isLoading: false,
         isSuccess: false,
@@ -254,11 +284,14 @@ export function useTradingHooks(marketAddress?: Address) {
       })
       throw error
     }
-  }, [marketAddress, isConnected, userAddress, writeContract])
+  }, [marketAddress, isConnected, userAddress, writeContract, startClaim, failTransaction])
 
   // Update trading state based on transaction status
-  useMemo(() => {
-    if (isTxSuccess) {
+  useEffect(() => {
+    if (isTxSuccess && txHash) {
+      // Complete transaction in store
+      completeTransaction(txHash)
+      
       setTradingState(prev => ({
         ...prev,
         isLoading: false,
@@ -289,7 +322,7 @@ export function useTradingHooks(marketAddress?: Address) {
         txHash: txHash,
       }))
     }
-  }, [isTxSuccess, isTxLoading, isWritePending, writeError, txError, txHash, refetchContractData])
+  }, [isTxSuccess, isTxLoading, isWritePending, writeError, txError, txHash])
 
   // Helper to check if amount needs approval
   const needsApproval = useCallback((amount: string) => {
@@ -304,8 +337,20 @@ export function useTradingHooks(marketAddress?: Address) {
     approveAndDeposit,
     claimWinnings,
     
-    // State
-    tradingState,
+    // State (merged local and store state)
+    tradingState: {
+      ...tradingState,
+      // Use store state if available for current market
+      ...(storeState.currentTransaction?.marketId === marketAddress && {
+        isLoading: storeState.isLoading,
+        error: storeState.error ? new Error(storeState.error) : null,
+        stage: storeState.stage,
+      }),
+    },
+    
+    // Store-specific data
+    transactions: marketAddress ? getTransactionsByMarket(marketAddress) : [],
+    isPending: marketAddress ? isTransactionPending(marketAddress) : false,
     
     // Data
     usdcBalance,
