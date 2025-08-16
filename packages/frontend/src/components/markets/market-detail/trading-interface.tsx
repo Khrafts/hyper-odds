@@ -24,7 +24,7 @@ import {
   CheckCircle,
   XCircle
 } from 'lucide-react'
-import { useAccount, useBalance } from 'wagmi'
+import { useAccount } from 'wagmi'
 import { formatUnits } from 'viem'
 import { Market } from '@/hooks/useMarkets'
 import { cn } from '@/lib/utils'
@@ -35,6 +35,7 @@ import {
   tradingFormSchema,
   type TradingFormData 
 } from '@/lib/validations/trading'
+import { useTradingHooks } from '@/hooks/useTradingHooks'
 
 interface TradingInterfaceProps {
   market: Market
@@ -44,8 +45,19 @@ interface TradingInterfaceProps {
 
 export function TradingInterface({ market, onTrade, disabled = false }: TradingInterfaceProps) {
   const { address, isConnected } = useAccount()
-  // TODO: Update to use USDC token balance instead of ETH
-  const { data: balance } = useBalance({ address })
+  
+  // Use trading hooks for contract integration
+  const {
+    deposit,
+    approveUSDC,
+    approveAndDeposit,
+    needsApproval,
+    tradingState,
+    usdcBalance,
+    formattedBalance,
+    formattedPoolNo,
+    formattedPoolYes,
+  } = useTradingHooks(market.id as `0x${string}`)
   
   const [selectedSide, setSelectedSide] = useState<'YES' | 'NO'>('YES')
   const [amount, setAmount] = useState('')
@@ -54,10 +66,10 @@ export function TradingInterface({ market, onTrade, disabled = false }: TradingI
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [slippage, setSlippage] = useState(1) // 1% default slippage
 
-  // Calculate current probabilities from pool values
+  // Calculate current probabilities from real contract pool values
   const { yesProb, noProb } = useMemo(() => {
-    const yesPool = parseFloat(market.poolYes || '0')
-    const noPool = parseFloat(market.poolNo || '0')
+    const yesPool = parseFloat(formattedPoolYes || '0')
+    const noPool = parseFloat(formattedPoolNo || '0')
     const total = yesPool + noPool
     
     if (total === 0) {
@@ -68,7 +80,7 @@ export function TradingInterface({ market, onTrade, disabled = false }: TradingI
       yesProb: (noPool / total) * 100, // Inverse for CPMM
       noProb: (yesPool / total) * 100
     }
-  }, [market.poolYes, market.poolNo])
+  }, [formattedPoolYes, formattedPoolNo])
 
   // Calculate estimated shares and potential payout
   const estimatedShares = useMemo(() => {
@@ -155,7 +167,7 @@ export function TradingInterface({ market, onTrade, disabled = false }: TradingI
     // Validate trading amount
     const amountValidation = validateTradingAmount(
       amount,
-      balance?.value,
+      usdcBalance,
       '1', // min amount
       '1000000'   // max amount
     )
@@ -194,27 +206,37 @@ export function TradingInterface({ market, onTrade, disabled = false }: TradingI
     }
     
     return { isValid: true, message: null, type: null }
-  }, [amount, balance, isConnected, market, selectedSide, slippage])
+  }, [amount, usdcBalance, isConnected, market, selectedSide, slippage])
 
   const handleTrade = useCallback(async () => {
-    if (!validation.isValid || !onTrade) return
+    if (!validation.isValid) return
     
-    setIsProcessing(true)
     setError(null)
     
     try {
-      await onTrade(selectedSide, amount)
-      setAmount('')
+      // Use real contract integration
+      if (needsApproval(amount)) {
+        // Two-step process: approve then deposit
+        await approveUSDC(amount)
+        // User will need to click again after approval to deposit
+      } else {
+        // Direct deposit
+        await deposit(selectedSide, amount)
+        setAmount('')
+      }
+      
+      // Also call the optional onTrade callback for demo/testing
+      if (onTrade) {
+        await onTrade(selectedSide, amount)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Transaction failed')
-    } finally {
-      setIsProcessing(false)
     }
-  }, [validation.isValid, onTrade, selectedSide, amount])
+  }, [validation.isValid, needsApproval, amount, approveUSDC, deposit, selectedSide, onTrade])
 
   // Quick amount buttons
   const quickAmounts = [100, 500, 1000, 5000]
-  const balanceInUSDC = balance ? parseFloat(formatUnits(balance.value, 18)) : 0 // TODO: Update to 6 decimals for USDC
+  const balanceInUSDC = parseFloat(formattedBalance || '0')
 
   return (
     <Card className="overflow-hidden">
@@ -302,7 +324,7 @@ export function TradingInterface({ market, onTrade, disabled = false }: TradingI
               placeholder="0.00"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              disabled={disabled || isProcessing || !isConnected}
+              disabled={disabled || tradingState.isLoading || !isConnected}
               className="text-lg"
               step="1"
               min="1"
@@ -317,7 +339,7 @@ export function TradingInterface({ market, onTrade, disabled = false }: TradingI
                 variant="outline"
                 size="sm"
                 onClick={() => setAmount(quickAmount.toString())}
-                disabled={disabled || isProcessing || !isConnected || quickAmount > balanceInUSDC}
+                disabled={disabled || tradingState.isLoading || !isConnected || quickAmount > balanceInUSDC}
                 className="flex-1"
               >
                 {quickAmount} USDC
@@ -327,7 +349,7 @@ export function TradingInterface({ market, onTrade, disabled = false }: TradingI
               variant="outline"
               size="sm"
               onClick={() => setAmount(balanceInUSDC.toString())}
-              disabled={disabled || isProcessing || !isConnected || balanceInUSDC === 0}
+              disabled={disabled || tradingState.isLoading || !isConnected || balanceInUSDC === 0}
               className="flex-1"
             >
               Max
@@ -418,11 +440,35 @@ export function TradingInterface({ market, onTrade, disabled = false }: TradingI
           )}
         </div>
 
+        {/* Transaction Status */}
+        {tradingState.isSuccess && (
+          <Alert>
+            <CheckCircle className="h-4 w-4" />
+            <AlertDescription>
+              Transaction successful! {tradingState.stage === 'approval' && 'You can now proceed with the deposit.'}
+              {tradingState.txHash && (
+                <div className="mt-1">
+                  <a 
+                    href={`https://sepolia.arbiscan.io/tx/${tradingState.txHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs underline"
+                  >
+                    View on Explorer
+                  </a>
+                </div>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Error/Warning Messages */}
-        {error && (
+        {(error || tradingState.error) && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription>
+              {error || tradingState.error?.message}
+            </AlertDescription>
           </Alert>
         )}
         
@@ -435,7 +481,7 @@ export function TradingInterface({ market, onTrade, disabled = false }: TradingI
                 <div className="mt-2 text-xs text-muted-foreground">
                   • Minimum: 1 USDC
                   • Maximum: 1,000,000 USDC  
-                  • Balance: {balance ? parseFloat(formatUnits(balance.value, 18)).toFixed(2) : '0'} USDC
+                  • Balance: {balanceInUSDC.toFixed(2)} USDC
                 </div>
               )}
               {validation.type === 'market' && (
@@ -450,14 +496,16 @@ export function TradingInterface({ market, onTrade, disabled = false }: TradingI
         {/* Trade Button */}
         <Button
           onClick={handleTrade}
-          disabled={!validation.isValid || isProcessing || disabled}
+          disabled={!validation.isValid || tradingState.isLoading || disabled}
           className="w-full h-12 text-lg"
           variant={selectedSide === 'YES' ? 'default' : 'destructive'}
         >
-          {isProcessing ? (
-            'Processing...'
+          {tradingState.isLoading ? (
+            tradingState.stage === 'approval' ? 'Approving USDC...' : 'Processing Transaction...'
           ) : !isConnected ? (
             'Connect Wallet'
+          ) : needsApproval(amount) ? (
+            `Approve ${amount || '0'} USDC`
           ) : (
             `Buy ${selectedSide} for ${amount || '0'} USDC`
           )}

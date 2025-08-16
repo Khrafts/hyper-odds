@@ -6,40 +6,55 @@ import { Address } from 'viem'
 export const CONTRACT_ADDRESSES = {
   // Arbitrum Sepolia testnet
   421614: {
-    ParimutuelMarketFactory: '0x1234567890123456789012345678901234567890' as Address,
-    ParimutuelMarket: '0x0987654321098765432109876543210987654321' as Address,
+    ParimutuelMarketFactory: '0x00e5A2346C96da6C54f53d2d53bD5536D53Fae5D' as Address,
+    ParimutuelMarket: '0x89b371a0a56713C3E660C9eFCe659853c755dDF9' as Address, // Test market
+    MarketImplementation: '0xC6364ccdbd7c26130ce63001Ed874b1F91669462' as Address,
+    StakeToken: '0x33348eC41C542d425e652Ad224Be1662bda21199' as Address, // MockUSDC
+    Oracle: '0x964c2247112Bbf53619b78deD036Fe1b285efaE7' as Address,
+    StHYPE: '0xca185ec9f895E1710003204363e91D5C60ACc7b9' as Address,
   },
   // Arbitrum One mainnet (placeholder)
   42161: {
     ParimutuelMarketFactory: '0x0000000000000000000000000000000000000000' as Address,
     ParimutuelMarket: '0x0000000000000000000000000000000000000000' as Address,
+    MarketImplementation: '0x0000000000000000000000000000000000000000' as Address,
+    StakeToken: '0x0000000000000000000000000000000000000000' as Address,
+    Oracle: '0x0000000000000000000000000000000000000000' as Address,
+    StHYPE: '0x0000000000000000000000000000000000000000' as Address,
   },
 } as const
 
 /**
  * ParimutuelMarket contract ABI
- * Core prediction market contract for placing bets and claiming rewards
+ * Based on the actual deployed contract implementation
  */
 export const PARIMUTUEL_MARKET_ABI = [
   // Read functions
   {
     inputs: [],
-    name: 'question',
-    outputs: [{ internalType: 'string', name: '', type: 'string' }],
+    name: 'stakeToken',
+    outputs: [{ internalType: 'contract IERC20', name: '', type: 'address' }],
     stateMutability: 'view',
     type: 'function',
   },
   {
     inputs: [],
     name: 'cutoffTime',
-    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    outputs: [{ internalType: 'uint64', name: '', type: 'uint64' }],
     stateMutability: 'view',
     type: 'function',
   },
   {
     inputs: [],
     name: 'resolveTime',
-    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    outputs: [{ internalType: 'uint64', name: '', type: 'uint64' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'createdAt',
+    outputs: [{ internalType: 'uint64', name: '', type: 'uint64' }],
     stateMutability: 'view',
     type: 'function',
   },
@@ -58,15 +73,8 @@ export const PARIMUTUEL_MARKET_ABI = [
     type: 'function',
   },
   {
-    inputs: [],
-    name: 'poolYes',
-    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'poolNo',
+    inputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    name: 'pool',
     outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
     stateMutability: 'view',
     type: 'function',
@@ -79,55 +87,68 @@ export const PARIMUTUEL_MARKET_ABI = [
     type: 'function',
   },
   {
-    inputs: [{ internalType: 'address', name: 'user', type: 'address' }],
-    name: 'getPosition',
-    outputs: [
-      {
-        components: [
-          { internalType: 'uint256', name: 'stakeYes', type: 'uint256' },
-          { internalType: 'uint256', name: 'stakeNo', type: 'uint256' },
-          { internalType: 'uint256', name: 'totalStake', type: 'uint256' },
-          { internalType: 'uint256', name: 'effectiveStakeYes', type: 'uint256' },
-          { internalType: 'uint256', name: 'effectiveStakeNo', type: 'uint256' },
-          { internalType: 'uint256', name: 'totalEffectiveStake', type: 'uint256' },
-          { internalType: 'bool', name: 'claimed', type: 'bool' },
-          { internalType: 'uint256', name: 'payout', type: 'uint256' },
-          { internalType: 'uint256', name: 'profit', type: 'uint256' },
-        ],
-        internalType: 'struct ParimutuelMarket.Position',
-        name: '',
-        type: 'tuple',
-      },
+    inputs: [
+      { internalType: 'address', name: '', type: 'address' },
+      { internalType: 'uint256', name: '', type: 'uint256' }
     ],
+    name: 'stakeOf',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { internalType: 'address', name: '', type: 'address' },
+      { internalType: 'uint256', name: '', type: 'uint256' }
+    ],
+    name: 'userEffectiveStakes',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
     stateMutability: 'view',
     type: 'function',
   },
   {
     inputs: [{ internalType: 'address', name: 'user', type: 'address' }],
-    name: 'getClaimableAmount',
+    name: 'userInfo',
+    outputs: [{ internalType: 'uint256[2]', name: '', type: 'uint256[2]' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'address', name: 'user', type: 'address' }],
+    name: 'userEffectiveInfo',
+    outputs: [{ internalType: 'uint256[2]', name: '', type: 'uint256[2]' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'getTimeMultiplier',
     outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'address', name: '', type: 'address' }],
+    name: 'claimed',
+    outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
     stateMutability: 'view',
     type: 'function',
   },
   
   // Write functions
   {
-    inputs: [{ internalType: 'uint8', name: 'outcome', type: 'uint8' }],
+    inputs: [
+      { internalType: 'uint8', name: 'outcome', type: 'uint8' },
+      { internalType: 'uint256', name: 'amount', type: 'uint256' }
+    ],
     name: 'deposit',
-    outputs: [],
-    stateMutability: 'payable',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'claimWinnings',
     outputs: [],
     stateMutability: 'nonpayable',
     type: 'function',
   },
   {
-    inputs: [{ internalType: 'uint8', name: '_winningOutcome', type: 'uint8' }],
-    name: 'resolve',
+    inputs: [],
+    name: 'claim',
     outputs: [],
     stateMutability: 'nonpayable',
     type: 'function',
@@ -140,29 +161,77 @@ export const PARIMUTUEL_MARKET_ABI = [
       { indexed: true, internalType: 'address', name: 'user', type: 'address' },
       { indexed: false, internalType: 'uint8', name: 'outcome', type: 'uint8' },
       { indexed: false, internalType: 'uint256', name: 'amount', type: 'uint256' },
-      { indexed: false, internalType: 'uint256', name: 'effectiveAmount', type: 'uint256' },
-      { indexed: false, internalType: 'uint256', name: 'timeMultiplier', type: 'uint256' },
     ],
-    name: 'Deposit',
+    name: 'Deposited',
     type: 'event',
   },
   {
     anonymous: false,
     inputs: [
       { indexed: true, internalType: 'address', name: 'user', type: 'address' },
-      { indexed: false, internalType: 'uint256', name: 'amount', type: 'uint256' },
+      { indexed: false, internalType: 'uint256', name: 'payout', type: 'uint256' },
     ],
-    name: 'Claim',
+    name: 'Claimed',
     type: 'event',
   },
   {
     anonymous: false,
     inputs: [
       { indexed: false, internalType: 'uint8', name: 'winningOutcome', type: 'uint8' },
-      { indexed: false, internalType: 'uint256', name: 'totalPool', type: 'uint256' },
+      { indexed: false, internalType: 'bytes32', name: 'dataHash', type: 'bytes32' },
     ],
-    name: 'MarketResolved',
+    name: 'Resolved',
     type: 'event',
+  },
+] as const
+
+/**
+ * ERC20 Token ABI (USDC)
+ */
+export const ERC20_ABI = [
+  {
+    inputs: [{ internalType: 'address', name: 'account', type: 'address' }],
+    name: 'balanceOf',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { internalType: 'address', name: 'owner', type: 'address' },
+      { internalType: 'address', name: 'spender', type: 'address' }
+    ],
+    name: 'allowance',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { internalType: 'address', name: 'spender', type: 'address' },
+      { internalType: 'uint256', name: 'amount', type: 'uint256' }
+    ],
+    name: 'approve',
+    outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { internalType: 'address', name: 'to', type: 'address' },
+      { internalType: 'uint256', name: 'amount', type: 'uint256' }
+    ],
+    name: 'transfer',
+    outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'decimals',
+    outputs: [{ internalType: 'uint8', name: '', type: 'uint8' }],
+    stateMutability: 'view',
+    type: 'function',
   },
 ] as const
 
@@ -265,6 +334,9 @@ export const CONTRACTS = {
   },
   ParimutuelMarketFactory: {
     abi: PARIMUTUEL_MARKET_FACTORY_ABI,
+  },
+  StakeToken: {
+    abi: ERC20_ABI,
   },
 } as const
 
