@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { MarketsSection } from '@/components/markets-section'
 import { ClientOnly } from '@/components/client-only'
+import { PageErrorBoundary } from '@/components/error'
 import { 
   TrendingUp, 
   Users, 
@@ -21,7 +22,8 @@ import {
 export default function HomePage() {
 
   return (
-    <div className="min-h-screen">
+    <PageErrorBoundary pageName="Home">
+      <div className="min-h-screen">
       {/* Hero Section */}
       <section className="relative overflow-hidden py-24 sm:py-32">
         <div className="container px-4">
@@ -200,6 +202,7 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-    </div>
+      </div>
+    </PageErrorBoundary>
   )
 }

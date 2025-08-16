@@ -6,13 +6,15 @@ import { Market } from '@/hooks/useMarkets'
 import { Skeleton } from '../ui/skeleton'
 import { Alert, AlertDescription } from '../ui/alert'
 import { AlertTriangle } from 'lucide-react'
+import { ComponentErrorBoundary, AsyncBoundary } from '../error'
 
 interface MarketGridProps {
   markets: Market[]
   loading?: boolean
-  error?: string | null
+  error?: string | Error | null
   onMarketClick?: (market: Market) => void
   onTrade?: (market: Market, outcome: 'YES' | 'NO') => void
+  onRetry?: () => void
   className?: string
 }
 
@@ -22,49 +24,44 @@ export function MarketGrid({
   error, 
   onMarketClick, 
   onTrade,
+  onRetry,
   className 
 }: MarketGridProps) {
-  if (error) {
-    return (
-      <Alert variant="destructive">
-        <AlertTriangle className="h-4 w-4" />
-        <AlertDescription>
-          Failed to load markets: {error}
-        </AlertDescription>
-      </Alert>
-    )
-  }
-
-  if (loading) {
-    return <MarketGridSkeleton />
-  }
-
-  if (markets.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <div className="mx-auto max-w-md">
-          <h3 className="text-lg font-semibold text-muted-foreground">
-            No markets found
-          </h3>
-          <p className="text-sm text-muted-foreground mt-2">
-            Try adjusting your filters or check back later for new markets.
-          </p>
-        </div>
-      </div>
-    )
-  }
+  const errorObj = typeof error === 'string' ? new Error(error) : error
 
   return (
-    <div className={`grid gap-6 ${className || 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
-      {markets.map((market) => (
-        <MarketCard
-          key={market.id}
-          market={market}
-          onClick={() => onMarketClick?.(market)}
-          onTrade={onTrade}
-        />
-      ))}
-    </div>
+    <ComponentErrorBoundary componentName="MarketGrid">
+      <AsyncBoundary
+        isLoading={loading}
+        error={errorObj}
+        onRetry={onRetry}
+        loadingFallback={<MarketGridSkeleton />}
+      >
+        {markets.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="mx-auto max-w-md">
+              <h3 className="text-lg font-semibold text-muted-foreground">
+                No markets found
+              </h3>
+              <p className="text-sm text-muted-foreground mt-2">
+                Try adjusting your filters or check back later for new markets.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className={`grid gap-6 ${className || 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
+            {markets.map((market) => (
+              <MarketCard
+                key={market.id}
+                market={market}
+                onClick={() => onMarketClick?.(market)}
+                onTrade={onTrade}
+              />
+            ))}
+          </div>
+        )}
+      </AsyncBoundary>
+    </ComponentErrorBoundary>
   )
 }
 

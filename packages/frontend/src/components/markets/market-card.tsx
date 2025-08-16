@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../ui/card'
 import { Badge } from '../ui/badge'
 import { Progress } from '../ui/progress'
@@ -9,6 +9,7 @@ import { Separator } from '../ui/separator'
 import { Market } from '@/hooks/useMarkets'
 import { formatEther } from 'viem'
 import { TrendingUp, Clock, Users } from 'lucide-react'
+import { ComponentErrorBoundary, InlineError } from '../error'
 
 interface MarketCardProps {
   market: Market
@@ -17,7 +18,9 @@ interface MarketCardProps {
 }
 
 export function MarketCard({ market, onClick, onTrade }: MarketCardProps) {
-  // Calculate probabilities
+  const [tradeError, setTradeError] = useState<string | null>(null)
+
+  // Safe data parsing with error handling
   const poolYes = parseFloat(market.poolYes || '0')
   const poolNo = parseFloat(market.poolNo || '0')
   const totalPool = poolYes + poolNo
@@ -36,12 +39,22 @@ export function MarketCard({ market, onClick, onTrade }: MarketCardProps) {
   const isExpired = market.cutoffTime && new Date(parseInt(market.cutoffTime) * 1000) < new Date()
   const isResolved = market.resolved
 
+  const handleTrade = async (outcome: 'YES' | 'NO') => {
+    try {
+      setTradeError(null)
+      await onTrade?.(market, outcome)
+    } catch (error) {
+      setTradeError(error instanceof Error ? error.message : 'Failed to process trade')
+    }
+  }
+
   return (
-    <Card 
-      className="hover:shadow-lg transition-shadow cursor-pointer"
-      onClick={onClick}
-    >
-      <CardHeader className="pb-3">
+    <ComponentErrorBoundary componentName="MarketCard">
+      <Card 
+        className="hover:shadow-lg transition-shadow cursor-pointer"
+        onClick={onClick}
+      >
+        <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
           <CardTitle className="text-lg line-clamp-2">
             {market.title}
@@ -102,6 +115,14 @@ export function MarketCard({ market, onClick, onTrade }: MarketCardProps) {
 
         <Separator />
 
+        {/* Trade error display */}
+        {tradeError && (
+          <InlineError 
+            message={tradeError} 
+            onDismiss={() => setTradeError(null)} 
+          />
+        )}
+
         {/* Quick trade buttons */}
         {!isResolved && !isExpired && (
           <div className="flex gap-2">
@@ -111,7 +132,7 @@ export function MarketCard({ market, onClick, onTrade }: MarketCardProps) {
               className="flex-1 text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-950"
               onClick={(e) => {
                 e.stopPropagation()
-                onTrade?.(market, 'YES')
+                handleTrade('YES')
               }}
             >
               Buy YES @ {(yesProb / 100).toFixed(2)}
@@ -122,7 +143,7 @@ export function MarketCard({ market, onClick, onTrade }: MarketCardProps) {
               className="flex-1 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
               onClick={(e) => {
                 e.stopPropagation()
-                onTrade?.(market, 'NO')
+                handleTrade('NO')
               }}
             >
               Buy NO @ {(noProb / 100).toFixed(2)}
@@ -132,7 +153,8 @@ export function MarketCard({ market, onClick, onTrade }: MarketCardProps) {
       </CardContent>
 
       {/* Categories not yet available in GraphQL schema */}
-    </Card>
+      </Card>
+    </ComponentErrorBoundary>
   )
 }
 

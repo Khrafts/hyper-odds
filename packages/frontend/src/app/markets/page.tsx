@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { ClientOnly } from '@/components/client-only'
+import { PageErrorBoundary } from '@/components/error'
 import { Search, Filter, SortAsc } from 'lucide-react'
 
 function MarketsPageContent() {
@@ -23,7 +24,7 @@ function MarketsPageContent() {
     searchQuery: searchQuery.trim() || undefined
   }
 
-  const { data: marketsData, loading, error } = useMarkets(
+  const { data: marketsData, loading, error, refetch } = useMarkets(
     effectiveFilters,
     { first: 20 }
   )
@@ -155,7 +156,8 @@ function MarketsPageContent() {
         <MarketGrid
           markets={markets}
           loading={loading}
-          error={error?.message}
+          error={error}
+          onRetry={() => refetch?.()}
           onMarketClick={(market) => {
             // TODO: Navigate to market detail page
             console.log('Navigate to market:', market.id)
@@ -182,7 +184,8 @@ function MarketsPageContent() {
 
 export default function MarketsPage() {
   return (
-    <ClientOnly fallback={
+    <PageErrorBoundary pageName="Markets">
+      <ClientOnly fallback={
       <div className="container mx-auto px-4 py-8">
         <div className="flex flex-col gap-8">
           <div className="flex flex-col gap-4">
@@ -200,7 +203,8 @@ export default function MarketsPage() {
         </div>
       </div>
     }>
-      <MarketsPageContent />
-    </ClientOnly>
+        <MarketsPageContent />
+      </ClientOnly>
+    </PageErrorBoundary>
   )
 }
