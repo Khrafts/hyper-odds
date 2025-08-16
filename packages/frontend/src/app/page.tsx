@@ -5,8 +5,8 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { MarketGrid } from '@/components/markets/market-grid'
-import { Market } from '@/types'
+import { MarketsSection } from '@/components/markets-section'
+import { ClientOnly } from '@/components/client-only'
 import { 
   TrendingUp, 
   Users, 
@@ -18,71 +18,8 @@ import {
   Globe
 } from 'lucide-react'
 
-// Mock data for demonstration
-const mockMarkets: Market[] = [
-  {
-    id: '1',
-    marketId: '1',
-    question: 'Will Bitcoin reach $100,000 by end of 2024?',
-    description: 'Predicting if Bitcoin (BTC) will reach or exceed $100,000 USD by December 31, 2024.',
-    poolYes: '12500',
-    poolNo: '8750',
-    totalVolume: '45230',
-    totalTrades: 89,
-    resolved: false,
-    status: 'active',
-    createdAt: '2024-01-15T10:30:00Z',
-    updatedAt: '2024-01-16T14:22:00Z',
-    expirationTime: '2024-12-31T23:59:59Z',
-    creator: {
-      id: '1',
-      address: '0x742d35Cc6634C0532925a3b8D3C2c2CE15c65a7A'
-    },
-    category: 'Cryptocurrency'
-  },
-  {
-    id: '2',
-    marketId: '2',
-    question: 'Will Ethereum 2.0 staking rewards exceed 5% APY?',
-    description: 'Will the annual percentage yield for Ethereum 2.0 staking exceed 5% for at least 30 consecutive days?',
-    poolYes: '8900',
-    poolNo: '15600',
-    totalVolume: '32100',
-    totalTrades: 67,
-    resolved: false,
-    status: 'active',
-    createdAt: '2024-01-14T08:15:00Z',
-    updatedAt: '2024-01-16T16:45:00Z',
-    expirationTime: '2024-06-30T23:59:59Z',
-    creator: {
-      id: '2',
-      address: '0x8ba1f109551bD432803012645Hac136c'
-    },
-    category: 'DeFi'
-  },
-  {
-    id: '3',
-    marketId: '3',
-    question: 'Will a new AI model surpass GPT-4 in benchmarks by Q2 2024?',
-    description: 'Will any AI model achieve higher scores than GPT-4 on standard benchmarks before July 1, 2024?',
-    poolYes: '6750',
-    poolNo: '4250',
-    totalVolume: '18900',
-    totalTrades: 45,
-    resolved: false,
-    status: 'active',
-    createdAt: '2024-01-13T12:00:00Z',
-    updatedAt: '2024-01-16T09:30:00Z',
-    expirationTime: '2024-07-01T00:00:00Z',
-    creator: {
-      id: '3',
-      address: '0x1234567890123456789012345678901234567890'
-    },
-    category: 'Technology'
-  }
-]
-
 export default function HomePage() {
+
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
@@ -172,39 +109,23 @@ export default function HomePage() {
       </section>
 
       {/* Featured Markets */}
-      <section className="py-16 sm:py-24 bg-muted/30">
-        <div className="container px-4">
-          <div className="mx-auto max-w-2xl text-center mb-12">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              Trending Markets
-            </h2>
-            <p className="mt-4 text-lg text-muted-foreground">
-              Discover the most popular prediction markets and start trading
-            </p>
+      <ClientOnly fallback={
+        <section className="py-16 sm:py-24 bg-muted/30">
+          <div className="container px-4">
+            <div className="mx-auto max-w-2xl text-center mb-12">
+              <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+                Trending Markets
+              </h2>
+              <p className="mt-4 text-lg text-muted-foreground">
+                Discover the most popular prediction markets and start trading
+              </p>
+            </div>
+            <div className="text-center">Loading markets...</div>
           </div>
-          
-          <MarketGrid 
-            markets={mockMarkets}
-            onMarketClick={(market) => {
-              // Navigation will be implemented later
-              console.log('Navigate to market:', market.id)
-            }}
-            onTrade={(market, outcome) => {
-              // Trading modal will be implemented later
-              console.log('Trade on market:', market.id, 'outcome:', outcome)
-            }}
-          />
-
-          <div className="mt-12 text-center">
-            <Button asChild variant="outline" size="lg">
-              <Link href="/markets">
-                View All Markets
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </section>
+        </section>
+      }>
+        <MarketsSection />
+      </ClientOnly>
 
       {/* Features Section */}
       <section className="py-16 sm:py-24">

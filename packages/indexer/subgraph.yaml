@@ -8,7 +8,7 @@ dataSources:
     source:
       address: "0x00e5A2346C96da6C54f53d2d53bD5536D53Fae5D" # Updated factory address with time decay
       abi: MarketFactory
-      startBlock: 184400000
+      startBlock: 184397400
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7

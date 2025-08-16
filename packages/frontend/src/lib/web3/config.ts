@@ -1,7 +1,6 @@
 import { createConfig, http } from 'wagmi'
 import { getDefaultConfig } from '@rainbow-me/rainbowkit'
 import { injected, walletConnect, coinbaseWallet } from 'wagmi/connectors'
-import { env } from '../env'
 import { supportedChains, defaultChain } from './chains'
 
 /**
@@ -16,31 +15,31 @@ export const wagmiConfig = createConfig({
       shimDisconnect: true,
     }),
     walletConnect({
-      projectId: env.NEXT_PUBLIC_WC_PROJECT_ID || 'default-project-id',
+      projectId: process.env.NEXT_PUBLIC_WC_PROJECT_ID || 'default-project-id',
       metadata: {
-        name: env.NEXT_PUBLIC_APP_NAME,
+        name: process.env.NEXT_PUBLIC_APP_NAME || 'HyperOdds',
         description: 'Decentralized prediction markets on Hyperliquid',
-        url: env.NEXT_PUBLIC_APP_URL,
-        icons: [`${env.NEXT_PUBLIC_APP_URL}/icons/icon-192x192.png`],
+        url: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+        icons: [`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/icons/icon-192x192.png`],
       },
       showQrModal: false, // We'll use RainbowKit's modal
     }),
     coinbaseWallet({
-      appName: env.NEXT_PUBLIC_APP_NAME,
-      appLogoUrl: `${env.NEXT_PUBLIC_APP_URL}/icons/icon-192x192.png`,
+      appName: process.env.NEXT_PUBLIC_APP_NAME || 'HyperOdds',
+      appLogoUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/icons/icon-192x192.png`,
     }),
   ],
   transports: {
-    [supportedChains[0].id]: http(env.NEXT_PUBLIC_ARBITRUM_RPC),
-    [supportedChains[1].id]: http(env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC),
+    [supportedChains[0].id]: http(process.env.NEXT_PUBLIC_ARBITRUM_RPC || 'https://arb1.arbitrum.io/rpc'),
+    [supportedChains[1].id]: http(process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC || 'https://sepolia-rollup.arbitrum.io/rpc'),
   },
   ssr: true,
 })
 
 // RainbowKit configuration (enhanced)
 export const rainbowKitConfig = getDefaultConfig({
-  appName: env.NEXT_PUBLIC_APP_NAME,
-  projectId: env.NEXT_PUBLIC_WC_PROJECT_ID || 'default-project-id',
+  appName: process.env.NEXT_PUBLIC_APP_NAME || 'HyperOdds',
+  projectId: process.env.NEXT_PUBLIC_WC_PROJECT_ID || 'default-project-id',
   chains: supportedChains,
   ssr: true,
 })
@@ -49,8 +48,8 @@ export const rainbowKitConfig = getDefaultConfig({
 export const publicClientConfig = {
   chains: supportedChains,
   transports: {
-    [supportedChains[0].id]: http(env.NEXT_PUBLIC_ARBITRUM_RPC),
-    [supportedChains[1].id]: http(env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC),
+    [supportedChains[0].id]: http(process.env.NEXT_PUBLIC_ARBITRUM_RPC || 'https://arb1.arbitrum.io/rpc'),
+    [supportedChains[1].id]: http(process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC || 'https://sepolia-rollup.arbitrum.io/rpc'),
   },
 }
 
@@ -102,7 +101,7 @@ export const walletConfig = {
   
   // Wallet-specific settings
   walletConnect: {
-    projectId: env.NEXT_PUBLIC_WC_PROJECT_ID || 'default-project-id',
+    projectId: process.env.NEXT_PUBLIC_WC_PROJECT_ID || 'default-project-id',
     requiredNamespaces: {
       eip155: {
         methods: [

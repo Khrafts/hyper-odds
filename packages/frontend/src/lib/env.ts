@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 const envSchema = z.object({
   // Database
-  NEXT_PUBLIC_GRAPHQL_ENDPOINT: z.string().url().default('http://localhost:8000/graphql'),
+  NEXT_PUBLIC_GRAPHQL_ENDPOINT: z.string().url(),
 
   // Web3 Configuration
   NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC: z.string().url().default('https://sepolia-rollup.arbitrum.io/rpc'),
@@ -36,6 +36,20 @@ function createEnv() {
 
   if (!parsed.success) {
     console.error('❌ Invalid environment variables:', parsed.error.flatten().fieldErrors)
+    console.error('Environment check:', {
+      NEXT_PUBLIC_GRAPHQL_ENDPOINT: process.env.NEXT_PUBLIC_GRAPHQL_ENDPOINT,
+      NODE_ENV: process.env.NODE_ENV
+    })
+    
+    // In development, provide fallback if GraphQL endpoint is missing
+    if (process.env.NODE_ENV === 'development' && !process.env.NEXT_PUBLIC_GRAPHQL_ENDPOINT) {
+      console.warn('⚠️ NEXT_PUBLIC_GRAPHQL_ENDPOINT not found, using Goldsky default')
+      return {
+        ...parsed.data,
+        NEXT_PUBLIC_GRAPHQL_ENDPOINT: 'https://api.goldsky.com/api/public/project_cm4ty719hcpgs01wg2r5z2pa8/subgraphs/hyper-odds-testnet/0.0.1/gn'
+      } as any
+    }
+    
     throw new Error('Invalid environment variables')
   }
 
