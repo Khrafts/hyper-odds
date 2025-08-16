@@ -2,7 +2,7 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { ConnectButton } from '@rainbow-me/rainbowkit'
+// import { ConnectButton } from '@rainbow-me/rainbowkit' // Temporarily disabled for debugging
 import { Button } from '../ui/button'
 import { Separator } from '../ui/separator'
 import { 
@@ -86,12 +86,10 @@ export function Header() {
             <span className="sr-only">Toggle theme</span>
           </Button>
 
-          {/* Wallet Connect */}
-          <ConnectButton 
-            accountStatus="address"
-            chainStatus="icon"
-            showBalance={false}
-          />
+          {/* Wallet Connect - Temporarily disabled */}
+          <Button variant="outline" size="sm">
+            Connect Wallet
+          </Button>
 
           {/* Mobile Menu */}
           <div className="md:hidden">
