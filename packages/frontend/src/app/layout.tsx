@@ -4,7 +4,7 @@ import "./globals.css";
 import { AppProviders } from "./providers";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "sonner";
 import { ThemeProvider } from "next-themes";
 
 const inter = Inter({
@@ -52,7 +52,13 @@ export default function RootLayout({
         >
           <AppProviders>
             <LayoutContent>{children}</LayoutContent>
-            <Toaster />
+            <Toaster 
+              position="top-right"
+              richColors
+              expand={true}
+              closeButton
+              theme="system"
+            />
           </AppProviders>
         </ThemeProvider>
       </body>

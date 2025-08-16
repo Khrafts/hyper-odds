@@ -3,6 +3,7 @@
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
 import { Address } from 'viem'
+import { transactionNotifications } from '@/lib/notifications'
 
 // Transaction types
 export interface Transaction {
@@ -18,6 +19,7 @@ export interface Transaction {
   blockNumber?: number
   gasUsed?: string
   confirmations?: number
+  toastId?: string | number // Track associated toast notification
 }
 
 export interface TradingState {
@@ -92,6 +94,12 @@ export const useTradingStore = create<TradingStore>()(
             timestamp: Date.now(),
           }
           
+          // Show initial notification and store toast ID
+          const toastId = transactionNotifications.fromTransaction(fullTransaction)
+          if (toastId) {
+            fullTransaction.toastId = toastId
+          }
+          
           set((state) => ({
             transactions: {
               ...state.transactions,
@@ -112,6 +120,11 @@ export const useTradingStore = create<TradingStore>()(
             if (!transaction) return state
 
             const updatedTransaction = { ...transaction, ...updates }
+            
+            // Update notification based on new status
+            if (updates.status && updates.status !== transaction.status) {
+              transactionNotifications.fromTransaction(updatedTransaction, transaction.toastId)
+            }
             
             return {
               transactions: {
