@@ -37,6 +37,11 @@ import {
 } from '@/lib/validations/trading'
 import { useTradingHooks } from '@/hooks/useTradingHooks'
 import { GasFeeDisplay, GasFeeInline } from '@/components/trading/gas-fee-display'
+import { 
+  TransactionConfirmationModal, 
+  useTransactionConfirmation,
+  type TransactionDetails 
+} from '@/components/trading/transaction-confirmation-modal'
 
 interface TradingInterfaceProps {
   market: Market
@@ -76,6 +81,18 @@ export function TradingInterface({ market, onTrade, disabled = false }: TradingI
   const [error, setError] = useState<string | null>(null)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [slippage, setSlippage] = useState(1) // 1% default slippage
+
+  // Transaction confirmation modal
+  const {
+    isOpen: isConfirmationOpen,
+    details: confirmationDetails,
+    isLoading: isConfirmationLoading,
+    error: confirmationError,
+    showConfirmation,
+    hideConfirmation,
+    setConfirmationLoading,
+    setConfirmationError,
+  } = useTransactionConfirmation()
 
   // Update gas estimates when amount or side changes
   useEffect(() => {
@@ -236,6 +253,47 @@ export function TradingInterface({ market, onTrade, disabled = false }: TradingI
     
     setError(null)
     
+    // Determine transaction type and show confirmation modal
+    const transactionType = needsApproval(amount) ? 'approval' : 'deposit'
+    const transactionDetails: TransactionDetails = {
+      type: transactionType,
+      side: selectedSide,
+      amount,
+      marketTitle: market.title,
+      currentProbability: selectedSide === 'YES' ? yesProb : noProb,
+      newProbability: newProbability,
+      estimatedShares,
+      potentialReturn,
+      gasEstimates: transactionType === 'approval' ? gasEstimates.approval : gasEstimates.deposit,
+      selectedGasSpeed,
+      needsApproval: needsApproval(amount),
+      userBalance: formattedBalance,
+    }
+    
+    showConfirmation(transactionDetails)
+  }, [
+    validation.isValid, 
+    needsApproval, 
+    amount, 
+    selectedSide, 
+    market.title, 
+    yesProb, 
+    noProb, 
+    newProbability, 
+    estimatedShares, 
+    potentialReturn,
+    gasEstimates,
+    selectedGasSpeed,
+    formattedBalance,
+    showConfirmation
+  ])
+
+  const handleConfirmTransaction = useCallback(async () => {
+    if (!validation.isValid || !confirmationDetails) return
+    
+    setConfirmationLoading(true)
+    setConfirmationError(null)
+    
     try {
       // Use real contract integration
       if (needsApproval(amount)) {
@@ -252,10 +310,28 @@ export function TradingInterface({ market, onTrade, disabled = false }: TradingI
       if (onTrade) {
         await onTrade(selectedSide, amount)
       }
+      
+      hideConfirmation()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Transaction failed')
+      const errorMessage = err instanceof Error ? err.message : 'Transaction failed'
+      setConfirmationError(errorMessage)
+      setError(errorMessage)
+    } finally {
+      setConfirmationLoading(false)
     }
-  }, [validation.isValid, needsApproval, amount, approveUSDC, deposit, selectedSide, onTrade])
+  }, [
+    validation.isValid,
+    confirmationDetails,
+    needsApproval,
+    amount,
+    approveUSDC,
+    deposit,
+    selectedSide,
+    onTrade,
+    hideConfirmation,
+    setConfirmationLoading,
+    setConfirmationError
+  ])
 
   // Quick amount buttons
   const quickAmounts = [100, 500, 1000, 5000]
@@ -579,6 +655,19 @@ export function TradingInterface({ market, onTrade, disabled = false }: TradingI
           )}
         </p>
       </CardContent>
+
+      {/* Transaction Confirmation Modal */}
+      {confirmationDetails && (
+        <TransactionConfirmationModal
+          open={isConfirmationOpen}
+          onOpenChange={hideConfirmation}
+          onConfirm={handleConfirmTransaction}
+          onCancel={hideConfirmation}
+          details={confirmationDetails}
+          isLoading={isConfirmationLoading}
+          error={confirmationError}
+        />
+      )}
     </Card>
   )
 }
