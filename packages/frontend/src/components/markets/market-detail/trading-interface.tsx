@@ -1,0 +1,422 @@
+'use client'
+
+import React, { useState, useMemo, useCallback } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Separator } from '@/components/ui/separator'
+import { Badge } from '@/components/ui/badge'
+import { Slider } from '@/components/ui/slider'
+import {
+  TrendingUp,
+  TrendingDown,
+  AlertCircle,
+  Wallet,
+  Calculator,
+  ArrowRight,
+  Info,
+  DollarSign,
+  Percent,
+  Clock,
+  CheckCircle,
+  XCircle
+} from 'lucide-react'
+import { useAccount, useBalance } from 'wagmi'
+import { parseEther, formatEther } from 'viem'
+import { Market } from '@/hooks/useMarkets'
+import { cn } from '@/lib/utils'
+
+interface TradingInterfaceProps {
+  market: Market
+  onTrade?: (side: 'YES' | 'NO', amount: string) => Promise<void>
+  disabled?: boolean
+}
+
+export function TradingInterface({ market, onTrade, disabled = false }: TradingInterfaceProps) {
+  const { address, isConnected } = useAccount()
+  const { data: balance } = useBalance({ address })
+  
+  const [selectedSide, setSelectedSide] = useState<'YES' | 'NO'>('YES')
+  const [amount, setAmount] = useState('')
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [showAdvanced, setShowAdvanced] = useState(false)
+  const [slippage, setSlippage] = useState(1) // 1% default slippage
+
+  // Calculate current probabilities from pool values
+  const { yesProb, noProb } = useMemo(() => {
+    const yesPool = parseFloat(market.poolYes || '0')
+    const noPool = parseFloat(market.poolNo || '0')
+    const total = yesPool + noPool
+    
+    if (total === 0) {
+      return { yesProb: 50, noProb: 50 }
+    }
+    
+    return {
+      yesProb: (noPool / total) * 100, // Inverse for CPMM
+      noProb: (yesPool / total) * 100
+    }
+  }, [market.poolYes, market.poolNo])
+
+  // Calculate estimated shares and potential payout
+  const estimatedShares = useMemo(() => {
+    if (!amount || parseFloat(amount) <= 0) return '0'
+    
+    const depositAmount = parseFloat(amount)
+    const selectedPool = selectedSide === 'YES' 
+      ? parseFloat(market.poolYes || '0')
+      : parseFloat(market.poolNo || '0')
+    const oppositePool = selectedSide === 'YES'
+      ? parseFloat(market.poolNo || '0')
+      : parseFloat(market.poolYes || '0')
+    
+    if (selectedPool === 0 || oppositePool === 0) return '0'
+    
+    // CPMM formula: shares = oppositePool - (selectedPool * oppositePool) / (selectedPool + depositAmount)
+    const k = selectedPool * oppositePool
+    const newSelectedPool = selectedPool + depositAmount
+    const newOppositePool = k / newSelectedPool
+    const shares = oppositePool - newOppositePool
+    
+    return shares.toFixed(4)
+  }, [amount, selectedSide, market.poolYes, market.poolNo])
+
+  // Calculate potential return
+  const potentialReturn = useMemo(() => {
+    const shares = parseFloat(estimatedShares)
+    const investment = parseFloat(amount || '0')
+    
+    if (investment === 0) return { profit: 0, roi: 0 }
+    
+    const profit = shares - investment
+    const roi = (profit / investment) * 100
+    
+    return { profit, roi }
+  }, [estimatedShares, amount])
+
+  // Calculate new probability after trade
+  const newProbability = useMemo(() => {
+    if (!amount || parseFloat(amount) <= 0) {
+      return selectedSide === 'YES' ? yesProb : noProb
+    }
+    
+    const depositAmount = parseFloat(amount)
+    const yesPool = parseFloat(market.poolYes || '0')
+    const noPool = parseFloat(market.poolNo || '0')
+    
+    const newYesPool = selectedSide === 'YES' 
+      ? yesPool + depositAmount 
+      : yesPool
+    const newNoPool = selectedSide === 'NO'
+      ? noPool + depositAmount
+      : noPool
+    
+    const total = newYesPool + newNoPool
+    
+    if (selectedSide === 'YES') {
+      return (newNoPool / total) * 100
+    } else {
+      return (newYesPool / total) * 100
+    }
+  }, [amount, selectedSide, market.poolYes, market.poolNo, yesProb, noProb])
+
+  // Validate input
+  const validation = useMemo(() => {
+    if (!isConnected) {
+      return { isValid: false, message: 'Connect wallet to trade' }
+    }
+    
+    if (!amount || parseFloat(amount) <= 0) {
+      return { isValid: false, message: 'Enter an amount' }
+    }
+    
+    const amountWei = parseEther(amount)
+    if (balance && amountWei > balance.value) {
+      return { isValid: false, message: 'Insufficient balance' }
+    }
+    
+    if (market.resolved) {
+      return { isValid: false, message: 'Market is resolved' }
+    }
+    
+    if (market.cutoffTime) {
+      const cutoff = new Date(parseInt(market.cutoffTime) * 1000)
+      if (cutoff < new Date()) {
+        return { isValid: false, message: 'Trading has ended' }
+      }
+    }
+    
+    return { isValid: true, message: null }
+  }, [amount, balance, isConnected, market.resolved, market.cutoffTime])
+
+  const handleTrade = useCallback(async () => {
+    if (!validation.isValid || !onTrade) return
+    
+    setIsProcessing(true)
+    setError(null)
+    
+    try {
+      await onTrade(selectedSide, amount)
+      setAmount('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Transaction failed')
+    } finally {
+      setIsProcessing(false)
+    }
+  }, [validation.isValid, onTrade, selectedSide, amount])
+
+  // Quick amount buttons
+  const quickAmounts = [10, 25, 50, 100]
+  const balanceInEth = balance ? parseFloat(formatEther(balance.value)) : 0
+
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader className="pb-4">
+        <CardTitle className="flex items-center justify-between">
+          <span className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            Trade Prediction
+          </span>
+          {isConnected && (
+            <Badge variant="outline" className="font-normal">
+              <Wallet className="h-3 w-3 mr-1" />
+              {balanceInEth.toFixed(4)} ETH
+            </Badge>
+          )}
+        </CardTitle>
+      </CardHeader>
+      
+      <CardContent className="space-y-6">
+        {/* Market Probabilities */}
+        <div className="grid grid-cols-2 gap-4">
+          <div 
+            className={cn(
+              "p-4 rounded-lg border-2 cursor-pointer transition-all",
+              selectedSide === 'YES' 
+                ? "border-green-500 bg-green-50 dark:bg-green-950/30" 
+                : "border-border hover:border-green-500/50"
+            )}
+            onClick={() => setSelectedSide('YES')}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium">YES</span>
+              <CheckCircle className={cn(
+                "h-4 w-4",
+                selectedSide === 'YES' ? "text-green-500" : "text-muted-foreground"
+              )} />
+            </div>
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+              {yesProb.toFixed(1)}%
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              Current probability
+            </div>
+          </div>
+          
+          <div 
+            className={cn(
+              "p-4 rounded-lg border-2 cursor-pointer transition-all",
+              selectedSide === 'NO' 
+                ? "border-red-500 bg-red-50 dark:bg-red-950/30" 
+                : "border-border hover:border-red-500/50"
+            )}
+            onClick={() => setSelectedSide('NO')}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium">NO</span>
+              <XCircle className={cn(
+                "h-4 w-4",
+                selectedSide === 'NO' ? "text-red-500" : "text-muted-foreground"
+              )} />
+            </div>
+            <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+              {noProb.toFixed(1)}%
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              Current probability
+            </div>
+          </div>
+        </div>
+
+        <Separator />
+
+        {/* Trade Input */}
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="amount" className="flex items-center justify-between mb-2">
+              <span>Amount (ETH)</span>
+              <span className="text-xs text-muted-foreground">
+                Max: {balanceInEth.toFixed(4)} ETH
+              </span>
+            </Label>
+            <Input
+              id="amount"
+              type="number"
+              placeholder="0.00"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              disabled={disabled || isProcessing || !isConnected}
+              className="text-lg"
+              step="0.01"
+              min="0"
+            />
+          </div>
+
+          {/* Quick Amount Buttons */}
+          <div className="flex gap-2">
+            {quickAmounts.map((quickAmount) => (
+              <Button
+                key={quickAmount}
+                variant="outline"
+                size="sm"
+                onClick={() => setAmount(quickAmount.toString())}
+                disabled={disabled || isProcessing || !isConnected || quickAmount > balanceInEth}
+                className="flex-1"
+              >
+                {quickAmount} ETH
+              </Button>
+            ))}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setAmount(balanceInEth.toString())}
+              disabled={disabled || isProcessing || !isConnected || balanceInEth === 0}
+              className="flex-1"
+            >
+              Max
+            </Button>
+          </div>
+        </div>
+
+        {/* Estimated Outcome */}
+        {amount && parseFloat(amount) > 0 && (
+          <>
+            <Separator />
+            <div className="space-y-3 bg-muted/30 rounded-lg p-4">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Estimated Shares</span>
+                <span className="font-medium">{estimatedShares}</span>
+              </div>
+              
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Avg. Price per Share</span>
+                <span className="font-medium">
+                  {(parseFloat(amount) / parseFloat(estimatedShares)).toFixed(4)} ETH
+                </span>
+              </div>
+              
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Potential Return</span>
+                <span className={cn(
+                  "font-medium",
+                  potentialReturn.profit > 0 ? "text-green-600" : "text-red-600"
+                )}>
+                  {potentialReturn.profit > 0 ? '+' : ''}{potentialReturn.profit.toFixed(4)} ETH
+                  ({potentialReturn.roi > 0 ? '+' : ''}{potentialReturn.roi.toFixed(1)}%)
+                </span>
+              </div>
+              
+              <Separator className="my-2" />
+              
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">New {selectedSide} Probability</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">
+                    {selectedSide === 'YES' ? yesProb.toFixed(1) : noProb.toFixed(1)}%
+                  </span>
+                  <ArrowRight className="h-3 w-3" />
+                  <span className={cn(
+                    "font-medium",
+                    newProbability > (selectedSide === 'YES' ? yesProb : noProb)
+                      ? "text-green-600"
+                      : "text-red-600"
+                  )}>
+                    {newProbability.toFixed(1)}%
+                  </span>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Advanced Settings */}
+        <div className="space-y-4">
+          <button
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+          >
+            <Info className="h-3 w-3" />
+            {showAdvanced ? 'Hide' : 'Show'} advanced settings
+          </button>
+          
+          {showAdvanced && (
+            <div className="space-y-4 p-4 border rounded-lg">
+              <div>
+                <Label className="text-sm mb-2">
+                  Max Slippage: {slippage}%
+                </Label>
+                <Slider
+                  value={[slippage]}
+                  onValueChange={([value]) => setSlippage(value)}
+                  min={0.1}
+                  max={5}
+                  step={0.1}
+                  className="mt-2"
+                />
+                <p className="text-xs text-muted-foreground mt-2">
+                  Your transaction will revert if the price changes unfavorably by more than this percentage
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Error/Warning Messages */}
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        
+        {!validation.isValid && validation.message && !error && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{validation.message}</AlertDescription>
+          </Alert>
+        )}
+
+        {/* Trade Button */}
+        <Button
+          onClick={handleTrade}
+          disabled={!validation.isValid || isProcessing || disabled}
+          className="w-full h-12 text-lg"
+          variant={selectedSide === 'YES' ? 'default' : 'destructive'}
+        >
+          {isProcessing ? (
+            'Processing...'
+          ) : !isConnected ? (
+            'Connect Wallet'
+          ) : (
+            `Buy ${selectedSide} for ${amount || '0'} ETH`
+          )}
+        </Button>
+
+        {/* Info Text */}
+        <p className="text-xs text-center text-muted-foreground">
+          {market.resolved ? (
+            'This market has been resolved'
+          ) : market.cutoffTime && new Date(parseInt(market.cutoffTime) * 1000) < new Date() ? (
+            'Trading has ended for this market'
+          ) : (
+            'You will receive shares that can be redeemed for 1 ETH each if your prediction is correct'
+          )}
+        </p>
+      </CardContent>
+    </Card>
+  )
+}

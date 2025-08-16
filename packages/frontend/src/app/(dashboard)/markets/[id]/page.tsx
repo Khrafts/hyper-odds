@@ -3,6 +3,7 @@
 import React from 'react'
 import { useParams } from 'next/navigation'
 import { MarketHeader } from '@/components/markets/market-detail/market-header'
+import { TradingInterface } from '@/components/markets/market-detail/trading-interface'
 import { PageErrorBoundary, AsyncBoundary, NotFoundError } from '@/components/error'
 import { useMarket } from '@/hooks/use-market'
 import { Button } from '@/components/ui/button'
@@ -67,26 +68,21 @@ function MarketDetailContent({ marketId }: { marketId: string }) {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main Content Area */}
             <div className="lg:col-span-2 space-y-6">
-              {/* Trading Interface Placeholder */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5" />
-                    Trading Interface
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="bg-muted/30 rounded-lg p-8 text-center">
-                    <p className="text-muted-foreground mb-4">
-                      Trading interface will be implemented in the next task
-                    </p>
-                    <div className="flex justify-center gap-4">
-                      <Button disabled>Buy YES</Button>
-                      <Button disabled variant="outline">Buy NO</Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              {/* Trading Interface */}
+              <TradingInterface 
+                market={market}
+                onTrade={async (side, amount) => {
+                  // TODO: Implement actual trading logic with contract hooks
+                  console.log(`Trading ${side} for ${amount} ETH`)
+                  // This will be connected to the trading hooks in Task 31
+                  return new Promise((resolve) => {
+                    setTimeout(() => {
+                      console.log('Trade executed successfully')
+                      resolve()
+                    }, 2000)
+                  })
+                }}
+              />
 
               {/* Market Activity Placeholder */}
               <Card>
