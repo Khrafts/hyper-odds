@@ -147,6 +147,7 @@ export interface MarketFilters {
   tags?: string[]
   creator?: string
   searchQuery?: string
+  sortBy?: MarketSortBy
   minVolume?: string
   maxVolume?: string
   minLiquidity?: string

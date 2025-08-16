@@ -1,0 +1,55 @@
+# Market mutations
+
+mutation CreateMarket(
+  $question: String!
+  $description: String!
+  $imageUrl: String
+  $expirationTime: BigInt
+  $initialLiquidityYes: BigInt!
+  $initialLiquidityNo: BigInt!
+) {
+  createMarket(
+    input: {
+      question: $question
+      description: $description
+      imageUrl: $imageUrl
+      expirationTime: $expirationTime
+      initialLiquidityYes: $initialLiquidityYes
+      initialLiquidityNo: $initialLiquidityNo
+    }
+  ) {
+    market {
+      id
+      marketId
+      question
+      description
+      poolYes
+      poolNo
+      expirationTime
+      creator {
+        id
+        address
+      }
+    }
+    transactionHash
+  }
+}
+
+mutation ResolveMarket(
+  $marketId: ID!
+  $outcome: MarketOutcome!
+) {
+  resolveMarket(
+    marketId: $marketId
+    outcome: $outcome
+  ) {
+    market {
+      id
+      marketId
+      resolved
+      resolvedOutcome
+      resolvedAt
+    }
+    transactionHash
+  }
+}

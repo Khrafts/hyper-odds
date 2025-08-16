@@ -1,0 +1,61 @@
+# Market subscriptions for real-time updates
+
+subscription MarketUpdates($marketId: ID!) {
+  marketUpdated(marketId: $marketId) {
+    id
+    marketId
+    poolYes
+    poolNo
+    resolved
+    resolvedOutcome
+    trades {
+      totalCount
+    }
+  }
+}
+
+subscription NewMarkets {
+  marketCreated {
+    id
+    marketId
+    question
+    description
+    poolYes
+    poolNo
+    expirationTime
+    creator {
+      id
+      address
+    }
+  }
+}
+
+subscription RecentTrades($marketId: ID) {
+  tradeExecuted(marketId: $marketId) {
+    id
+    tradeId
+    outcome
+    shares
+    amount
+    timestamp
+    market {
+      id
+      marketId
+      question
+    }
+    trader {
+      id
+      address
+    }
+  }
+}
+
+subscription MarketResolutions {
+  marketResolved {
+    id
+    marketId
+    question
+    resolvedOutcome
+    resolvedAt
+  }
+}

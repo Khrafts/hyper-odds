@@ -1,0 +1,74 @@
+# Trade mutations
+
+mutation BuyShares(
+  $marketId: ID!
+  $outcome: TradeOutcome!
+  $amount: BigInt!
+  $minShares: BigInt!
+  $deadline: BigInt!
+) {
+  buyShares(
+    input: {
+      marketId: $marketId
+      outcome: $outcome
+      amount: $amount
+      minShares: $minShares
+      deadline: $deadline
+    }
+  ) {
+    trade {
+      id
+      tradeId
+      outcome
+      shares
+      amount
+      timestamp
+      market {
+        id
+        poolYes
+        poolNo
+      }
+    }
+    transactionHash
+  }
+}
+
+mutation SellShares(
+  $marketId: ID!
+  $outcome: TradeOutcome!
+  $shares: BigInt!
+  $minAmount: BigInt!
+  $deadline: BigInt!
+) {
+  sellShares(
+    input: {
+      marketId: $marketId
+      outcome: $outcome
+      shares: $shares
+      minAmount: $minAmount
+      deadline: $deadline
+    }
+  ) {
+    trade {
+      id
+      tradeId
+      outcome
+      shares
+      amount
+      timestamp
+      market {
+        id
+        poolYes
+        poolNo
+      }
+    }
+    transactionHash
+  }
+}
+
+mutation ClaimWinnings($marketId: ID!) {
+  claimWinnings(marketId: $marketId) {
+    amount
+    transactionHash
+  }
+}
