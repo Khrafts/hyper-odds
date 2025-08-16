@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-// import { ConnectButton } from '@rainbow-me/rainbowkit' // Will re-enable later
+import { SSRSafeConnectButton, SSRSafeSimpleConnectButton } from '../web3/connect-button'
 import { Button } from '../ui/button'
 import { 
   DropdownMenu,
@@ -153,11 +153,13 @@ export function Header() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Wallet Connect - Temporarily disabled */}
-          <Button variant="outline" size="sm" className="font-medium">
-            <Wallet className="h-4 w-4 mr-2" />
-            Connect Wallet
-          </Button>
+          {/* Wallet Connect */}
+          <SSRSafeConnectButton 
+            size="sm" 
+            variant="outline" 
+            showBalance={true}
+            showChain={true}
+          />
         </div>
 
         {/* Mobile Menu Button */}
@@ -212,15 +214,7 @@ export function Header() {
                 </Link>
               </Button>
 
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full justify-start"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <Wallet className="h-4 w-4 mr-2" />
-                Connect Wallet
-              </Button>
+              <SSRSafeSimpleConnectButton className="w-full justify-start" />
 
               <Button
                 variant="ghost"
