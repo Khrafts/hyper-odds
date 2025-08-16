@@ -10,7 +10,7 @@ export {
   useResolvedMarkets,
   useCreateMarket,
   useMarketUpdates,
-} from './use-markets'
+} from './useMarkets'
 
 // Trade hooks
 export {
@@ -21,7 +21,7 @@ export {
   useSellShares,
   useClaimWinnings,
   useTradeSubscription,
-} from './use-trades'
+} from './useTrades'
 
 // Position hooks
 export {
@@ -30,7 +30,7 @@ export {
   usePosition,
   useActivePositions,
   usePositionValue,
-} from './use-positions'
+} from './usePositions'
 
 // User hooks
 export {
@@ -39,4 +39,4 @@ export {
   useTopTraders,
   useUserStats,
   useCurrentUser,
-} from './use-users'
+} from './useUsers'

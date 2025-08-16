@@ -6,7 +6,7 @@ import { Badge } from '../ui/badge'
 import { Progress } from '../ui/progress'
 import { Button } from '../ui/button'
 import { Separator } from '../ui/separator'
-import { Market } from '@/hooks/use-markets'
+import { Market } from '@/hooks/useMarkets'
 import { formatEther } from 'viem'
 import { TrendingUp, Clock, Users } from 'lucide-react'
 
