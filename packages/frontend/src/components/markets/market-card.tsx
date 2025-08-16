@@ -6,9 +6,9 @@ import { Badge } from '../ui/badge'
 import { Progress } from '../ui/progress'
 import { Button } from '../ui/button'
 import { Separator } from '../ui/separator'
-import { Market } from '@/types'
+import { Market } from '@/hooks/use-markets'
 import { formatEther } from 'viem'
-import { TrendingUp, TrendingDown, Clock, Users } from 'lucide-react'
+import { TrendingUp, Clock, Users } from 'lucide-react'
 
 interface MarketCardProps {
   market: Market
@@ -24,16 +24,16 @@ export function MarketCard({ market, onClick, onTrade }: MarketCardProps) {
   const yesProb = totalPool > 0 ? (poolYes / totalPool) * 100 : 50
   const noProb = totalPool > 0 ? (poolNo / totalPool) * 100 : 50
 
-  // Format volume
-  const volume = parseFloat(market.totalVolume || '0')
+  // Format volume - using totalPool from GraphQL schema
+  const volume = parseFloat(market.totalPool || '0')
   const formattedVolume = volume >= 1000000 
     ? `$${(volume / 1000000).toFixed(1)}M`
     : volume >= 1000 
     ? `$${(volume / 1000).toFixed(1)}K`
     : `$${volume.toFixed(0)}`
 
-  // Check if expired
-  const isExpired = market.expirationTime && new Date(market.expirationTime) < new Date()
+  // Check if expired - using cutoffTime from GraphQL schema
+  const isExpired = market.cutoffTime && new Date(parseInt(market.cutoffTime) * 1000) < new Date()
   const isResolved = market.resolved
 
   return (
@@ -44,11 +44,11 @@ export function MarketCard({ market, onClick, onTrade }: MarketCardProps) {
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
           <CardTitle className="text-lg line-clamp-2">
-            {market.question}
+            {market.title}
           </CardTitle>
           {isResolved && (
-            <Badge variant={market.resolvedOutcome === 'YES' ? 'default' : 'secondary'}>
-              {market.resolvedOutcome}
+            <Badge variant={market.winningOutcome === 1 ? 'default' : 'secondary'}>
+              {market.winningOutcome === 1 ? 'YES' : 'NO'}
             </Badge>
           )}
           {!isResolved && isExpired && (
@@ -88,13 +88,13 @@ export function MarketCard({ market, onClick, onTrade }: MarketCardProps) {
           </div>
           <div className="flex items-center gap-1">
             <Users className="h-3 w-3 text-muted-foreground" />
-            <span className="text-muted-foreground">{market.totalTrades || 0}</span>
+            <span className="text-muted-foreground">0</span>
           </div>
-          {market.expirationTime && !isExpired && (
+          {market.cutoffTime && !isExpired && (
             <div className="flex items-center gap-1">
               <Clock className="h-3 w-3 text-muted-foreground" />
               <span className="text-muted-foreground">
-                {getTimeRemaining(market.expirationTime)}
+                {getTimeRemaining(market.cutoffTime)}
               </span>
             </div>
           )}
@@ -131,18 +131,14 @@ export function MarketCard({ market, onClick, onTrade }: MarketCardProps) {
         )}
       </CardContent>
 
-      {market.category && (
-        <CardFooter className="pt-0">
-          <Badge variant="outline">{market.category}</Badge>
-        </CardFooter>
-      )}
+      {/* Categories not yet available in GraphQL schema */}
     </Card>
   )
 }
 
-function getTimeRemaining(expirationTime: string): string {
+function getTimeRemaining(cutoffTime: string): string {
   const now = new Date()
-  const expiry = new Date(expirationTime)
+  const expiry = new Date(parseInt(cutoffTime) * 1000) // Convert Unix timestamp to milliseconds
   const diff = expiry.getTime() - now.getTime()
   
   if (diff <= 0) return 'Expired'

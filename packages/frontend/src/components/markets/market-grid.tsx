@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { MarketCard } from './market-card'
-import { Market } from '@/types'
+import { Market } from '@/hooks/use-markets'
 import { Skeleton } from '../ui/skeleton'
 import { Alert, AlertDescription } from '../ui/alert'
 import { AlertTriangle } from 'lucide-react'

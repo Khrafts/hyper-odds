@@ -63,16 +63,7 @@ export function MarketsSection() {
     { first: 3 }
   )
 
-  // Debug logging
-  console.log('MarketsSection - Debug:', {
-    loading: marketsLoading,
-    error: marketsError?.message,
-    data: marketsData,
-    dataJSON: JSON.stringify(marketsData, null, 2),
-    marketsArray: marketsData?.markets,
-    marketsType: typeof marketsData?.markets,
-    isArray: Array.isArray(marketsData?.markets)
-  })
+  // TODO: Handle real GraphQL data structure when complex query is fixed
 
   // Use real data if available, fallback to mock data
   // marketsData contains the markets array directly from the GraphQL query
@@ -110,6 +101,8 @@ export function MarketsSection() {
         
         <MarketGrid 
           markets={markets}
+          loading={marketsLoading}
+          error={marketsError?.message}
           onMarketClick={(market) => {
             // Navigation will be implemented later
             console.log('Navigate to market:', market.id)
