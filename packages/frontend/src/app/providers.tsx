@@ -6,9 +6,14 @@ import { RainbowKitProvider, darkTheme, lightTheme } from '@rainbow-me/rainbowki
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { rainbowKitConfig } from '../lib/web3/config'
 import { GraphQLProvider } from '../lib/graphql/provider'
+import { suppressSSRWarnings, suppressDevelopmentNetworkErrors } from '../lib/ssr-utils'
 
 // Import RainbowKit CSS
 import '@rainbow-me/rainbowkit/styles.css'
+
+// Suppress SSR warnings and development network errors
+suppressSSRWarnings()
+suppressDevelopmentNetworkErrors()
 
 /**
  * React Query client configuration
@@ -72,25 +77,27 @@ export default function Providers({ children }: ProvidersProps) {
     setMounted(true)
   }, [])
 
-  if (!mounted) {
-    return <div className="min-h-screen bg-background">{children}</div>
-  }
-
   return (
     <QueryClientProvider client={queryClient}>
-      <WagmiProvider config={rainbowKitConfig}>
-        <RainbowKitProvider
-          theme={rainbowKitTheme.lightMode}
-          modalSize="compact"
-          initialChain={rainbowKitConfig.chains[0]}
-          showRecentTransactions={true}
-          coolMode={true}
-        >
-          <GraphQLProvider>
-            {children}
-          </GraphQLProvider>
-        </RainbowKitProvider>
-      </WagmiProvider>
+      {mounted ? (
+        <WagmiProvider config={rainbowKitConfig}>
+          <RainbowKitProvider
+            theme={rainbowKitTheme.lightMode}
+            modalSize="compact"
+            initialChain={rainbowKitConfig.chains[0]}
+            showRecentTransactions={true}
+            coolMode={true}
+          >
+            <GraphQLProvider>
+              {children}
+            </GraphQLProvider>
+          </RainbowKitProvider>
+        </WagmiProvider>
+      ) : (
+        <GraphQLProvider>
+          {children}
+        </GraphQLProvider>
+      )}
     </QueryClientProvider>
   )
 }

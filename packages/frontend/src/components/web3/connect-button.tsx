@@ -103,61 +103,49 @@ export function ConnectWalletButton({
         }
 
         return (
-          <div className={cn('flex items-center gap-2', className)}>
-            {showChain && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button
-                variant="outline"
+                variant={variant}
                 size={size}
-                onClick={openChainModal}
-                className="gap-2"
+                className={cn('gap-1 max-w-[180px] min-w-0', className)}
               >
-                {chain.hasIcon && (
+                {showChain && chain.hasIcon && (
                   <div
                     style={{
                       background: chain.iconBackground,
-                      width: 16,
-                      height: 16,
+                      width: 12,
+                      height: 12,
                       borderRadius: 999,
                       overflow: 'hidden',
-                      marginRight: 4,
+                      flexShrink: 0,
                     }}
                   >
                     {chain.iconUrl && (
                       <img
                         alt={chain.name ?? 'Chain icon'}
                         src={chain.iconUrl}
-                        style={{ width: 16, height: 16 }}
+                        style={{ width: 12, height: 12 }}
                       />
                     )}
                   </div>
                 )}
-                {chain.name}
-              </Button>
-            )}
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant={variant}
-                  size={size}
-                  className="gap-2"
-                >
-                  <Avatar className="h-5 w-5">
-                    <AvatarFallback className="text-xs">
-                      {account.address.slice(2, 4).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="hidden sm:inline">
-                    {truncateAddress(account.address)}
+                <Avatar className="h-4 w-4 flex-shrink-0">
+                  <AvatarFallback className="text-xs">
+                    {account.address.slice(2, 4).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="hidden sm:inline truncate min-w-0">
+                  {truncateAddress(account.address)}
+                </span>
+                {showBalance && account.displayBalance && (
+                  <span className="hidden lg:inline font-mono text-xs truncate min-w-0">
+                    {account.displayBalance}
                   </span>
-                  {showBalance && account.displayBalance && (
-                    <span className="hidden md:inline font-mono text-sm">
-                      {account.displayBalance}
-                    </span>
-                  )}
-                  <ChevronDown className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
+                )}
+                <ChevronDown className="h-3 w-3 flex-shrink-0" />
+              </Button>
+            </DropdownMenuTrigger>
               
               <DropdownMenuContent align="end" className="w-56">
                 <div className="px-2 py-1.5">
@@ -172,9 +160,38 @@ export function ConnectWalletButton({
                       Balance: {account.displayBalance}
                     </div>
                   )}
+                  <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                    Network: {chain.name}
+                    {chain.hasIcon && chain.iconUrl && (
+                      <img
+                        alt={chain.name ?? 'Chain icon'}
+                        src={chain.iconUrl}
+                        style={{ width: 12, height: 12 }}
+                      />
+                    )}
+                  </div>
                 </div>
                 
                 <DropdownMenuSeparator />
+                
+                {showChain && (
+                  <>
+                    <DropdownMenuItem
+                      onClick={openChainModal}
+                      className="gap-2"
+                    >
+                      {chain.hasIcon && chain.iconUrl && (
+                        <img
+                          alt="Network"
+                          src={chain.iconUrl}
+                          style={{ width: 16, height: 16 }}
+                        />
+                      )}
+                      Switch Network
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 
                 <DropdownMenuItem
                   onClick={() => copyToClipboard(account.address)}
@@ -202,8 +219,7 @@ export function ConnectWalletButton({
                   Disconnect
                 </DropdownMenuItem>
               </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          </DropdownMenu>
         )
       }}
     </ConnectButton.Custom>

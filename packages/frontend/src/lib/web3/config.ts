@@ -1,56 +1,24 @@
-import { createConfig, http } from 'wagmi'
 import { getDefaultConfig } from '@rainbow-me/rainbowkit'
-import { injected, walletConnect, coinbaseWallet } from 'wagmi/connectors'
 import { supportedChains, defaultChain } from './chains'
 
 /**
  * wagmi configuration for Web3 integration
  */
 
-// Basic wagmi config
-export const wagmiConfig = createConfig({
+// Use RainbowKit's default config which handles transports automatically
+export const rainbowKitConfig = getDefaultConfig({
+  appName: process.env.NEXT_PUBLIC_APP_NAME || 'HyperOdds',
+  projectId: 'demo-project-id-for-development', // Use a safe demo project ID
   chains: supportedChains,
-  connectors: [
-    injected({
-      shimDisconnect: true,
-    }),
-    walletConnect({
-      projectId: process.env.NEXT_PUBLIC_WC_PROJECT_ID || 'default-project-id',
-      metadata: {
-        name: process.env.NEXT_PUBLIC_APP_NAME || 'HyperOdds',
-        description: 'Decentralized prediction markets on Hyperliquid',
-        url: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
-        icons: [`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/icons/icon-192x192.png`],
-      },
-      showQrModal: false, // We'll use RainbowKit's modal
-    }),
-    coinbaseWallet({
-      appName: process.env.NEXT_PUBLIC_APP_NAME || 'HyperOdds',
-      appLogoUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/icons/icon-192x192.png`,
-    }),
-  ],
-  transports: {
-    [supportedChains[0].id]: http(process.env.NEXT_PUBLIC_ARBITRUM_RPC || 'https://arb1.arbitrum.io/rpc'),
-    [supportedChains[1].id]: http(process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC || 'https://sepolia-rollup.arbitrum.io/rpc'),
-  },
   ssr: true,
 })
 
-// RainbowKit configuration (enhanced)
-export const rainbowKitConfig = getDefaultConfig({
-  appName: process.env.NEXT_PUBLIC_APP_NAME || 'HyperOdds',
-  projectId: process.env.NEXT_PUBLIC_WC_PROJECT_ID || 'default-project-id',
-  chains: supportedChains,
-  ssr: true,
-})
+// Export wagmi config for direct use
+export const wagmiConfig = rainbowKitConfig
 
 // Public client configuration for read-only operations
 export const publicClientConfig = {
   chains: supportedChains,
-  transports: {
-    [supportedChains[0].id]: http(process.env.NEXT_PUBLIC_ARBITRUM_RPC || 'https://arb1.arbitrum.io/rpc'),
-    [supportedChains[1].id]: http(process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC || 'https://sepolia-rollup.arbitrum.io/rpc'),
-  },
 }
 
 // Default connection settings
