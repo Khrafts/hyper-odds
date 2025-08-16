@@ -27,12 +27,14 @@ export const metadata: Metadata = {
     title: "HyperOdds - Prediction Markets",
     description: "Trade on the future with decentralized prediction markets",
   },
-  viewport: "width=device-width, initial-scale=1",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "white" },
-    { media: "(prefers-color-scheme: dark)", color: "black" },
-  ],
 };
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
+
+// themeColor should be handled by ThemeProvider instead
 
 export default function RootLayout({
   children,
@@ -49,15 +51,21 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AppProviders>
-            <div className="relative flex min-h-screen flex-col">
-              <Header />
-              <main className="flex-1">{children}</main>
-              <Footer />
-            </div>
+            <LayoutContent>{children}</LayoutContent>
             <Toaster />
           </AppProviders>
         </ThemeProvider>
       </body>
     </html>
+  );
+}
+
+function LayoutContent({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="relative flex min-h-screen flex-col">
+      <Header />
+      <main className="flex-1">{children}</main>
+      <Footer />
+    </div>
   );
 }
