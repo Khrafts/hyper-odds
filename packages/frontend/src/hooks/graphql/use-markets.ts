@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useSubscription } from '@apollo/client'
 import { gql } from '@apollo/client'
-import { Market, MarketFilters, PaginationParams } from '../../types'
+import { Market, MarketFilters, PaginationParams } from '@/types'
 
 /**
  * GraphQL Fragments
