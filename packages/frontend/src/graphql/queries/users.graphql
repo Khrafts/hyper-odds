@@ -1,0 +1,93 @@
+# User queries
+
+query GetUser($id: ID!) {
+  user(id: $id) {
+    id
+    address
+    positions {
+      edges {
+        node {
+          id
+          sharesYes
+          sharesNo
+          market {
+            id
+            marketId
+            question
+            resolved
+            resolvedOutcome
+          }
+        }
+      }
+      totalCount
+    }
+    trades {
+      edges {
+        node {
+          id
+          outcome
+          shares
+          amount
+          timestamp
+          market {
+            id
+            marketId
+            question
+          }
+        }
+      }
+      totalCount
+    }
+    createdMarkets {
+      edges {
+        node {
+          id
+          marketId
+          question
+          resolved
+        }
+      }
+      totalCount
+    }
+  }
+}
+
+query GetUserByAddress($address: String!) {
+  users(where: { address: $address }, first: 1) {
+    edges {
+      node {
+        id
+        address
+        positions {
+          totalCount
+        }
+        trades {
+          totalCount
+        }
+        createdMarkets {
+          totalCount
+        }
+      }
+    }
+  }
+}
+
+query GetTopTraders($first: Int = 10) {
+  users(
+    first: $first
+    orderBy: { field: TRADES_COUNT, direction: DESC }
+  ) {
+    edges {
+      node {
+        id
+        address
+        trades {
+          totalCount
+        }
+        positions {
+          totalCount
+        }
+      }
+    }
+  }
+}

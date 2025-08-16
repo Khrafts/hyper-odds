@@ -5,6 +5,7 @@ import { WagmiProvider } from 'wagmi'
 import { RainbowKitProvider, darkTheme, lightTheme } from '@rainbow-me/rainbowkit'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { rainbowKitConfig } from '../lib/web3/config'
+import { GraphQLProvider } from '../lib/graphql/provider'
 
 // Import RainbowKit CSS
 import '@rainbow-me/rainbowkit/styles.css'
@@ -85,7 +86,9 @@ export default function Providers({ children }: ProvidersProps) {
           showRecentTransactions={true}
           coolMode={true}
         >
-          {children}
+          <GraphQLProvider>
+            {children}
+          </GraphQLProvider>
         </RainbowKitProvider>
       </WagmiProvider>
     </QueryClientProvider>

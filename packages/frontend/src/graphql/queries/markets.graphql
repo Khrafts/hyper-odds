@@ -1,0 +1,155 @@
+# Market queries
+
+query GetMarkets(
+  $first: Int = 20
+  $after: String
+  $where: MarketFilter
+  $orderBy: MarketOrderBy
+) {
+  markets(
+    first: $first
+    after: $after
+    where: $where
+    orderBy: $orderBy
+  ) {
+    edges {
+      node {
+        id
+        marketId
+        question
+        description
+        outcome
+        poolYes
+        poolNo
+        resolved
+        resolvedOutcome
+        createdAt
+        updatedAt
+        expirationTime
+        creator {
+          id
+          address
+        }
+        trades {
+          totalCount
+        }
+      }
+      cursor
+    }
+    pageInfo {
+      hasNextPage
+      hasPreviousPage
+      startCursor
+      endCursor
+    }
+    totalCount
+  }
+}
+
+query GetMarket($id: ID!) {
+  market(id: $id) {
+    id
+    marketId
+    question
+    description
+    outcome
+    poolYes
+    poolNo
+    resolved
+    resolvedOutcome
+    createdAt
+    updatedAt
+    expirationTime
+    creator {
+      id
+      address
+    }
+    trades {
+      edges {
+        node {
+          id
+          tradeId
+          outcome
+          shares
+          amount
+          timestamp
+          trader {
+            id
+            address
+          }
+        }
+      }
+    }
+    positions {
+      edges {
+        node {
+          id
+          sharesYes
+          sharesNo
+          user {
+            id
+            address
+          }
+        }
+      }
+    }
+  }
+}
+
+query GetActiveMarkets($first: Int = 20, $after: String) {
+  markets(
+    first: $first
+    after: $after
+    where: { resolved: false }
+    orderBy: { field: CREATED_AT, direction: DESC }
+  ) {
+    edges {
+      node {
+        id
+        marketId
+        question
+        description
+        poolYes
+        poolNo
+        expirationTime
+        trades {
+          totalCount
+        }
+      }
+      cursor
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+    totalCount
+  }
+}
+
+query GetResolvedMarkets($first: Int = 20, $after: String) {
+  markets(
+    first: $first
+    after: $after
+    where: { resolved: true }
+    orderBy: { field: UPDATED_AT, direction: DESC }
+  ) {
+    edges {
+      node {
+        id
+        marketId
+        question
+        description
+        resolvedOutcome
+        poolYes
+        poolNo
+        updatedAt
+      }
+      cursor
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+    totalCount
+  }
+}

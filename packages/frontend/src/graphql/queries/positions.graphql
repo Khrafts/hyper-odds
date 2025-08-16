@@ -1,0 +1,96 @@
+# Position queries
+
+query GetUserPositions(
+  $userId: ID!
+  $first: Int = 20
+  $after: String
+) {
+  positions(
+    first: $first
+    after: $after
+    where: { userId: $userId }
+    orderBy: { field: UPDATED_AT, direction: DESC }
+  ) {
+    edges {
+      node {
+        id
+        sharesYes
+        sharesNo
+        market {
+          id
+          marketId
+          question
+          description
+          poolYes
+          poolNo
+          resolved
+          resolvedOutcome
+        }
+        user {
+          id
+          address
+        }
+      }
+      cursor
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+    totalCount
+  }
+}
+
+query GetMarketPositions(
+  $marketId: ID!
+  $first: Int = 20
+  $after: String
+) {
+  positions(
+    first: $first
+    after: $after
+    where: { marketId: $marketId }
+    orderBy: { field: SHARES_YES, direction: DESC }
+  ) {
+    edges {
+      node {
+        id
+        sharesYes
+        sharesNo
+        user {
+          id
+          address
+        }
+      }
+      cursor
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+    totalCount
+  }
+}
+
+query GetPosition($id: ID!) {
+  position(id: $id) {
+    id
+    sharesYes
+    sharesNo
+    market {
+      id
+      marketId
+      question
+      description
+      poolYes
+      poolNo
+      resolved
+      resolvedOutcome
+      expirationTime
+    }
+    user {
+      id
+      address
+    }
+  }
+}

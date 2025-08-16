@@ -1,0 +1,109 @@
+# Trade queries
+
+query GetRecentTrades(
+  $first: Int = 20
+  $after: String
+) {
+  trades(
+    first: $first
+    after: $after
+    orderBy: { field: TIMESTAMP, direction: DESC }
+  ) {
+    edges {
+      node {
+        id
+        tradeId
+        outcome
+        shares
+        amount
+        timestamp
+        market {
+          id
+          marketId
+          question
+        }
+        trader {
+          id
+          address
+        }
+      }
+      cursor
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+    totalCount
+  }
+}
+
+query GetMarketTrades(
+  $marketId: ID!
+  $first: Int = 20
+  $after: String
+) {
+  trades(
+    first: $first
+    after: $after
+    where: { marketId: $marketId }
+    orderBy: { field: TIMESTAMP, direction: DESC }
+  ) {
+    edges {
+      node {
+        id
+        tradeId
+        outcome
+        shares
+        amount
+        timestamp
+        trader {
+          id
+          address
+        }
+      }
+      cursor
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+    totalCount
+  }
+}
+
+query GetUserTrades(
+  $traderId: ID!
+  $first: Int = 20
+  $after: String
+) {
+  trades(
+    first: $first
+    after: $after
+    where: { traderId: $traderId }
+    orderBy: { field: TIMESTAMP, direction: DESC }
+  ) {
+    edges {
+      node {
+        id
+        tradeId
+        outcome
+        shares
+        amount
+        timestamp
+        market {
+          id
+          marketId
+          question
+          poolYes
+          poolNo
+        }
+      }
+      cursor
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+    totalCount
+  }
+}
