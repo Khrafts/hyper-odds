@@ -36,6 +36,7 @@ import {
   type TradingFormData 
 } from '@/lib/validations/trading'
 import { useTradingHooks } from '@/hooks/useTradingHooks'
+import { GasFeeDisplay, GasFeeInline } from '@/components/trading/gas-fee-display'
 
 interface TradingInterfaceProps {
   market: Market
@@ -57,6 +58,16 @@ export function TradingInterface({ market, onTrade, disabled = false }: TradingI
     formattedBalance,
     formattedPoolNo,
     formattedPoolYes,
+    // Gas estimation
+    gasEstimates,
+    selectedGasSpeed,
+    setSelectedGasSpeed,
+    updateApprovalGasEstimate,
+    updateDepositGasEstimate,
+    getCurrentGasEstimate,
+    isGasLoading,
+    gasError,
+    clearGasError,
   } = useTradingHooks(market.id as `0x${string}`)
   
   const [selectedSide, setSelectedSide] = useState<'YES' | 'NO'>('YES')
@@ -65,6 +76,18 @@ export function TradingInterface({ market, onTrade, disabled = false }: TradingI
   const [error, setError] = useState<string | null>(null)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [slippage, setSlippage] = useState(1) // 1% default slippage
+
+  // Update gas estimates when amount or side changes
+  useEffect(() => {
+    if (amount && parseFloat(amount) > 0 && isConnected) {
+      // Estimate gas for approval if needed
+      if (needsApproval(amount)) {
+        updateApprovalGasEstimate(amount)
+      }
+      // Estimate gas for deposit
+      updateDepositGasEstimate(selectedSide, amount)
+    }
+  }, [amount, selectedSide, isConnected, needsApproval, updateApprovalGasEstimate, updateDepositGasEstimate])
 
   // Calculate current probabilities from real contract pool values
   const { yesProb, noProb } = useMemo(() => {
@@ -408,6 +431,30 @@ export function TradingInterface({ market, onTrade, disabled = false }: TradingI
           </>
         )}
 
+        {/* Gas Fee Display */}
+        {amount && parseFloat(amount) > 0 && isConnected && (
+          <>
+            <Separator />
+            <GasFeeDisplay
+              gasEstimates={needsApproval(amount) ? gasEstimates.approval : gasEstimates.deposit}
+              selectedSpeed={selectedGasSpeed}
+              onSpeedChange={setSelectedGasSpeed}
+              isLoading={isGasLoading}
+              error={gasError}
+              onRefresh={() => {
+                clearGasError()
+                if (needsApproval(amount)) {
+                  updateApprovalGasEstimate(amount)
+                } else {
+                  updateDepositGasEstimate(selectedSide, amount)
+                }
+              }}
+              transactionType={needsApproval(amount) ? 'approval' : 'deposit'}
+              compact={true}
+            />
+          </>
+        )}
+
         {/* Advanced Settings */}
         <div className="space-y-4">
           <button
@@ -491,6 +538,16 @@ export function TradingInterface({ market, onTrade, disabled = false }: TradingI
               )}
             </AlertDescription>
           </Alert>
+        )}
+
+        {/* Gas Fee Inline Display */}
+        {amount && parseFloat(amount) > 0 && isConnected && validation.isValid && (
+          <GasFeeInline
+            gasEstimates={needsApproval(amount) ? gasEstimates.approval : gasEstimates.deposit}
+            selectedSpeed={selectedGasSpeed}
+            transactionType={needsApproval(amount) ? 'approval' : 'deposit'}
+            className="justify-center"
+          />
         )}
 
         {/* Trade Button */}

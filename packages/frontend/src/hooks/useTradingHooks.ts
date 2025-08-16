@@ -4,6 +4,7 @@ import { parseUnits, formatUnits, Address } from 'viem'
 import { getContractAddress, CONTRACTS, OUTCOME, ERC20_ABI } from '@/lib/web3/contracts'
 import { useChainId } from 'wagmi'
 import { useTradingStore, type Transaction } from '@/stores/use-trading-store'
+import { useGasEstimation, type GasEstimates, type GasSpeed } from '@/lib/gas'
 
 export interface TradingState {
   isLoading: boolean
@@ -33,6 +34,16 @@ export function useTradingHooks(marketAddress?: Address) {
     isTransactionPending,
   } = useTradingStore()
   
+  // Gas estimation hook
+  const {
+    estimateApproval,
+    estimateDeposit,
+    estimateClaim,
+    isLoading: isGasLoading,
+    error: gasError,
+    clearError: clearGasError,
+  } = useGasEstimation()
+  
   // Local state for backward compatibility
   const [tradingState, setTradingState] = useState<TradingState>({
     isLoading: false,
@@ -40,6 +51,15 @@ export function useTradingHooks(marketAddress?: Address) {
     isError: false,
     error: null,
   })
+  
+  // Gas estimation states
+  const [gasEstimates, setGasEstimates] = useState<{
+    approval?: GasEstimates
+    deposit?: GasEstimates
+    claim?: GasEstimates
+  }>({})
+  
+  const [selectedGasSpeed, setSelectedGasSpeed] = useState<GasSpeed>('standard')
 
   // Get contract addresses
   const stakeTokenAddress = useMemo(() => {
@@ -330,12 +350,71 @@ export function useTradingHooks(marketAddress?: Address) {
     return usdcAllowance < amountInUSDC
   }, [usdcAllowance])
 
+  // Gas estimation functions
+  const updateApprovalGasEstimate = useCallback(async (amount: string) => {
+    if (!stakeTokenAddress || !marketAddress || !amount) return
+    
+    try {
+      clearGasError()
+      const amountInUSDC = parseUnits(amount, 6)
+      const estimates = await estimateApproval(stakeTokenAddress, marketAddress, amountInUSDC)
+      if (estimates) {
+        setGasEstimates(prev => ({ ...prev, approval: estimates }))
+      }
+    } catch (error) {
+      console.error('Failed to estimate approval gas:', error)
+    }
+  }, [stakeTokenAddress, marketAddress, estimateApproval, clearGasError])
+
+  const updateDepositGasEstimate = useCallback(async (outcome: 'YES' | 'NO', amount: string) => {
+    if (!marketAddress || !amount) return
+    
+    try {
+      clearGasError()
+      const outcomeValue = outcome === 'YES' ? 1 : 0
+      const amountInUSDC = parseUnits(amount, 6)
+      const estimates = await estimateDeposit(marketAddress, outcomeValue, amountInUSDC)
+      if (estimates) {
+        setGasEstimates(prev => ({ ...prev, deposit: estimates }))
+      }
+    } catch (error) {
+      console.error('Failed to estimate deposit gas:', error)
+    }
+  }, [marketAddress, estimateDeposit, clearGasError])
+
+  const updateClaimGasEstimate = useCallback(async () => {
+    if (!marketAddress) return
+    
+    try {
+      clearGasError()
+      const estimates = await estimateClaim(marketAddress)
+      if (estimates) {
+        setGasEstimates(prev => ({ ...prev, claim: estimates }))
+      }
+    } catch (error) {
+      console.error('Failed to estimate claim gas:', error)
+    }
+  }, [marketAddress, estimateClaim, clearGasError])
+
+  // Get current gas estimate for selected speed
+  const getCurrentGasEstimate = useCallback((type: 'approval' | 'deposit' | 'claim') => {
+    const estimates = gasEstimates[type]
+    return estimates ? estimates[selectedGasSpeed] : null
+  }, [gasEstimates, selectedGasSpeed])
+
   return {
     // Actions
     deposit,
     approveUSDC,
     approveAndDeposit,
     claimWinnings,
+    
+    // Gas estimation actions
+    updateApprovalGasEstimate,
+    updateDepositGasEstimate,
+    updateClaimGasEstimate,
+    getCurrentGasEstimate,
+    setSelectedGasSpeed,
     
     // State (merged local and store state)
     tradingState: {
@@ -347,6 +426,13 @@ export function useTradingHooks(marketAddress?: Address) {
         stage: storeState.stage,
       }),
     },
+    
+    // Gas-related state
+    gasEstimates,
+    selectedGasSpeed,
+    isGasLoading,
+    gasError,
+    clearGasError,
     
     // Store-specific data
     transactions: marketAddress ? getTransactionsByMarket(marketAddress) : [],
