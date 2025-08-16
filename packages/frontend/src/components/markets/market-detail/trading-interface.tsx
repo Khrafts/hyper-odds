@@ -25,9 +25,16 @@ import {
   XCircle
 } from 'lucide-react'
 import { useAccount, useBalance } from 'wagmi'
-import { parseEther, formatEther } from 'viem'
+import { formatUnits } from 'viem'
 import { Market } from '@/hooks/useMarkets'
 import { cn } from '@/lib/utils'
+import { 
+  validateTradingAmount, 
+  validateMarketState,
+  TradingSide,
+  tradingFormSchema,
+  type TradingFormData 
+} from '@/lib/validations/trading'
 
 interface TradingInterfaceProps {
   market: Market
@@ -37,6 +44,7 @@ interface TradingInterfaceProps {
 
 export function TradingInterface({ market, onTrade, disabled = false }: TradingInterfaceProps) {
   const { address, isConnected } = useAccount()
+  // TODO: Update to use USDC token balance instead of ETH
   const { data: balance } = useBalance({ address })
   
   const [selectedSide, setSelectedSide] = useState<'YES' | 'NO'>('YES')
@@ -124,34 +132,69 @@ export function TradingInterface({ market, onTrade, disabled = false }: TradingI
     }
   }, [amount, selectedSide, market.poolYes, market.poolNo, yesProb, noProb])
 
-  // Validate input
+  // Comprehensive validation using validation schemas
   const validation = useMemo(() => {
     if (!isConnected) {
-      return { isValid: false, message: 'Connect wallet to trade' }
+      return { isValid: false, message: 'Connect wallet to trade', type: 'wallet' as const }
     }
     
-    if (!amount || parseFloat(amount) <= 0) {
-      return { isValid: false, message: 'Enter an amount' }
+    if (!amount || amount.trim() === '') {
+      return { isValid: false, message: 'Enter an amount', type: 'amount' as const }
     }
     
-    const amountWei = parseEther(amount)
-    if (balance && amountWei > balance.value) {
-      return { isValid: false, message: 'Insufficient balance' }
-    }
-    
-    if (market.resolved) {
-      return { isValid: false, message: 'Market is resolved' }
-    }
-    
-    if (market.cutoffTime) {
-      const cutoff = new Date(parseInt(market.cutoffTime) * 1000)
-      if (cutoff < new Date()) {
-        return { isValid: false, message: 'Trading has ended' }
+    // Validate market state
+    const marketState = validateMarketState(market)
+    if (!marketState.canTrade) {
+      return { 
+        isValid: false, 
+        message: marketState.reason || 'Cannot trade on this market', 
+        type: 'market' as const 
       }
     }
     
-    return { isValid: true, message: null }
-  }, [amount, balance, isConnected, market.resolved, market.cutoffTime])
+    // Validate trading amount
+    const amountValidation = validateTradingAmount(
+      amount,
+      balance?.value,
+      '1', // min amount
+      '1000000'   // max amount
+    )
+    
+    if (!amountValidation.isValid) {
+      return { 
+        isValid: false, 
+        message: amountValidation.error || 'Invalid amount', 
+        type: 'amount' as const 
+      }
+    }
+    
+    // Validate form data structure
+    try {
+      const formData: TradingFormData = {
+        side: selectedSide as TradingSide,
+        amount: amount,
+        slippage: slippage
+      }
+      
+      const result = tradingFormSchema.safeParse(formData)
+      if (!result.success) {
+        const firstError = result.error.errors[0]
+        return { 
+          isValid: false, 
+          message: firstError.message, 
+          type: 'validation' as const 
+        }
+      }
+    } catch (err) {
+      return { 
+        isValid: false, 
+        message: 'Invalid form data', 
+        type: 'validation' as const 
+      }
+    }
+    
+    return { isValid: true, message: null, type: null }
+  }, [amount, balance, isConnected, market, selectedSide, slippage])
 
   const handleTrade = useCallback(async () => {
     if (!validation.isValid || !onTrade) return
@@ -170,8 +213,8 @@ export function TradingInterface({ market, onTrade, disabled = false }: TradingI
   }, [validation.isValid, onTrade, selectedSide, amount])
 
   // Quick amount buttons
-  const quickAmounts = [10, 25, 50, 100]
-  const balanceInEth = balance ? parseFloat(formatEther(balance.value)) : 0
+  const quickAmounts = [100, 500, 1000, 5000]
+  const balanceInUSDC = balance ? parseFloat(formatUnits(balance.value, 18)) : 0 // TODO: Update to 6 decimals for USDC
 
   return (
     <Card className="overflow-hidden">
@@ -184,7 +227,7 @@ export function TradingInterface({ market, onTrade, disabled = false }: TradingI
           {isConnected && (
             <Badge variant="outline" className="font-normal">
               <Wallet className="h-3 w-3 mr-1" />
-              {balanceInEth.toFixed(4)} ETH
+              {balanceInUSDC.toFixed(2)} USDC
             </Badge>
           )}
         </CardTitle>
@@ -248,9 +291,9 @@ export function TradingInterface({ market, onTrade, disabled = false }: TradingI
         <div className="space-y-4">
           <div>
             <Label htmlFor="amount" className="flex items-center justify-between mb-2">
-              <span>Amount (ETH)</span>
+              <span>Amount (USDC)</span>
               <span className="text-xs text-muted-foreground">
-                Max: {balanceInEth.toFixed(4)} ETH
+                Max: {balanceInUSDC.toFixed(2)} USDC
               </span>
             </Label>
             <Input
@@ -261,8 +304,8 @@ export function TradingInterface({ market, onTrade, disabled = false }: TradingI
               onChange={(e) => setAmount(e.target.value)}
               disabled={disabled || isProcessing || !isConnected}
               className="text-lg"
-              step="0.01"
-              min="0"
+              step="1"
+              min="1"
             />
           </div>
 
@@ -274,17 +317,17 @@ export function TradingInterface({ market, onTrade, disabled = false }: TradingI
                 variant="outline"
                 size="sm"
                 onClick={() => setAmount(quickAmount.toString())}
-                disabled={disabled || isProcessing || !isConnected || quickAmount > balanceInEth}
+                disabled={disabled || isProcessing || !isConnected || quickAmount > balanceInUSDC}
                 className="flex-1"
               >
-                {quickAmount} ETH
+                {quickAmount} USDC
               </Button>
             ))}
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setAmount(balanceInEth.toString())}
-              disabled={disabled || isProcessing || !isConnected || balanceInEth === 0}
+              onClick={() => setAmount(balanceInUSDC.toString())}
+              disabled={disabled || isProcessing || !isConnected || balanceInUSDC === 0}
               className="flex-1"
             >
               Max
@@ -305,7 +348,7 @@ export function TradingInterface({ market, onTrade, disabled = false }: TradingI
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Avg. Price per Share</span>
                 <span className="font-medium">
-                  {(parseFloat(amount) / parseFloat(estimatedShares)).toFixed(4)} ETH
+                  {(parseFloat(amount) / parseFloat(estimatedShares)).toFixed(4)} USDC
                 </span>
               </div>
               
@@ -315,7 +358,7 @@ export function TradingInterface({ market, onTrade, disabled = false }: TradingI
                   "font-medium",
                   potentialReturn.profit > 0 ? "text-green-600" : "text-red-600"
                 )}>
-                  {potentialReturn.profit > 0 ? '+' : ''}{potentialReturn.profit.toFixed(4)} ETH
+                  {potentialReturn.profit > 0 ? '+' : ''}{potentialReturn.profit.toFixed(2)} USDC
                   ({potentialReturn.roi > 0 ? '+' : ''}{potentialReturn.roi.toFixed(1)}%)
                 </span>
               </div>
@@ -384,9 +427,23 @@ export function TradingInterface({ market, onTrade, disabled = false }: TradingI
         )}
         
         {!validation.isValid && validation.message && !error && (
-          <Alert>
+          <Alert variant={validation.type === 'wallet' ? 'default' : 'destructive'}>
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{validation.message}</AlertDescription>
+            <AlertDescription>
+              {validation.message}
+              {validation.type === 'amount' && amount && (
+                <div className="mt-2 text-xs text-muted-foreground">
+                  • Minimum: 1 USDC
+                  • Maximum: 1,000,000 USDC  
+                  • Balance: {balance ? parseFloat(formatUnits(balance.value, 18)).toFixed(2) : '0'} USDC
+                </div>
+              )}
+              {validation.type === 'market' && (
+                <div className="mt-2 text-xs text-muted-foreground">
+                  Check market status and trading conditions
+                </div>
+              )}
+            </AlertDescription>
           </Alert>
         )}
 
@@ -402,7 +459,7 @@ export function TradingInterface({ market, onTrade, disabled = false }: TradingI
           ) : !isConnected ? (
             'Connect Wallet'
           ) : (
-            `Buy ${selectedSide} for ${amount || '0'} ETH`
+            `Buy ${selectedSide} for ${amount || '0'} USDC`
           )}
         </Button>
 
@@ -413,7 +470,7 @@ export function TradingInterface({ market, onTrade, disabled = false }: TradingI
           ) : market.cutoffTime && new Date(parseInt(market.cutoffTime) * 1000) < new Date() ? (
             'Trading has ended for this market'
           ) : (
-            'You will receive shares that can be redeemed for 1 ETH each if your prediction is correct'
+            'You will receive shares that can be redeemed for 1 USDC each if your prediction is correct'
           )}
         </p>
       </CardContent>

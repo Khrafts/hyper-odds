@@ -63,14 +63,14 @@ export default function TradingDemoPage() {
   }
 
   const handleTrade = async (side: 'YES' | 'NO', amount: string) => {
-    console.log(`Demo Trade: ${side} for ${amount} ETH`)
+    console.log(`Demo Trade: ${side} for ${amount} USDC`)
     setLastTrade({ side, amount })
     
     // Simulate transaction delay
     return new Promise<void>((resolve) => {
       setTimeout(() => {
         console.log('Demo trade executed successfully')
-        alert(`Demo Trade Executed!\n\nSide: ${side}\nAmount: ${amount} ETH\n\nThis is a demo - no real transaction was made.`)
+        alert(`Demo Trade Executed!\n\nSide: ${side}\nAmount: ${amount} USDC\n\nThis is a demo - no real transaction was made.`)
         resolve()
       }, 2000)
     })
@@ -123,7 +123,7 @@ export default function TradingDemoPage() {
           {lastTrade && (
             <div className="p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg">
               <p className="text-sm text-green-800 dark:text-green-200">
-                Last Demo Trade: {lastTrade.side} for {lastTrade.amount} ETH
+                Last Demo Trade: {lastTrade.side} for {lastTrade.amount} USDC
               </p>
             </div>
           )}
