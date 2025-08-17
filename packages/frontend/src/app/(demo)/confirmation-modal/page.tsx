@@ -19,7 +19,7 @@ import {
   TransactionConfirmationModal, 
   useTransactionConfirmation,
   type TransactionDetails 
-} from '@/components/trading/transaction-confirmation-modal'
+} from '@/components/trading/transactionConfirmationModal'
 import { type GasEstimates } from '@/lib/gas'
 
 export default function ConfirmationModalPage() {

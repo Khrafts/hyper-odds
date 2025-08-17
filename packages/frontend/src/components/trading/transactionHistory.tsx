@@ -17,9 +17,9 @@ import {
   TrendingDown,
   RefreshCw
 } from 'lucide-react'
-import { useTransactionsByMarket, useTradingStore } from '@/stores/use-trading-store'
+import { useTransactionsByMarket, useTradingStore } from '@/stores/useTradingStore'
 import { cn } from '@/lib/utils'
-import type { Transaction } from '@/stores/use-trading-store'
+import type { Transaction } from '@/stores/useTradingStore'
 
 interface TransactionHistoryProps {
   marketId: string

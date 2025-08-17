@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { SSRSafeConnectButton, SSRSafeSimpleConnectButton } from '../web3/connect-button'
+import { SSRSafeConnectButton, SSRSafeSimpleConnectButton } from '../web3/connectButton'
 import { Button } from '../ui/button'
 import { 
   DropdownMenu,

@@ -2,10 +2,10 @@
 
 import React from 'react'
 import { useParams } from 'next/navigation'
-import { MarketHeader } from '@/components/markets/market-detail/market-header'
-import { TradingInterface } from '@/components/markets/market-detail/trading-interface'
+import { MarketHeader } from '@/components/markets/market-detail/marketHeader'
+import { TradingInterface } from '@/components/markets/market-detail/tradingInterface'
 import { PageErrorBoundary, AsyncBoundary, NotFoundError } from '@/components/error'
-import { useMarket } from '@/hooks/use-market'
+import { useMarket } from '@/hooks/useMarket'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'

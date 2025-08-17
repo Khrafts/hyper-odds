@@ -16,7 +16,7 @@ import {
   DollarSign,
   RefreshCw
 } from 'lucide-react'
-import { GasFeeDisplay } from '@/components/trading/gas-fee-display'
+import { GasFeeDisplay } from '@/components/trading/gasFeeDisplay'
 import { useGasEstimation, type GasSpeed } from '@/lib/gas'
 import { parseUnits } from 'viem'
 import { useAccount } from 'wagmi'

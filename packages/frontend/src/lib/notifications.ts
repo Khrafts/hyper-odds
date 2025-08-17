@@ -2,7 +2,7 @@
 
 import { toast } from 'sonner'
 import { ExternalLink, CheckCircle, XCircle, Clock, DollarSign, TrendingUp, TrendingDown } from 'lucide-react'
-import type { Transaction } from '@/stores/use-trading-store'
+import type { Transaction } from '@/stores/useTradingStore'
 
 export interface NotificationOptions {
   action?: {

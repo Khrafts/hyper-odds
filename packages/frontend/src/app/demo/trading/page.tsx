@@ -2,8 +2,8 @@
 
 import React, { useState } from 'react'
 import { PageErrorBoundary } from '@/components/error'
-import { TradingInterface } from '@/components/markets/market-detail/trading-interface'
-import { MarketHeader } from '@/components/markets/market-detail/market-header'
+import { TradingInterface } from '@/components/markets/market-detail/tradingInterface'
+import { MarketHeader } from '@/components/markets/market-detail/marketHeader'
 import { Market } from '@/hooks/useMarkets'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'

@@ -2,12 +2,12 @@
 
 import React, { useState } from 'react'
 import { useMarkets, MarketFilters } from '@/hooks/useMarkets'
-import { MarketGrid } from '@/components/markets/market-grid'
+import { MarketGrid } from '@/components/markets/marketGrid'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { ClientOnly } from '@/components/client-only'
+import { ClientOnly } from '@/components/clientOnly'
 import { PageErrorBoundary } from '@/components/error'
 import { Search, Filter, SortAsc } from 'lucide-react'
 

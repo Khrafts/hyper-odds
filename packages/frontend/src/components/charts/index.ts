@@ -1,1 +1,1 @@
-export { ProbabilityChart, MiniProbabilityChart } from './probability-chart'
+export { ProbabilityChart, MiniProbabilityChart } from './probabilityChart'

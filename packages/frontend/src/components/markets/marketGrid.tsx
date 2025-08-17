@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { MarketCard } from './market-card'
+import { MarketCard } from './marketCard'
 import { Market } from '@/hooks/useMarkets'
 import { Skeleton } from '../ui/skeleton'
 import { Alert, AlertDescription } from '../ui/alert'

@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { MarketHeader } from './market-header'
+import { MarketHeader } from './marketHeader'
 import { Market } from '@/hooks/useMarkets'
 
 // Sample market data for testing

@@ -1,7 +1,7 @@
 'use client'
 
 import { PageErrorBoundary } from '@/components/error'
-import { MarketHeaderDemo } from '@/components/markets/market-detail/market-header-demo'
+import { MarketHeaderDemo } from '@/components/markets/market-detail/marketHeaderDemo'
 
 export default function DemoPage() {
   return (

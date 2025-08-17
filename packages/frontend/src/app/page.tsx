@@ -5,8 +5,8 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { MarketsSection } from '@/components/markets-section'
-import { ClientOnly } from '@/components/client-only'
+import { MarketsSection } from '@/components/marketsSection'
+import { ClientOnly } from '@/components/clientOnly'
 import { PageErrorBoundary } from '@/components/error'
 import { 
   TrendingUp, 

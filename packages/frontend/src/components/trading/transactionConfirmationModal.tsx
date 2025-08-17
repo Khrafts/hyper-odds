@@ -26,7 +26,7 @@ import {
   Wallet
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { GasFeeInline } from './gas-fee-display'
+import { GasFeeInline } from './gasFeeDisplay'
 import { type GasEstimates, type GasSpeed } from '@/lib/gas'
 
 export interface TransactionDetails {

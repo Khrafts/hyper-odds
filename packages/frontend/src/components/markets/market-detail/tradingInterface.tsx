@@ -36,12 +36,12 @@ import {
   type TradingFormData 
 } from '@/lib/validations/trading'
 import { useTradingHooks } from '@/hooks/useTradingHooks'
-import { GasFeeDisplay, GasFeeInline } from '@/components/trading/gas-fee-display'
+import { GasFeeDisplay, GasFeeInline } from '@/components/trading/gasFeeDisplay'
 import { 
   TransactionConfirmationModal, 
   useTransactionConfirmation,
   type TransactionDetails 
-} from '@/components/trading/transaction-confirmation-modal'
+} from '@/components/trading/transactionConfirmationModal'
 
 interface TradingInterfaceProps {
   market: Market

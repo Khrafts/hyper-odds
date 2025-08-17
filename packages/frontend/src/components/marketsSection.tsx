@@ -3,7 +3,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { MarketGrid } from '@/components/markets/market-grid'
+import { MarketGrid } from '@/components/markets/marketGrid'
 import { useMarkets, Market } from '@/hooks/useMarkets'
 import { ArrowRight } from 'lucide-react'
 

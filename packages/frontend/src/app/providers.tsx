@@ -6,7 +6,7 @@ import { RainbowKitProvider, darkTheme, lightTheme } from '@rainbow-me/rainbowki
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { rainbowKitConfig } from '../lib/web3/config'
 import { GraphQLProvider } from '../lib/graphql/provider'
-import { suppressSSRWarnings, suppressDevelopmentNetworkErrors } from '../lib/ssr-utils'
+import { suppressSSRWarnings, suppressDevelopmentNetworkErrors } from '../lib/ssrUtils'
 
 // Import RainbowKit CSS
 import '@rainbow-me/rainbowkit/styles.css'

@@ -3,7 +3,7 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadCont
 import { parseUnits, formatUnits, Address } from 'viem'
 import { getContractAddress, CONTRACTS, OUTCOME, ERC20_ABI } from '@/lib/web3/contracts'
 import { useChainId } from 'wagmi'
-import { useTradingStore, type Transaction } from '@/stores/use-trading-store'
+import { useTradingStore, type Transaction } from '@/stores/useTradingStore'
 import { useGasEstimation, type GasEstimates, type GasSpeed } from '@/lib/gas'
 
 export interface TradingState {

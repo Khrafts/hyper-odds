@@ -19,8 +19,8 @@ import {
   Trash2,
   RotateCcw
 } from 'lucide-react'
-import { useTradingStore, useTransactionsByMarket, useTradingStateFor } from '@/stores/use-trading-store'
-import { TransactionHistory, TransactionStatus } from '@/components/trading/transaction-history'
+import { useTradingStore, useTransactionsByMarket, useTradingStateFor } from '@/stores/useTradingStore'
+import { TransactionHistory, TransactionStatus } from '@/components/trading/transactionHistory'
 import { cn } from '@/lib/utils'
 
 export default function TransactionStatePage() {

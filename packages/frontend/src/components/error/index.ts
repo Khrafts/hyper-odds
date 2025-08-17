@@ -4,7 +4,7 @@ export {
   PageErrorBoundary,
   ComponentErrorBoundary,
   AsyncBoundary,
-} from './error-boundary'
+} from './errorBoundary'
 
 // Error States
 export {
@@ -16,4 +16,4 @@ export {
   GenericError,
   InlineError,
   ErrorAlert,
-} from './error-states'
+} from './errorStates'
