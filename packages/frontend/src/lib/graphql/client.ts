@@ -93,14 +93,11 @@ const cache = new InMemoryCache({
             return existing || toReference({ __typename: 'Market', id: args?.id })
           },
         },
-        // User positions
+        // User positions (array-based, not paginated)
         positions: {
           keyArgs: ['where', 'orderBy'],
-          merge(existing = { edges: [], pageInfo: {} }, incoming) {
-            return {
-              ...incoming,
-              edges: [...(existing.edges || []), ...(incoming.edges || [])],
-            }
+          merge(existing = [], incoming) {
+            return incoming || []
           },
         },
       },

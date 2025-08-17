@@ -32,53 +32,29 @@ const POSITION_FRAGMENT = gql`
  */
 const GET_USER_POSITIONS = gql`
   ${POSITION_FRAGMENT}
-  query GetUserPositions($userId: ID!, $first: Int, $after: String) {
+  query GetUserPositions($userId: ID!, $first: Int) {
     positions(
       first: $first
-      after: $after
-      where: { userId: $userId }
-      orderBy: { field: UPDATED_AT, direction: DESC }
+      where: { user: $userId }
     ) {
-      edges {
-        node {
-          ...PositionFields
-        }
-        cursor
-      }
-      pageInfo {
-        hasNextPage
-        endCursor
-      }
-      totalCount
+      ...PositionFields
     }
   }
 `
 
 const GET_MARKET_POSITIONS = gql`
-  query GetMarketPositions($marketId: ID!, $first: Int, $after: String) {
+  query GetMarketPositions($marketId: ID!, $first: Int) {
     positions(
       first: $first
-      after: $after
-      where: { marketId: $marketId }
-      orderBy: { field: SHARES_YES, direction: DESC }
+      where: { market: $marketId }
     ) {
-      edges {
-        node {
-          id
-          sharesYes
-          sharesNo
-          user {
-            id
-            address
-          }
-        }
-        cursor
+      id
+      sharesYes
+      sharesNo
+      user {
+        id
+        address
       }
-      pageInfo {
-        hasNextPage
-        endCursor
-      }
-      totalCount
     }
   }
 `
@@ -98,17 +74,11 @@ const GET_ACTIVE_POSITIONS = gql`
     positions(
       first: $first
       where: { 
-        userId: $userId
+        user: $userId
         market: { resolved: false }
       }
-      orderBy: { field: UPDATED_AT, direction: DESC }
     ) {
-      edges {
-        node {
-          ...PositionFields
-        }
-      }
-      totalCount
+      ...PositionFields
     }
   }
 `

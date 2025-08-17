@@ -27,10 +27,9 @@ export function useUserPositions(userId?: string, includeResolved = true) {
   )
 
   const positions = useMemo(() => {
-    if (!data?.positions?.edges) return []
+    if (!data?.positions) return []
     
-    return data.positions.edges.map(edge => {
-      const position = edge.node
+    return data.positions.map(position => {
       const market = position.market
       
       // Calculate current prices
@@ -233,10 +232,9 @@ export function useMarketLeaderboard(marketId: string, limit = 10) {
   const { data, loading, error } = useMarketPositions(marketId, limit)
   
   const leaderboard = useMemo(() => {
-    if (!data?.positions?.edges) return []
+    if (!data?.positions) return []
     
-    return data.positions.edges.map((edge, index) => {
-      const position = edge.node
+    return data.positions.map((position, index) => {
       const sharesYes = parseFloat(position.sharesYes || '0')
       const sharesNo = parseFloat(position.sharesNo || '0')
       const totalShares = sharesYes + sharesNo
