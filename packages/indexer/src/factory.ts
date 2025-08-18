@@ -1,7 +1,7 @@
 import { MarketCreated, StakeReleased, MarketFactory } from "../generated/MarketFactory/MarketFactory"
 import { ParimutuelMarket } from "../generated/templates"
 import { Market, User, MarketCreated as MarketCreatedEntity, Protocol } from "../generated/schema"
-import { BigInt, BigDecimal } from "@graphprotocol/graph-ts"
+import { BigInt, BigDecimal, Address } from "@graphprotocol/graph-ts"
 
 // Helper to get or create protocol entity
 function getOrCreateProtocol(): Protocol {
@@ -57,43 +57,57 @@ export function handleMarketCreated(event: MarketCreated): void {
     event.block.number
   )
   
-  // Basic info from event - now we have actual title and description!
+  // Basic info from event - now we have full parameters!
   market.creator = creator.id
-  market.title = event.params.title
-  market.description = event.params.description
+  market.title = event.params.params.title
+  market.description = event.params.params.description
   
-  // Decode subject from bytes32 (placeholder values)
-  market.subjectKind = "HL_METRIC"
-  market.metricId = event.params.subject
-  market.token = null // Token is optional
-  market.valueDecimals = 18
+  // Subject parameters - now actual values!
+  market.subjectKind = event.params.params.subject.kind == 0 ? "HL_METRIC" : "TOKEN_PRICE"
+  market.metricId = event.params.params.subject.metricId
+  market.token = event.params.params.subject.token.equals(Address.zero()) ? null : event.params.params.subject.token
+  market.valueDecimals = event.params.params.subject.valueDecimals
   
-  // Decode predicate from bytes32 (placeholder values)
-  market.predicateOp = "GT"
-  market.threshold = BigInt.fromI32(0)
+  // Predicate parameters - actual values!
+  if (event.params.params.predicate.op == 0) {
+    market.predicateOp = "GT"
+  } else if (event.params.params.predicate.op == 1) {
+    market.predicateOp = "GTE" 
+  } else if (event.params.params.predicate.op == 2) {
+    market.predicateOp = "LT"
+  } else {
+    market.predicateOp = "LTE"
+  }
+  market.threshold = event.params.params.predicate.threshold
   
-  // Decode window from bytes32 (placeholder values)
-  market.windowKind = "SNAPSHOT_AT"
-  market.windowStart = BigInt.fromI32(0)
-  market.windowEnd = event.block.timestamp.plus(BigInt.fromI32(86400)) // 1 day from now
+  // Window parameters - actual values!
+  if (event.params.params.window.kind == 0) {
+    market.windowKind = "SNAPSHOT_AT"
+  } else if (event.params.params.window.kind == 1) {
+    market.windowKind = "WINDOW_SUM"
+  } else {
+    market.windowKind = "WINDOW_COUNT"
+  }
+  market.windowStart = event.params.params.window.tStart
+  market.windowEnd = event.params.params.window.tEnd
   
-  // Oracle (placeholder values)
-  market.primarySourceId = event.params.subject
-  market.fallbackSourceId = event.params.predicate
-  market.roundingDecimals = 2
+  // Oracle parameters - actual values!
+  market.primarySourceId = event.params.params.oracle.primarySourceId
+  market.fallbackSourceId = event.params.params.oracle.fallbackSourceId
+  market.roundingDecimals = event.params.params.oracle.roundingDecimals
   
-  // Economics (default values)
-  market.feeBps = 500 // 5%
-  market.creatorFeeShareBps = 2000 // 20% of fees
-  market.maxTotalPool = BigDecimal.fromString("1000000")
-  market.timeDecayBps = 0 // Default, will be updated by contract call
+  // Economics - actual values!
+  market.feeBps = event.params.params.econ.feeBps
+  market.creatorFeeShareBps = event.params.params.econ.creatorFeeShareBps
+  market.maxTotalPool = BigDecimal.fromString(event.params.params.econ.maxTotalPool.toString())
+  market.timeDecayBps = event.params.params.econ.timeDecayBps
   
-  // Timing
-  market.cutoffTime = event.block.timestamp.plus(BigInt.fromI32(3600)) // 1 hour from now
-  market.resolveTime = event.block.timestamp.plus(BigInt.fromI32(86400)) // 1 day from now
+  // Timing - actual values!
+  market.cutoffTime = event.params.params.cutoffTime
+  market.resolveTime = market.cutoffTime.plus(event.params.params.window.tEnd.minus(event.params.params.window.tStart))
   
   // State
-  market.isProtocolMarket = event.params.isProtocolMarket
+  market.isProtocolMarket = event.params.params.isProtocolMarket
   market.resolved = false
   market.cancelled = false
   

@@ -24,7 +24,7 @@ dataSources:
         - name: ParimutuelMarketImplementation
           file: ./abis/ParimutuelMarketImplementation.json
       eventHandlers:
-        - event: MarketCreated(indexed address,indexed address,string,string,bytes32,bytes32,bytes32,bool)
+        - event: MarketCreated(indexed address,indexed address,(string,string,(uint8,bytes32,address,uint8),(uint8,int256),(uint8,uint64,uint64),(bytes32,bytes32,uint8),uint64,address,(uint16,uint16,uint256,uint16),bool))
           handler: handleMarketCreated
         - event: StakeReleased(indexed address,indexed address,uint256)
           handler: handleStakeReleased
