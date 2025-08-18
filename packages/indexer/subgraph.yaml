@@ -6,7 +6,7 @@ dataSources:
     name: MarketFactory
     network: arbitrum-sepolia
     source:
-      address: "0x3f4FdBD7F01e813a57cbbb95A38eAB118CafF6a0" # Factory with title/description in MarketCreated event
+      address: "0x3d2519A17eAe6323CaA36fB07ecEcDc96457aFf1" # Factory with title/description in MarketCreated event
       abi: MarketFactory
       startBlock: 185235728
     mapping:
@@ -29,6 +29,31 @@ dataSources:
         - event: StakeReleased(indexed address,indexed address,uint256)
           handler: handleStakeReleased
       file: ./src/factory.ts
+  - kind: ethereum
+    name: MarketRouter
+    network: arbitrum-sepolia
+    source:
+      address: "0x52dE5EEcD112E57a13Bc41633B30336846b897cc"
+      abi: MarketRouter
+      startBlock: 185235728
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - RouterDeposit
+        - RouterClaim
+        - RouterStats
+        - User
+      abis:
+        - name: MarketRouter
+          file: ./abis/MarketRouter.json
+      eventHandlers:
+        - event: RouterDeposit(indexed address,indexed address,uint8,uint256)
+          handler: handleRouterDeposit
+        - event: RouterClaim(indexed address,indexed address,uint256)
+          handler: handleRouterClaim
+      file: ./src/router.ts
 
 templates:
   - kind: ethereum

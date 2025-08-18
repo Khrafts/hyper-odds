@@ -55,10 +55,10 @@ export interface Position {
 }
 
 export const CONTRACTS = {
-  FACTORY: '0x3f4FdBD7F01e813a57cbbb95A38eAB118CafF6a0' as Address,
-  STHYPE: '0xa88C085Ab4C90fEa3D915539319E9E00fe8Fef40' as Address,
-  STAKE_TOKEN: '0x6650830AdBa032Ef0bD83376B518d43D39AE6c46' as Address,
-  ROUTER: '0x0000000000000000000000000000000000000000' as Address, // TODO: Update after deployment
+  FACTORY: '0x3d2519A17eAe6323CaA36fB07ecEcDc96457aFf1' as Address,
+  STHYPE: '0xa027E10C1808eE077989DfD560D5Ac00870d7963' as Address,
+  STAKE_TOKEN: '0x019a0cD76A076DDd0D105101d77bD1833321BF5A' as Address,
+  ROUTER: '0x52dE5EEcD112E57a13Bc41633B30336846b897cc' as Address,
 } as const;
 
 export const SUBGRAPH_URL = 'https://api.goldsky.com/api/public/project_cm4ty719hcpgs01wg2r5z2pa8/subgraphs/hyper-odds-testnet/0.0.2/gn';

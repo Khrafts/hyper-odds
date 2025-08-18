@@ -223,3 +223,41 @@ type HourlySnapshot @entity {
   # User stats
   activeUsers: BigInt!
 }
+
+# Router-specific entities for analytics
+type RouterDeposit @entity {
+  id: ID! # tx-logIndex
+  user: User!
+  market: Market!
+  outcome: Int! # 0 = NO, 1 = YES
+  amount: BigDecimal!
+  
+  # Metadata
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  transactionHash: Bytes!
+  logIndex: BigInt!
+}
+
+type RouterClaim @entity {
+  id: ID! # tx-logIndex
+  user: User!
+  market: Market!
+  payout: BigDecimal!
+  
+  # Metadata
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  transactionHash: Bytes!
+  logIndex: BigInt!
+}
+
+# Router usage statistics
+type RouterStats @entity {
+  id: ID! # "1"
+  totalDeposits: BigInt!
+  totalClaims: BigInt!
+  totalVolumeRouted: BigDecimal!
+  totalPayoutsRouted: BigDecimal!
+  uniqueUsers: BigInt!
+}
