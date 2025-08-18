@@ -29,6 +29,8 @@ contract MarketFactory is Ownable {
     event MarketCreated(
         address indexed market,
         address indexed creator,
+        string title,
+        string description,
         bytes32 subject,
         bytes32 predicate,
         bytes32 windowSpec,
@@ -88,6 +90,8 @@ contract MarketFactory is Ownable {
         emit MarketCreated(
             market,
             msg.sender,
+            p.title,
+            p.description,
             keccak256(abi.encode(p.subject)),
             keccak256(abi.encode(p.predicate)),
             keccak256(abi.encode(p.window)),
@@ -145,6 +149,8 @@ contract MarketFactory is Ownable {
         emit MarketCreated(
             market,
             msg.sender,
+            p.title,
+            p.description,
             keccak256(abi.encode(p.subject)),
             keccak256(abi.encode(p.predicate)),
             keccak256(abi.encode(p.window)),

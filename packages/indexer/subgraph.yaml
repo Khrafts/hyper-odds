@@ -6,9 +6,9 @@ dataSources:
     name: MarketFactory
     network: arbitrum-sepolia
     source:
-      address: "0x00e5A2346C96da6C54f53d2d53bD5536D53Fae5D" # Updated factory address with time decay
+      address: "0x3f4FdBD7F01e813a57cbbb95A38eAB118CafF6a0" # Factory with title/description in MarketCreated event
       abi: MarketFactory
-      startBlock: 184397400
+      startBlock: 185235728
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
@@ -24,7 +24,7 @@ dataSources:
         - name: ParimutuelMarketImplementation
           file: ./abis/ParimutuelMarketImplementation.json
       eventHandlers:
-        - event: MarketCreated(indexed address,indexed address,bytes32,bytes32,bytes32,bool)
+        - event: MarketCreated(indexed address,indexed address,string,string,bytes32,bytes32,bytes32,bool)
           handler: handleMarketCreated
         - event: StakeReleased(indexed address,indexed address,uint256)
           handler: handleStakeReleased

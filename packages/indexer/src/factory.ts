@@ -57,10 +57,10 @@ export function handleMarketCreated(event: MarketCreated): void {
     event.block.number
   )
   
-  // Basic info from event (we only have bytes32 data now)
+  // Basic info from event - now we have actual title and description!
   market.creator = creator.id
-  market.title = "Market " + event.params.market.toHexString().slice(0, 10)
-  market.description = "Prediction market"
+  market.title = event.params.title
+  market.description = event.params.description
   
   // Decode subject from bytes32 (placeholder values)
   market.subjectKind = "HL_METRIC"
