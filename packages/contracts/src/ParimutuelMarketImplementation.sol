@@ -71,7 +71,7 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
         require(_oracle != address(0), "Invalid oracle");
         require(_cutoffTime > block.timestamp, "Cutoff time in past");
         require(_resolveTime > _cutoffTime, "Resolve time before cutoff");
-        require(_maxTotalPool > 0, "Invalid max pool");
+        // No max pool validation - allow unlimited pool sizes
         require(_timeDecayBps <= 5000, "Time decay too high"); // Max 50% spread
 
         initialized = true;
@@ -118,8 +118,7 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
         require(outcome <= 1, "Invalid outcome");
         require(amount > 0, "Zero amount");
 
-        uint256 newTotalPool = pool[0] + pool[1] + amount;
-        require(newTotalPool <= maxTotalPool, "Pool cap exceeded");
+        // No pool cap validation - allow unlimited pool sizes
 
         stakeToken.safeTransferFrom(msg.sender, address(this), amount);
 

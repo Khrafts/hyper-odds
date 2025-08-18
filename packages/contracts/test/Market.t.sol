@@ -203,7 +203,7 @@ contract MarketTest is Test {
     }
 
     function testMarketInitializeInvalidMaxPool() public {
-        vm.expectRevert("Invalid max pool");
+        // Max pool validation has been removed - zero values should now be accepted
         market.initialize(
             address(stakeToken),
             treasury,
@@ -211,12 +211,15 @@ contract MarketTest is Test {
             oracle,
             cutoffTime,
             resolveTime,
-            0,
+            0, // Zero max pool now allowed
             0, // No time decay for basic tests
             keccak256("subject"),
             keccak256("predicate"),
             keccak256("window")
         );
+        
+        // Verify initialization succeeded with zero max pool
+        assertEq(market.maxTotalPool(), 0);
     }
 
     // Helper function to initialize market
@@ -306,10 +309,12 @@ contract MarketTest is Test {
         // First deposit OK
         market.deposit(1, 900e18);
 
-        // Second deposit would exceed cap
-        vm.expectRevert("Pool cap exceeded");
+        // Second deposit should succeed now that pool caps are removed
         market.deposit(1, 200e18);
         vm.stopPrank();
+        
+        // Verify total pool is now above the old cap
+        assertEq(market.totalPool(), 1100e18);
     }
 
     // Task 5.4 tests - ingestResolution
