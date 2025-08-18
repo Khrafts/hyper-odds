@@ -6,6 +6,7 @@ import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
 import { Market, CONTRACTS } from '@/types/contracts';
 import { MARKET_ABI, ERC20_ABI } from '@/lib/abis';
+import { ROUTER_ABI } from '@/lib/router-abi';
 
 interface MarketCardProps {
   market: Market;
@@ -36,7 +37,7 @@ export function MarketCard({ market }: MarketCardProps) {
         address: CONTRACTS.STAKE_TOKEN,
         abi: ERC20_ABI,
         functionName: 'approve',
-        args: [market.id, parseEther('1000000')], // Large allowance
+        args: [CONTRACTS.ROUTER, parseEther('1000000')], // Approve Router once for all markets
       });
     } catch (error) {
       console.error('Approval failed:', error);
@@ -50,10 +51,10 @@ export function MarketCard({ market }: MarketCardProps) {
 
     try {
       await writeContract({
-        address: market.id,
-        abi: MARKET_ABI,
-        functionName: 'deposit',
-        args: [outcome, parseEther(betAmount)],
+        address: CONTRACTS.ROUTER,
+        abi: ROUTER_ABI,
+        functionName: 'depositToMarket',
+        args: [market.id, outcome, parseEther(betAmount)],
       });
     } catch (error) {
       console.error('Bet failed:', error);
@@ -175,7 +176,7 @@ export function MarketCard({ market }: MarketCardProps) {
             disabled={approving}
             className="btn btn-secondary w-full text-sm"
           >
-            {approving ? 'Approving...' : 'Approve USDC'}
+            {approving ? 'Approving...' : 'Approve USDC (One-time)'}
           </button>
 
           <div className="grid grid-cols-2 gap-2">

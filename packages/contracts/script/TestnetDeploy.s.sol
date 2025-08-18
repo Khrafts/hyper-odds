@@ -9,6 +9,7 @@ import "../test/mocks/MockERC20.sol";
 import "../src/oracle/SimpleOracle.sol";
 import "../src/MarketFactory.sol";
 import "../src/ParimutuelMarketImplementation.sol";
+import "../src/MarketRouter.sol";
 import "../src/interfaces/IMarket.sol";
 import "../src/types/MarketParams.sol";
 
@@ -72,6 +73,11 @@ contract TestnetDeploy is Script {
         // Set the implementation
         factory.setImplementation(address(implementation));
         console.log("  Factory:", address(factory));
+        
+        // Deploy Router
+        console.log("\n5b. Deploying MarketRouter...");
+        MarketRouter router = new MarketRouter();
+        console.log("  Router:", address(router));
         
         // 6. Mint test tokens
         console.log("\n6. Minting test tokens...");
@@ -150,6 +156,7 @@ contract TestnetDeploy is Script {
         console.log('  "oracle": "', address(oracle), '",');
         console.log('  "marketImplementation": "', address(implementation), '",');
         console.log('  "factory": "', address(factory), '",');
+        console.log('  "router": "', address(router), '",');
         console.log('  "testMarket": "', market, '"');
         console.log("}\n");
         console.log("\nNext steps:");

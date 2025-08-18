@@ -114,6 +114,14 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
     }
 
     function deposit(uint8 outcome, uint256 amount) external whenNotPaused nonReentrant {
+        _depositFor(msg.sender, outcome, amount);
+    }
+    
+    function depositFor(address user, uint8 outcome, uint256 amount) external whenNotPaused nonReentrant {
+        _depositFor(user, outcome, amount);
+    }
+    
+    function _depositFor(address user, uint8 outcome, uint256 amount) private {
         require(block.timestamp < cutoffTime, "Deposits closed");
         require(outcome <= 1, "Invalid outcome");
         require(amount > 0, "Zero amount");
@@ -127,11 +135,11 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
         uint256 effectiveAmount = (amount * timeMultiplier) / 10000;
 
         pool[outcome] += amount;
-        stakeOf[msg.sender][outcome] += amount;
+        stakeOf[user][outcome] += amount;
         totalEffectiveStakes[outcome] += effectiveAmount;
-        userEffectiveStakes[msg.sender][outcome] += effectiveAmount;
+        userEffectiveStakes[user][outcome] += effectiveAmount;
 
-        emit Deposited(msg.sender, outcome, amount);
+        emit Deposited(user, outcome, amount);
     }
 
     function ingestResolution(uint8 outcome, bytes32 dataHash) external override {
