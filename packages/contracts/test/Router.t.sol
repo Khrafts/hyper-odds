@@ -263,11 +263,11 @@ contract RouterTest is Test {
         vm.prank(address(oracle));
         ParimutuelMarketImplementation(market1).ingestResolution(1, bytes32(0));
         
-        // Alice should be able to claim directly from market
+        // Alice claims through router
         vm.startPrank(alice);
         uint256 aliceBalanceBefore = usdc.balanceOf(alice);
         
-        ParimutuelMarketImplementation(market1).claim();
+        router.claimFromMarket(market1);
         
         uint256 aliceBalanceAfter = usdc.balanceOf(alice);
         
@@ -283,7 +283,50 @@ contract RouterTest is Test {
         // Bob shouldn't be able to claim (he lost)
         vm.startPrank(bob);
         vm.expectRevert("No winning stake");
-        ParimutuelMarketImplementation(market1).claim();
+        router.claimFromMarket(market1);
+        vm.stopPrank();
+    }
+    
+    function testBatchClaims() public {
+        // Setup: Alice wins on market1, Bob wins on market2
+        vm.startPrank(alice);
+        usdc.approve(address(router), 500e18);
+        router.depositToMarket(market1, 1, 100e18); // Alice bets YES on market1
+        router.depositToMarket(market2, 0, 100e18); // Alice bets NO on market2
+        vm.stopPrank();
+        
+        vm.startPrank(bob);
+        usdc.approve(address(router), 500e18);
+        router.depositToMarket(market1, 0, 150e18); // Bob bets NO on market1
+        router.depositToMarket(market2, 1, 150e18); // Bob bets YES on market2
+        vm.stopPrank();
+        
+        // Resolve both markets
+        vm.warp(10801);
+        vm.startPrank(address(oracle));
+        ParimutuelMarketImplementation(market1).ingestResolution(1, bytes32(0)); // YES wins (Alice wins)
+        vm.warp(18001); // market2 resolve time
+        ParimutuelMarketImplementation(market2).ingestResolution(0, bytes32(0)); // NO wins (Alice wins)
+        vm.stopPrank();
+        
+        // Alice wins both markets, can claim from both
+        vm.startPrank(alice);
+        uint256 aliceBalanceBefore = usdc.balanceOf(alice);
+        
+        address[] memory markets = new address[](2);
+        markets[0] = market1;
+        markets[1] = market2;
+        
+        router.claimFromMultiple(markets);
+        
+        uint256 aliceBalanceAfter = usdc.balanceOf(alice);
+        // Alice wins on both markets
+        assertGt(aliceBalanceAfter, aliceBalanceBefore);
+        
+        // Verify she got payouts from both markets
+        // She bet 100 on each, Bob bet 150 on each
+        // Expected roughly 243.25 * 2 = 486.5 total
+        assertApproxEqAbs(aliceBalanceAfter - aliceBalanceBefore, 486.5e18, 1e18);
         vm.stopPrank();
     }
 }

@@ -156,13 +156,21 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
     }
 
     function claim() external nonReentrant {
+        _claimFor(msg.sender);
+    }
+    
+    function claimFor(address user) external nonReentrant {
+        _claimFor(user);
+    }
+    
+    function _claimFor(address user) private {
         require(resolved, "Not resolved");
-        require(!claimed[msg.sender], "Already claimed");
+        require(!claimed[user], "Already claimed");
 
-        uint256 userEffectiveStake = userEffectiveStakes[msg.sender][winningOutcome];
+        uint256 userEffectiveStake = userEffectiveStakes[user][winningOutcome];
         require(userEffectiveStake > 0, "No winning stake");
 
-        claimed[msg.sender] = true;
+        claimed[user] = true;
 
         uint256 totalLosingPool = pool[1 - winningOutcome];
         uint256 totalWinningEffectiveStakes = totalEffectiveStakes[winningOutcome];
@@ -187,7 +195,7 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
 
         // Calculate payout using effective stakes for winnings distribution
         uint256 payout;
-        uint256 userActualStake = stakeOf[msg.sender][winningOutcome];
+        uint256 userActualStake = stakeOf[user][winningOutcome];
         
         if (totalLosingPool == 0) {
             // No losers, just return actual stake
@@ -204,7 +212,7 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
 
         stakeToken.safeTransfer(msg.sender, payout);
 
-        emit Claimed(msg.sender, payout);
+        emit Claimed(user, payout);
     }
 
     function totalPool() public view returns (uint256) {

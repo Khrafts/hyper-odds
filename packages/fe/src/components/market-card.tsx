@@ -66,10 +66,10 @@ export function MarketCard({ market }: MarketCardProps) {
 
     try {
       await writeContract({
-        address: market.id,
-        abi: MARKET_ABI,
-        functionName: 'claim',
-        args: [],
+        address: CONTRACTS.ROUTER,
+        abi: ROUTER_ABI,
+        functionName: 'claimFromMarket',
+        args: [market.id],
       });
     } catch (error) {
       console.error('Claim failed:', error);

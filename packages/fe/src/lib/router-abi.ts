@@ -41,5 +41,23 @@ export const ROUTER_ABI = [
     outputs: [],
     stateMutability: 'nonpayable',
     type: 'function'
+  },
+  {
+    inputs: [
+      { name: 'market', type: 'address' }
+    ],
+    name: 'claimFromMarket',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function'
+  },
+  {
+    inputs: [
+      { name: 'markets', type: 'address[]' }
+    ],
+    name: 'claimFromMultiple',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function'
   }
 ] as const;
