@@ -10,6 +10,7 @@ import { Market } from '@/hooks/useMarkets'
 import { formatEther } from 'viem'
 import { TrendingUp, Clock, Users } from 'lucide-react'
 import { ComponentErrorBoundary, InlineError } from '../error'
+import { calculateMarketProbabilities } from '@/lib/probability'
 
 interface MarketCardProps {
   market: Market
@@ -20,13 +21,12 @@ interface MarketCardProps {
 export function MarketCard({ market, onClick, onTrade }: MarketCardProps) {
   const [tradeError, setTradeError] = useState<string | null>(null)
 
-  // Safe data parsing with error handling
-  const poolYes = parseFloat(market.poolYes || '0')
-  const poolNo = parseFloat(market.poolNo || '0')
-  const totalPool = poolYes + poolNo
-  // Probability based on stake distribution: more stake = higher probability
-  const yesProb = totalPool > 0 ? (poolYes / totalPool) * 100 : 50
-  const noProb = totalPool > 0 ? (poolNo / totalPool) * 100 : 50
+  // Calculate probabilities using shared utility for consistency
+  const { yesProb, noProb, yesDisplay, noDisplay } = calculateMarketProbabilities(
+    market.poolYes || '0',
+    market.poolNo || '0',
+    1 // 1 decimal place
+  )
 
   // Format volume - using totalPool from GraphQL schema
   const volume = parseFloat(market.totalPool || '0')
@@ -76,10 +76,10 @@ export function MarketCard({ market, onClick, onTrade }: MarketCardProps) {
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
             <span className="font-medium text-green-600 dark:text-green-400">
-              YES {yesProb.toFixed(1)}%
+              YES {yesDisplay}
             </span>
             <span className="font-medium text-red-600 dark:text-red-400">
-              NO {noProb.toFixed(1)}%
+              NO {noDisplay}
             </span>
           </div>
           <div className="relative h-6 bg-muted rounded-full overflow-hidden">

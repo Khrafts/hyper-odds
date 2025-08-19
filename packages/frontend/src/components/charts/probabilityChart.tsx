@@ -5,6 +5,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Market } from '@/hooks/useMarkets'
 import { ComponentErrorBoundary } from '../error'
+import { calculateMarketProbabilities } from '@/lib/probability'
 
 interface ProbabilityChartProps {
   market?: Market
@@ -68,16 +69,20 @@ export function ProbabilityChart({
     
     return sortedHistory.map(point => {
       const timestamp = parseInt(point.timestamp) * 1000 // Convert to milliseconds
-      const yesProb = parseFloat(point.probabilityYes)
-      const noProb = parseFloat(point.probabilityNo)
       const volume = parseFloat(point.cumulativeVolume || '0')
+      
+      // Use corrected probability calculation based on pool values
+      const { yesProb, noProb } = calculateMarketProbabilities(
+        point.poolYes || '0', 
+        point.poolNo || '0'
+      )
       
       return {
         timestamp,
-        yesPrice: yesProb, // Already a probability (0-1)
-        noPrice: noProb, // Already a probability (0-1)
-        yesProbability: yesProb * 100,
-        noProbability: noProb * 100,
+        yesPrice: yesProb / 100, // Convert percentage to 0-1 range
+        noPrice: noProb / 100, // Convert percentage to 0-1 range
+        yesProbability: yesProb,
+        noProbability: noProb,
         volume,
         formattedTime: new Date(timestamp).toLocaleTimeString('en-US', { 
           hour: '2-digit', 
@@ -277,11 +282,19 @@ export function MiniProbabilityChart({ market, height = 100, className }: MiniPr
       parseInt(a.timestamp) - parseInt(b.timestamp)
     )
     
-    return sortedHistory.map(point => ({
-      timestamp: parseInt(point.timestamp) * 1000,
-      yesProbability: parseFloat(point.probabilityYes) * 100,
-      noProbability: parseFloat(point.probabilityNo) * 100
-    }))
+    return sortedHistory.map(point => {
+      // Use corrected probability calculation based on pool values
+      const { yesProb, noProb } = calculateMarketProbabilities(
+        point.poolYes || '0', 
+        point.poolNo || '0'
+      )
+      
+      return {
+        timestamp: parseInt(point.timestamp) * 1000,
+        yesProbability: yesProb,
+        noProbability: noProb
+      }
+    })
   }, [market?.priceHistory])
 
   return (

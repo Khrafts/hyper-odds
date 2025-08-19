@@ -145,7 +145,11 @@ export function useTradingHooks(marketAddress?: Address) {
     ],
     query: {
       enabled: Boolean(stakeTokenAddress && routerAddress && marketAddress && userAddress && isConnected),
-      refetchInterval: 10000, // Refetch every 10 seconds
+      // DISABLED: Automatic refetching was causing excessive RPC calls
+      // refetchInterval: 10000, // Refetch every 10 seconds
+      refetchOnWindowFocus: false, // Disable refetch on window focus
+      refetchOnMount: false, // Disable refetch on mount
+      refetchOnReconnect: false, // Disable refetch on reconnect
     },
   })
 

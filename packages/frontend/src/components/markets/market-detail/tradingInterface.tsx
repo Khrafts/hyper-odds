@@ -27,6 +27,7 @@ import {
 import { useAccount } from 'wagmi'
 import { formatUnits } from 'viem'
 import { Market } from '@/hooks/useMarkets'
+import { calculateMarketProbabilities } from '@/lib/probability'
 import { cn } from '@/lib/utils'
 import { 
   validateTradingAmount, 
@@ -45,12 +46,16 @@ import {
 
 interface TradingInterfaceProps {
   market: Market
+  yesDisplay: string
+  noDisplay: string
+  yesProb: number
+  noProb: number
   onTrade?: (side: 'YES' | 'NO', amount: string) => Promise<void>
   onTransactionSuccess?: () => Promise<void>
   disabled?: boolean
 }
 
-export function TradingInterface({ market, onTrade, onTransactionSuccess, disabled = false }: TradingInterfaceProps) {
+export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noProb, onTrade, onTransactionSuccess, disabled = false }: TradingInterfaceProps) {
   const { address, isConnected } = useAccount()
   
   // Use trading hooks for contract integration
@@ -62,8 +67,6 @@ export function TradingInterface({ market, onTrade, onTransactionSuccess, disabl
     tradingState,
     usdcBalance,
     formattedBalance,
-    formattedPoolNo,
-    formattedPoolYes,
     // Gas estimation
     gasEstimates,
     selectedGasSpeed,
@@ -95,17 +98,23 @@ export function TradingInterface({ market, onTrade, onTransactionSuccess, disabl
     setConfirmationError,
   } = useTransactionConfirmation()
 
-  // Update gas estimates when amount or side changes
-  useEffect(() => {
-    if (amount && parseFloat(amount) > 0 && isConnected) {
-      // Estimate gas for approval if needed
-      if (needsApproval(amount)) {
-        updateApprovalGasEstimate(amount)
-      }
-      // Estimate gas for deposit
-      updateDepositGasEstimate(selectedSide, amount)
-    }
-  }, [amount, selectedSide, isConnected, needsApproval, updateApprovalGasEstimate, updateDepositGasEstimate])
+  // DISABLED: Gas estimation was causing excessive RPC calls (74+ in 5 seconds)
+  // TODO: Implement lazy gas estimation only when user clicks trade button
+  // useEffect(() => {
+  //   if (amount && parseFloat(amount) > 0 && isConnected) {
+  //     // Debounce gas estimation calls to prevent excessive requests
+  //     const timeoutId = setTimeout(() => {
+  //       // Estimate gas for approval if needed
+  //       if (needsApproval(amount)) {
+  //         updateApprovalGasEstimate(amount)
+  //       }
+  //       // Estimate gas for deposit
+  //       updateDepositGasEstimate(selectedSide, amount)
+  //     }, 500) // 500ms debounce
+
+  //     return () => clearTimeout(timeoutId)
+  //   }
+  // }, [amount, selectedSide, isConnected, needsApproval, updateApprovalGasEstimate, updateDepositGasEstimate])
 
   // Call success callback when transaction completes
   useEffect(() => {
@@ -114,21 +123,7 @@ export function TradingInterface({ market, onTrade, onTransactionSuccess, disabl
     }
   }, [tradingState.isSuccess, tradingState.stage, onTransactionSuccess])
 
-  // Calculate current probabilities from real contract pool values
-  const { yesProb, noProb } = useMemo(() => {
-    const yesPool = parseFloat(formattedPoolYes || '0')
-    const noPool = parseFloat(formattedPoolNo || '0')
-    const total = yesPool + noPool
-    
-    if (total === 0) {
-      return { yesProb: 50, noProb: 50 }
-    }
-    
-    return {
-      yesProb: (yesPool / total) * 100, // Probability based on stake: more stake = higher probability
-      noProb: (noPool / total) * 100   // Probability based on stake: more stake = higher probability
-    }
-  }, [formattedPoolYes, formattedPoolNo])
+  // Use probability values passed as props for consistency across all components
 
   // Calculate estimated shares and potential payout
   const estimatedShares = useMemo(() => {
@@ -382,7 +377,7 @@ export function TradingInterface({ market, onTrade, onTransactionSuccess, disabl
               )} />
             </div>
             <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-              {yesProb.toFixed(1)}%
+              {yesDisplay}
             </div>
             <div className="text-xs text-muted-foreground mt-1">
               Current probability
@@ -406,7 +401,7 @@ export function TradingInterface({ market, onTrade, onTransactionSuccess, disabl
               )} />
             </div>
             <div className="text-2xl font-bold text-red-600 dark:text-red-400">
-              {noProb.toFixed(1)}%
+              {noDisplay}
             </div>
             <div className="text-xs text-muted-foreground mt-1">
               Current probability
@@ -498,7 +493,7 @@ export function TradingInterface({ market, onTrade, onTransactionSuccess, disabl
                 <span className="text-muted-foreground">New {selectedSide} Probability</span>
                 <div className="flex items-center gap-2">
                   <span className="text-muted-foreground">
-                    {selectedSide === 'YES' ? yesProb.toFixed(1) : noProb.toFixed(1)}%
+                    {selectedSide === 'YES' ? yesDisplay : noDisplay}
                   </span>
                   <ArrowRight className="h-3 w-3" />
                   <span className={cn(

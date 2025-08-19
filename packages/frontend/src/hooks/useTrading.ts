@@ -104,127 +104,52 @@ export function useClaimWinnings(marketAddress: Address) {
 
 /**
  * Hook for reading user's position in a market
+ * DISABLED: This hook was causing excessive RPC calls
+ * User position should be obtained from GraphQL/useTradingHooks instead
  */
 export function useUserPosition(marketAddress: Address, userAddress?: Address) {
-  const { data, isLoading, error, refetch } = useReadContract({
-    address: marketAddress,
-    abi: PARIMUTUEL_MARKET_ABI,
-    functionName: 'getPosition',
-    args: userAddress ? [userAddress] : undefined,
-    query: {
-      enabled: !!userAddress,
-    },
-  })
-
   return {
-    position: data ? {
-      stakeYes: data[0],
-      stakeNo: data[1], 
-      totalStake: data[2],
-      effectiveStakeYes: data[3],
-      effectiveStakeNo: data[4],
-      totalEffectiveStake: data[5],
-      claimed: data[6],
-      payout: data[7],
-      profit: data[8],
-    } : null,
-    isLoading,
-    error,
-    refetch,
+    position: null,
+    isLoading: false,
+    error: null,
+    refetch: () => Promise.resolve(),
   }
 }
 
 /**
  * Hook for reading user's claimable amount
+ * DISABLED: This hook was causing excessive RPC calls
+ * Claimable amount should be calculated from GraphQL data instead
  */
 export function useClaimableAmount(marketAddress: Address, userAddress?: Address) {
-  const { data, isLoading, error, refetch } = useReadContract({
-    address: marketAddress,
-    abi: PARIMUTUEL_MARKET_ABI,
-    functionName: 'getClaimableAmount',
-    args: userAddress ? [userAddress] : undefined,
-    query: {
-      enabled: !!userAddress,
-    },
-  })
-
   return {
-    claimableAmount: data || 0n,
-    isLoading,
-    error,
-    refetch,
+    claimableAmount: 0n,
+    isLoading: false,
+    error: null,
+    refetch: () => Promise.resolve(),
   }
 }
 
 /**
  * Hook for reading market state
+ * DISABLED: This hook was causing excessive RPC calls (7 separate useReadContract calls)
+ * Market state should be obtained from GraphQL instead for better performance
  */
 export function useMarketState(marketAddress: Address) {
-  const { data: question, isLoading: questionLoading } = useReadContract({
-    address: marketAddress,
-    abi: PARIMUTUEL_MARKET_ABI,
-    functionName: 'question',
-  })
-
-  const { data: cutoffTime, isLoading: cutoffLoading } = useReadContract({
-    address: marketAddress,
-    abi: PARIMUTUEL_MARKET_ABI,
-    functionName: 'cutoffTime',
-  })
-
-  const { data: resolved, isLoading: resolvedLoading } = useReadContract({
-    address: marketAddress,
-    abi: PARIMUTUEL_MARKET_ABI,
-    functionName: 'resolved',
-  })
-
-  const { data: winningOutcome, isLoading: outcomeLoading } = useReadContract({
-    address: marketAddress,
-    abi: PARIMUTUEL_MARKET_ABI,
-    functionName: 'winningOutcome',
-  })
-
-  const { data: poolYes, isLoading: poolYesLoading } = useReadContract({
-    address: marketAddress,
-    abi: PARIMUTUEL_MARKET_ABI,
-    functionName: 'poolYes',
-  })
-
-  const { data: poolNo, isLoading: poolNoLoading } = useReadContract({
-    address: marketAddress,
-    abi: PARIMUTUEL_MARKET_ABI,
-    functionName: 'poolNo',
-  })
-
-  const { data: totalPool, isLoading: totalPoolLoading } = useReadContract({
-    address: marketAddress,
-    abi: PARIMUTUEL_MARKET_ABI,
-    functionName: 'totalPool',
-  })
-
-  const isLoading = questionLoading || cutoffLoading || resolvedLoading || 
-                   outcomeLoading || poolYesLoading || poolNoLoading || totalPoolLoading
-
-  // Calculate probabilities
-  const poolYesNum = poolYes ? Number(poolYes) : 0
-  const poolNoNum = poolNo ? Number(poolNo) : 0
-  const totalPoolNum = poolYesNum + poolNoNum
-  
-  const yesProbability = totalPoolNum > 0 ? (poolYesNum / totalPoolNum) * 100 : 50
-  const noProbability = totalPoolNum > 0 ? (poolNoNum / totalPoolNum) * 100 : 50
-
+  // Return static fallback data to prevent breaking existing usage
+  // Users should migrate to using GraphQL data instead
   return {
-    question: question || '',
-    cutoffTime: cutoffTime || 0n,
-    resolved: resolved || false,
-    winningOutcome: winningOutcome || 0,
-    poolYes: poolYes || 0n,
-    poolNo: poolNo || 0n,
-    totalPool: totalPool || 0n,
-    yesProbability,
-    noProbability,
-    isLoading,
-    isExpired: cutoffTime ? Date.now() / 1000 > Number(cutoffTime) : false,
+    question: '',
+    cutoffTime: 0n,
+    resolved: false,
+    winningOutcome: 0,
+    poolYes: 0n,
+    poolNo: 0n,
+    totalPool: 0n,
+    yesProbability: 50,
+    noProbability: 50,
+    isLoading: false,
+    isExpired: false,
   }
 }
 

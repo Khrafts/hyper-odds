@@ -8,6 +8,7 @@ import { ActivityFeed } from '@/components/markets/market-detail/activityFeed'
 import { ProbabilityChart } from '@/components/charts/probabilityChart'
 import { PageErrorBoundary, AsyncBoundary, NotFoundError } from '@/components/error'
 import { useMarket } from '@/hooks/useMarket'
+import { calculateMarketProbabilities } from '@/lib/probability'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
@@ -54,14 +55,13 @@ function MarketDetailContent({ marketId }: { marketId: string }) {
     return () => document.removeEventListener('keydown', handleEscape)
   }, [])
   
-  // Calculate current probabilities using effective pools if available
-  const useEffectivePools = market?.effectivePoolYes && market?.effectivePoolNo
-  const yesPoolValue = useEffectivePools ? market.effectivePoolYes : market?.poolYes
-  const noPoolValue = useEffectivePools ? market.effectivePoolNo : market?.poolNo
+  // Calculate current probabilities using shared utility for consistency (use GraphQL data only)
+  const { yesProb, noProb, yesDisplay, noDisplay } = market ? 
+    calculateMarketProbabilities(market.poolYes || '0', market.poolNo || '0', 1) :
+    { yesProb: 50, noProb: 50, yesDisplay: '50.0%', noDisplay: '50.0%' }
   
-  const totalPool = market ? parseFloat(yesPoolValue || '0') + parseFloat(noPoolValue || '0') : 0
-  const yesProb = totalPool > 0 ? (parseFloat(yesPoolValue || '0') / totalPool) * 100 : 50
-  const noProb = 100 - yesProb
+  // Calculate total pool for display purposes
+  const totalPool = market ? parseFloat(market.poolYes || '0') + parseFloat(market.poolNo || '0') : 0
 
   return (
     <AsyncBoundary
@@ -94,6 +94,10 @@ function MarketDetailContent({ marketId }: { marketId: string }) {
             {/* Market Header */}
             <MarketHeader 
               market={market}
+              yesDisplay={yesDisplay}
+              noDisplay={noDisplay}
+              yesProb={yesProb}
+              noProb={noProb}
               onShare={() => {
                 navigator.clipboard?.writeText(window.location.href)
                 console.log('Market shared!')
@@ -114,7 +118,7 @@ function MarketDetailContent({ marketId }: { marketId: string }) {
                     <TrendingUp className="h-4 w-4 text-green-500" />
                     <div>
                       <p className="text-sm text-muted-foreground">YES</p>
-                      <p className="text-lg font-bold text-green-600">{yesProb.toFixed(1)}%</p>
+                      <p className="text-lg font-bold text-green-600">{yesDisplay}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -126,7 +130,7 @@ function MarketDetailContent({ marketId }: { marketId: string }) {
                     <TrendingUp className="h-4 w-4 text-red-500 rotate-180" />
                     <div>
                       <p className="text-sm text-muted-foreground">NO</p>
-                      <p className="text-lg font-bold text-red-600">{noProb.toFixed(1)}%</p>
+                      <p className="text-lg font-bold text-red-600">{noDisplay}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -314,8 +318,8 @@ function MarketDetailContent({ marketId }: { marketId: string }) {
             <div className="mb-6">
               <h3 className="font-medium text-sm mb-2">{market.title}</h3>
               <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                <span>YES: {yesProb.toFixed(1)}%</span>
-                <span>NO: {noProb.toFixed(1)}%</span>
+                <span>YES: {yesDisplay}</span>
+                <span>NO: {noDisplay}</span>
                 <span>Pool: {totalPool.toFixed(0)} USDC</span>
               </div>
             </div>
@@ -323,6 +327,10 @@ function MarketDetailContent({ marketId }: { marketId: string }) {
             {/* Trading Interface */}
             <TradingInterface 
               market={market}
+              yesDisplay={yesDisplay}
+              noDisplay={noDisplay}
+              yesProb={yesProb}
+              noProb={noProb}
               onTrade={async (side, amount) => {
                 console.log(`Trading ${side} for ${amount} USDC`)
                 // Trading will be handled by the TradingInterface component
