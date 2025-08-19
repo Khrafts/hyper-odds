@@ -65,7 +65,7 @@ export function handleRouterDeposit(event: RouterDepositEvent): void {
   routerDeposit.user = user.id
   routerDeposit.market = event.params.market.toHexString()
   routerDeposit.outcome = event.params.outcome
-  routerDeposit.amount = toBigDecimal(event.params.amount, 18)
+  routerDeposit.amount = toBigDecimal(event.params.amount, 6) // USDC has 6 decimals
   routerDeposit.timestamp = event.block.timestamp
   routerDeposit.blockNumber = event.block.number
   routerDeposit.transactionHash = event.transaction.hash
@@ -95,7 +95,7 @@ export function handleRouterClaim(event: RouterClaimEvent): void {
   )
   routerClaim.user = user.id
   routerClaim.market = event.params.market.toHexString()
-  routerClaim.payout = toBigDecimal(event.params.payout, 18)
+  routerClaim.payout = toBigDecimal(event.params.payout, 6) // USDC has 6 decimals
   routerClaim.timestamp = event.block.timestamp
   routerClaim.blockNumber = event.block.number
   routerClaim.transactionHash = event.transaction.hash

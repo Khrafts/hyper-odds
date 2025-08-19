@@ -46,7 +46,7 @@ function createEnv() {
       console.warn('⚠️ NEXT_PUBLIC_GRAPHQL_ENDPOINT not found, using Goldsky default')
       return {
         ...parsed.data,
-        NEXT_PUBLIC_GRAPHQL_ENDPOINT: 'https://api.goldsky.com/api/public/project_cm4ty719hcpgs01wg2r5z2pa8/subgraphs/hyper-odds-testnet/0.0.1/gn'
+        NEXT_PUBLIC_GRAPHQL_ENDPOINT: 'https://api.goldsky.com/api/public/project_cm4ty719hcpgs01wg2r5z2pa8/subgraphs/hyper-odds-testnet/0.0.5/gn'
       } as any
     }
     

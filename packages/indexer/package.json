@@ -8,7 +8,7 @@
     "login": "goldsky login",
     "deploy": "goldsky subgraph deploy hyper-odds/0.0.1",
     "deploy:staging": "goldsky subgraph deploy hyper-odds-staging/0.0.1",
-    "deploy:testnet": "goldsky subgraph deploy hyper-odds-testnet/0.0.1",
+    "deploy:testnet": "goldsky subgraph deploy hyper-odds-testnet/0.0.5",
     "list": "goldsky subgraph list",
     "logs": "goldsky subgraph log hyper-odds/0.0.1",
     "pause": "goldsky subgraph pause hyper-odds/0.0.1",

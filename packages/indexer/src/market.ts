@@ -121,7 +121,7 @@ export function handleDeposited(event: Deposited): void {
   let timeMultiplierDecimal = toBigDecimal(timeMultiplier, 4) // 10000 = 1.0x
   
   // Calculate amounts
-  let amount = toBigDecimal(event.params.amount, 18)
+  let amount = toBigDecimal(event.params.amount, 6) // USDC has 6 decimals
   let effectiveAmount = amount.times(timeMultiplierDecimal)
   
   // Update position stakes
@@ -229,7 +229,7 @@ export function handleClaimed(event: Claimed): void {
   let positionId = marketId + "-" + userId
   let position = Position.load(positionId)
   if (position != null) {
-    let payout = toBigDecimal(event.params.payout, 18)
+    let payout = toBigDecimal(event.params.payout, 6) // USDC has 6 decimals
     position.claimed = true
     position.payout = payout
     position.profit = payout.minus(position.totalStake)
@@ -250,7 +250,7 @@ export function handleClaimed(event: Claimed): void {
   )
   claim.market = marketId
   claim.user = userId
-  claim.payout = toBigDecimal(event.params.payout, 18)
+  claim.payout = toBigDecimal(event.params.payout, 6) // USDC has 6 decimals
   claim.timestamp = event.block.timestamp
   claim.blockNumber = event.block.number
   claim.transactionHash = event.transaction.hash

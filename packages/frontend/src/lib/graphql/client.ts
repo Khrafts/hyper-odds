@@ -8,7 +8,7 @@ import { RetryLink } from '@apollo/client/link/retry'
 
 // HTTP connection to the API
 const httpLink = createHttpLink({
-  uri: process.env.NEXT_PUBLIC_GRAPHQL_ENDPOINT || 'https://api.goldsky.com/api/public/project_cm4ty719hcpgs01wg2r5z2pa8/subgraphs/hyper-odds-testnet/0.0.1/gn',
+  uri: process.env.NEXT_PUBLIC_GRAPHQL_ENDPOINT || 'https://api.goldsky.com/api/public/project_cm4ty719hcpgs01wg2r5z2pa8/subgraphs/hyper-odds-testnet/0.0.5/gn',
   credentials: 'same-origin',
   fetch: typeof window !== 'undefined' ? window.fetch : undefined,
 })
