@@ -101,6 +101,17 @@ export interface Market {
     timestamp: string
     transactionHash: string
   }>
+  priceHistory?: Array<{
+    id: string
+    timestamp: string
+    probabilityYes: string
+    probabilityNo: string
+    poolYes: string
+    poolNo: string
+    totalPool: string
+    cumulativeVolume: string
+    tradeCount: string
+  }>
 }
 
 /**

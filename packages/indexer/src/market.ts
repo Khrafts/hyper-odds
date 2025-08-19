@@ -11,7 +11,8 @@ import {
   Deposit,
   Claim,
   Resolution,
-  Protocol
+  Protocol,
+  MarketPriceSnapshot
 } from "../generated/schema"
 import { BigInt, BigDecimal } from "@graphprotocol/graph-ts"
 
@@ -173,6 +174,14 @@ export function handleDeposited(event: Deposited): void {
   protocol.totalVolume = protocol.totalVolume.plus(amount)
   protocol.totalDeposits = protocol.totalDeposits.plus(BigInt.fromI32(1))
   protocol.save()
+  
+  // Create price snapshot after deposit
+  createMarketPriceSnapshot(
+    market,
+    event.block.timestamp,
+    event.block.number,
+    amount
+  )
 }
 
 export function handleResolved(event: Resolved): void {
@@ -270,4 +279,67 @@ function toBigDecimal(value: BigInt, decimals: i32): BigDecimal {
   // @ts-ignore
   let divisor = BigInt.fromI32(10).pow(decimals as u8)
   return value.toBigDecimal().div(divisor.toBigDecimal())
+}
+
+// Helper to create market price snapshot
+function createMarketPriceSnapshot(
+  market: Market,
+  timestamp: BigInt,
+  blockNumber: BigInt,
+  volumeDelta: BigDecimal
+): void {
+  let snapshotId = market.id + "-" + timestamp.toString()
+  let snapshot = new MarketPriceSnapshot(snapshotId)
+  
+  snapshot.market = market.id
+  snapshot.timestamp = timestamp
+  snapshot.blockNumber = blockNumber
+  
+  // Current pool states
+  snapshot.poolNo = market.poolNo
+  snapshot.poolYes = market.poolYes
+  snapshot.totalPool = market.totalPool
+  
+  // Calculate probabilities using CPMM formula
+  // In CPMM, probability = opposite pool / total pool
+  let total = market.poolNo.plus(market.poolYes)
+  if (total.gt(BigDecimal.fromString("0"))) {
+    // YES probability = NO pool / total (because buying YES reduces NO pool)
+    snapshot.probabilityYes = market.poolNo.div(total)
+    snapshot.probabilityNo = market.poolYes.div(total)
+  } else {
+    snapshot.probabilityYes = BigDecimal.fromString("0.5")
+    snapshot.probabilityNo = BigDecimal.fromString("0.5")
+  }
+  
+  // Volume tracking
+  snapshot.volumeSinceLastSnapshot = volumeDelta
+  
+  // Get the previous snapshot to calculate cumulative volume
+  let previousSnapshotId = market.id + "-prev"
+  let previousSnapshot = MarketPriceSnapshot.load(previousSnapshotId)
+  if (previousSnapshot != null) {
+    snapshot.cumulativeVolume = previousSnapshot.cumulativeVolume.plus(volumeDelta)
+    snapshot.tradeCount = previousSnapshot.tradeCount.plus(BigInt.fromI32(1))
+  } else {
+    snapshot.cumulativeVolume = volumeDelta
+    snapshot.tradeCount = BigInt.fromI32(1)
+  }
+  
+  snapshot.save()
+  
+  // Save reference to previous snapshot for next time
+  let prevSnapshot = new MarketPriceSnapshot(previousSnapshotId)
+  prevSnapshot.market = market.id
+  prevSnapshot.timestamp = timestamp
+  prevSnapshot.blockNumber = blockNumber
+  prevSnapshot.poolNo = market.poolNo
+  prevSnapshot.poolYes = market.poolYes
+  prevSnapshot.totalPool = market.totalPool
+  prevSnapshot.probabilityYes = snapshot.probabilityYes
+  prevSnapshot.probabilityNo = snapshot.probabilityNo
+  prevSnapshot.cumulativeVolume = snapshot.cumulativeVolume
+  prevSnapshot.volumeSinceLastSnapshot = BigDecimal.fromString("0")
+  prevSnapshot.tradeCount = snapshot.tradeCount
+  prevSnapshot.save()
 }

@@ -77,6 +77,7 @@ type Market @entity {
   deposits: [Deposit!]! @derivedFrom(field: "market")
   claims: [Claim!]! @derivedFrom(field: "market")
   positions: [Position!]! @derivedFrom(field: "market")
+  priceHistory: [MarketPriceSnapshot!]! @derivedFrom(field: "market")
 }
 
 type User @entity {
@@ -260,4 +261,30 @@ type RouterStats @entity {
   totalVolumeRouted: BigDecimal!
   totalPayoutsRouted: BigDecimal!
   uniqueUsers: BigInt!
+}
+
+# Market-specific price history for probability charts
+type MarketPriceSnapshot @entity {
+  id: ID! # market-timestamp
+  market: Market!
+  timestamp: BigInt!
+  
+  # Pool states
+  poolNo: BigDecimal!
+  poolYes: BigDecimal!
+  totalPool: BigDecimal!
+  
+  # Calculated probabilities
+  probabilityYes: BigDecimal!
+  probabilityNo: BigDecimal!
+  
+  # Volume at this point
+  volumeSinceLastSnapshot: BigDecimal!
+  cumulativeVolume: BigDecimal!
+  
+  # Number of trades since last snapshot
+  tradeCount: BigInt!
+  
+  # Block metadata
+  blockNumber: BigInt!
 }

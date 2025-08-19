@@ -41,6 +41,17 @@ const GET_MARKET = gql`
         timestamp
         transactionHash
       }
+      priceHistory(first: 50, orderBy: timestamp, orderDirection: desc) {
+        id
+        timestamp
+        probabilityYes
+        probabilityNo
+        poolYes
+        poolNo
+        totalPool
+        cumulativeVolume
+        tradeCount
+      }
     }
   }
 `

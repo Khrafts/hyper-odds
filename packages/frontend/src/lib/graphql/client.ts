@@ -1,6 +1,7 @@
 import { ApolloClient, InMemoryCache, createHttpLink, from, ApolloLink } from '@apollo/client'
 import { onError } from '@apollo/client/link/error'
 import { RetryLink } from '@apollo/client/link/retry'
+import { env } from '@/lib/env'
 
 /**
  * GraphQL client configuration
@@ -8,7 +9,7 @@ import { RetryLink } from '@apollo/client/link/retry'
 
 // HTTP connection to the API
 const httpLink = createHttpLink({
-  uri: process.env.NEXT_PUBLIC_GRAPHQL_ENDPOINT || 'https://api.goldsky.com/api/public/project_cm4ty719hcpgs01wg2r5z2pa8/subgraphs/hyper-odds-testnet/0.0.5/gn',
+  uri: env.NEXT_PUBLIC_GRAPHQL_ENDPOINT,
   credentials: 'same-origin',
   fetch: typeof window !== 'undefined' ? window.fetch : undefined,
 })
@@ -61,7 +62,7 @@ const authLink = new ApolloLink((operation, forward) => {
     headers: {
       ...headers,
       // Add custom headers here
-      'x-client-name': process.env.NEXT_PUBLIC_APP_NAME || 'HyperOdds',
+      'x-client-name': env.NEXT_PUBLIC_APP_NAME,
       'x-client-version': '0.1.0',
     },
   }))

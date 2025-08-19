@@ -180,7 +180,7 @@ function MarketDetailContent({ marketId }: { marketId: string }) {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <ProbabilityChart marketId={marketId} />
+                    <ProbabilityChart market={market} marketTitle={market.title} />
                   </CardContent>
                 </Card>
 
@@ -195,7 +195,7 @@ function MarketDetailContent({ marketId }: { marketId: string }) {
                   <CardContent>
                     <ActivityFeed 
                       marketId={marketId} 
-                      trades={market?.deposits?.map(deposit => ({
+                      trades={market?.deposits?.map((deposit: any) => ({
                         id: deposit.id,
                         trader: deposit.user.id,
                         outcome: deposit.outcome === 1 ? 'YES' : 'NO' as 'YES' | 'NO',

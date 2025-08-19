@@ -3,11 +3,11 @@
 import React, { useMemo } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
-import { PricePoint } from '@/types/market'
+import { Market } from '@/hooks/useMarkets'
 import { ComponentErrorBoundary } from '../error'
 
 interface ProbabilityChartProps {
-  data: PricePoint[]
+  market?: Market
   marketTitle?: string
   className?: string
   height?: number
@@ -25,14 +25,14 @@ interface ChartDataPoint {
 }
 
 export function ProbabilityChart({ 
-  data, 
+  market,
   marketTitle, 
   className,
   height = 300,
   showVolume = false
 }: ProbabilityChartProps) {
   const chartData = useMemo(() => {
-    if (!data || data.length === 0) {
+    if (!market?.priceHistory || market.priceHistory.length === 0) {
       // Generate mock data for demonstration
       const now = Date.now()
       const mockData: ChartDataPoint[] = []
@@ -61,18 +61,23 @@ export function ProbabilityChart({
       return mockData
     }
 
-    return data.map(point => {
+    // Sort by timestamp (oldest first for chart)
+    const sortedHistory = [...market.priceHistory].sort((a, b) => 
+      parseInt(a.timestamp) - parseInt(b.timestamp)
+    )
+    
+    return sortedHistory.map(point => {
       const timestamp = parseInt(point.timestamp) * 1000 // Convert to milliseconds
-      const yesPrice = point.yesPrice
-      const noPrice = point.noPrice
-      const volume = parseFloat(point.volume || '0')
+      const yesProb = parseFloat(point.probabilityYes)
+      const noProb = parseFloat(point.probabilityNo)
+      const volume = parseFloat(point.cumulativeVolume || '0')
       
       return {
         timestamp,
-        yesPrice,
-        noPrice,
-        yesProbability: yesPrice * 100,
-        noProbability: noPrice * 100,
+        yesPrice: yesProb, // Already a probability (0-1)
+        noPrice: noProb, // Already a probability (0-1)
+        yesProbability: yesProb * 100,
+        noProbability: noProb * 100,
         volume,
         formattedTime: new Date(timestamp).toLocaleTimeString('en-US', { 
           hour: '2-digit', 
@@ -80,7 +85,7 @@ export function ProbabilityChart({
         })
       }
     })
-  }, [data])
+  }, [market?.priceHistory])
 
   const formatTooltip = (value: any, name: string) => {
     if (name === 'yesProbability') {
@@ -246,14 +251,14 @@ export function ProbabilityChart({
 // Additional chart variants for different use cases
 
 interface MiniProbabilityChartProps {
-  data: PricePoint[]
+  market?: Market
   height?: number
   className?: string
 }
 
-export function MiniProbabilityChart({ data, height = 100, className }: MiniProbabilityChartProps) {
+export function MiniProbabilityChart({ market, height = 100, className }: MiniProbabilityChartProps) {
   const chartData = useMemo(() => {
-    if (!data || data.length === 0) {
+    if (!market?.priceHistory || market.priceHistory.length === 0) {
       // Generate simple mock data
       const mockData = []
       for (let i = 0; i < 10; i++) {
@@ -267,12 +272,17 @@ export function MiniProbabilityChart({ data, height = 100, className }: MiniProb
       return mockData.reverse()
     }
 
-    return data.map(point => ({
+    // Sort by timestamp (oldest first for chart)
+    const sortedHistory = [...market.priceHistory].sort((a, b) => 
+      parseInt(a.timestamp) - parseInt(b.timestamp)
+    )
+    
+    return sortedHistory.map(point => ({
       timestamp: parseInt(point.timestamp) * 1000,
-      yesProbability: point.yesPrice * 100,
-      noProbability: point.noPrice * 100
+      yesProbability: parseFloat(point.probabilityYes) * 100,
+      noProbability: parseFloat(point.probabilityNo) * 100
     }))
-  }, [data])
+  }, [market?.priceHistory])
 
   return (
     <div className={className} style={{ height }}>
