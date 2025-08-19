@@ -42,9 +42,9 @@ export interface Market {
   resolveTime: bigint;
   resolved: boolean;
   winningOutcome?: number;
-  poolNo: bigint;
-  poolYes: bigint;
-  totalPool: bigint;
+  poolNo: number;
+  poolYes: number;
+  totalPool: number;
   creator: Address;
 }
 
@@ -61,4 +61,4 @@ export const CONTRACTS = {
   ROUTER: '0x52dE5EEcD112E57a13Bc41633B30336846b897cc' as Address,
 } as const;
 
-export const SUBGRAPH_URL = 'https://api.goldsky.com/api/public/project_cm4ty719hcpgs01wg2r5z2pa8/subgraphs/hyper-odds-testnet/0.0.2/gn';
+export const SUBGRAPH_URL = 'https://api.goldsky.com/api/public/project_cm4ty719hcpgs01wg2r5z2pa8/subgraphs/hyper-odds-testnet/0.0.5/gn';

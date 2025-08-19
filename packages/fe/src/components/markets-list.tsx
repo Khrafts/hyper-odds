@@ -9,8 +9,16 @@ export function MarketsList() {
   const { data: markets, isLoading, error } = useQuery({
     queryKey: ['markets'],
     queryFn: async () => {
-      const result = await graphqlClient.request(GET_MARKETS) as { markets: Market[] };
-      return result.markets;
+      const result = await graphqlClient.request(GET_MARKETS) as { markets: any[] };
+      // Convert string values to BigInt for compatibility
+      return result.markets.map((m: any) => ({
+        ...m,
+        poolNo: Number(m.poolNo || 0),
+        poolYes: Number(m.poolYes || 0), 
+        totalPool: Number(m.totalPool || 0),
+        cutoffTime: BigInt(m.cutoffTime || 0),
+        resolveTime: BigInt(m.resolveTime || 0),
+      })) as Market[];
     },
     refetchInterval: 10000, // Refetch every 10 seconds
   });

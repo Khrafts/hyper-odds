@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
-import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { parseEther, formatEther } from 'viem';
+import { useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi';
+import { parseEther, formatEther, parseUnits, formatUnits } from 'viem';
 import { Market, CONTRACTS } from '@/types/contracts';
 import { MARKET_ABI, ERC20_ABI } from '@/lib/abis';
 import { ROUTER_ABI } from '@/lib/router-abi';
@@ -19,26 +19,64 @@ export function MarketCard({ market }: MarketCardProps) {
 
   const [betAmount, setBetAmount] = useState('10');
   const [approving, setApproving] = useState(false);
+  const [needsApproval, setNeedsApproval] = useState(true);
 
   const walletAddress = user?.wallet?.address;
 
-  const totalPool = market.poolNo + market.poolYes;
-  const noPercentage = totalPool > BigInt(0) ? Number((market.poolNo * BigInt(100)) / totalPool) : 50;
-  const yesPercentage = totalPool > BigInt(0) ? Number((market.poolYes * BigInt(100)) / totalPool) : 50;
+  // Check current USDC allowance for Router
+  const { data: allowance, refetch: refetchAllowance } = useReadContract({
+    address: CONTRACTS.STAKE_TOKEN,
+    abi: ERC20_ABI,
+    functionName: 'allowance',
+    args: walletAddress ? [walletAddress as `0x${string}`, CONTRACTS.ROUTER] : undefined,
+    query: {
+      enabled: !!walletAddress,
+      refetchInterval: 10000, // Check every 10 seconds
+    }
+  });
+
+  // Check if user needs approval based on bet amount and current allowance
+  useEffect(() => {
+    if (!allowance || !betAmount) {
+      setNeedsApproval(true);
+      return;
+    }
+    
+    try {
+      const betAmountWei = parseUnits(betAmount, 6); // USDC has 6 decimals
+      setNeedsApproval(allowance < betAmountWei);
+    } catch {
+      setNeedsApproval(true);
+    }
+  }, [allowance, betAmount]);
+
+  const poolNo = market.poolNo;
+  const poolYes = market.poolYes;
+  
+  const totalPool = poolNo + poolYes;
+  const noPercentage = totalPool > 0 ? (poolNo * 100) / totalPool : 50;
+  const yesPercentage = totalPool > 0 ? (poolYes * 100) / totalPool : 50;
 
   const isExpired = Number(market.cutoffTime) * 1000 < Date.now();
 
-  const handleApprove = async () => {
+  const handleApprove = async (unlimited = true) => {
     if (!authenticated || !walletAddress) return;
     
     try {
       setApproving(true);
+      const approvalAmount = unlimited 
+        ? parseUnits('1000000', 6) // Unlimited approval for convenience (USDC 6 decimals)
+        : parseUnits(betAmount || '10', 6); // Exact amount approval (USDC 6 decimals)
+      
       await writeContract({
         address: CONTRACTS.STAKE_TOKEN,
         abi: ERC20_ABI,
         functionName: 'approve',
-        args: [CONTRACTS.ROUTER, parseEther('1000000')], // Approve Router once for all markets
+        args: [CONTRACTS.ROUTER, approvalAmount],
       });
+      
+      // Refetch allowance after approval
+      setTimeout(() => refetchAllowance(), 2000);
     } catch (error) {
       console.error('Approval failed:', error);
     } finally {
@@ -54,7 +92,7 @@ export function MarketCard({ market }: MarketCardProps) {
         address: CONTRACTS.ROUTER,
         abi: ROUTER_ABI,
         functionName: 'depositToMarket',
-        args: [market.id, outcome, parseEther(betAmount)],
+        args: [market.id, outcome, parseUnits(betAmount, 6)], // USDC has 6 decimals
       });
     } catch (error) {
       console.error('Bet failed:', error);
@@ -86,7 +124,7 @@ export function MarketCard({ market }: MarketCardProps) {
           <span>
             Cutoff: {new Date(Number(market.cutoffTime) * 1000).toLocaleString()}
           </span>
-          <span>Pool: {formatEther(totalPool)} USDC</span>
+          <span>Pool: {totalPool.toFixed(2)} USDC</span>
           {market.resolved && (
             <span className="text-green-600 font-medium">
               Resolved: {market.winningOutcome === 0 ? 'NO' : 'YES'}
@@ -98,12 +136,12 @@ export function MarketCard({ market }: MarketCardProps) {
           <div className="bg-red-50 p-3 rounded">
             <div className="text-sm font-medium text-red-700">NO</div>
             <div className="text-red-600">{noPercentage.toFixed(1)}%</div>
-            <div className="text-xs text-red-500">{formatEther(market.poolNo)} USDC</div>
+            <div className="text-xs text-red-500">{poolNo.toFixed(2)} USDC</div>
           </div>
           <div className="bg-green-50 p-3 rounded">
             <div className="text-sm font-medium text-green-700">YES</div>
             <div className="text-green-600">{yesPercentage.toFixed(1)}%</div>
-            <div className="text-xs text-green-500">{formatEther(market.poolYes)} USDC</div>
+            <div className="text-xs text-green-500">{poolYes.toFixed(2)} USDC</div>
           </div>
         </div>
       </div>
@@ -171,30 +209,51 @@ export function MarketCard({ market }: MarketCardProps) {
             />
           </div>
 
-          <button
-            onClick={handleApprove}
-            disabled={approving}
-            className="btn btn-secondary w-full text-sm"
-          >
-            {approving ? 'Approving...' : 'Approve USDC (One-time)'}
-          </button>
+          {needsApproval ? (
+            <div className="space-y-2">
+              <button
+                onClick={() => handleApprove(true)}
+                disabled={approving}
+                className="btn btn-secondary w-full text-sm"
+              >
+                {approving ? 'Approving...' : '✨ Unlimited Approval (Recommended)'}
+              </button>
+              <button
+                onClick={() => handleApprove(false)}
+                disabled={approving}
+                className="btn btn-outline w-full text-xs"
+              >
+                Approve Exact Amount Only
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center py-2">
+              <span className="text-sm text-green-600 font-medium">✓ USDC Approved</span>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => handleBet(0)}
-              disabled={isPending || isConfirming || !betAmount}
+              disabled={isPending || isConfirming || !betAmount || needsApproval}
               className="btn bg-red-600 text-white hover:bg-red-700 disabled:bg-gray-400"
             >
               {isPending || isConfirming ? 'Betting...' : 'Bet NO'}
             </button>
             <button
               onClick={() => handleBet(1)}
-              disabled={isPending || isConfirming || !betAmount}
+              disabled={isPending || isConfirming || !betAmount || needsApproval}
               className="btn bg-green-600 text-white hover:bg-green-700 disabled:bg-gray-400"
             >
               {isPending || isConfirming ? 'Betting...' : 'Bet YES'}
             </button>
           </div>
+          
+          {needsApproval && (
+            <p className="text-xs text-gray-500 text-center">
+              Please approve USDC first to place bets
+            </p>
+          )}
 
           {hash && (
             <p className="text-sm text-blue-600">

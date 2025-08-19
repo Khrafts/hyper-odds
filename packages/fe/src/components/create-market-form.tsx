@@ -44,15 +44,15 @@ export function CreateMarketForm() {
     tStart: '',
     tEnd: '',
     
-    // Oracle
-    primarySourceId: '',
-    fallbackSourceId: '',
+    // Oracle - Using defaults
+    primarySourceId: 'HYPERLIQUID',
+    fallbackSourceId: 'COINBASE',
     roundingDecimals: 2,
     
-    // Economics
+    // Economics - Using defaults
     feeBps: 500, // 5%
     creatorFeeShareBps: 1000, // 10%
-    maxTotalPool: '1000',
+    maxTotalPool: '10000',
     timeDecayBps: 1000, // 10%
     
     // Timing
@@ -94,7 +94,7 @@ export function CreateMarketForm() {
       subject: {
         kind: formData.subjectKind,
         metricId: stringToHex(formData.metricId, { size: 32 }),
-        token: formData.token || CONTRACTS.STAKE_TOKEN,
+        token: (formData.token || CONTRACTS.STAKE_TOKEN) as `0x${string}`,
         valueDecimals: formData.valueDecimals,
       },
       predicate: {
@@ -112,7 +112,7 @@ export function CreateMarketForm() {
         roundingDecimals: formData.roundingDecimals,
       },
       cutoffTime: BigInt(cutoffTimestamp),
-      creator: walletAddress,
+      creator: walletAddress as `0x${string}`,
       econ: {
         feeBps: formData.feeBps,
         creatorFeeShareBps: formData.creatorFeeShareBps,
@@ -389,129 +389,25 @@ export function CreateMarketForm() {
           </div>
         </div>
 
-        {/* Oracle Configuration */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-gray-900">Oracle</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Primary Source</label>
-              <select
-                className="input"
-                value={formData.primarySourceId}
-                onChange={(e) => handleChange('primarySourceId', e.target.value)}
-                required
-              >
-                <option value="">Select primary source</option>
-                {COMMON_ORACLE_SOURCES.map(source => (
-                  <option key={source.value} value={source.value}>
-                    {source.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium mb-1">Fallback Source</label>
-              <select
-                className="input"
-                value={formData.fallbackSourceId}
-                onChange={(e) => handleChange('fallbackSourceId', e.target.value)}
-                required
-              >
-                <option value="">Select fallback source</option>
-                {COMMON_ORACLE_SOURCES.map(source => (
-                  <option key={source.value} value={source.value}>
-                    {source.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium mb-1">Rounding Decimals</label>
-              <input
-                type="number"
-                className="input"
-                value={formData.roundingDecimals}
-                onChange={(e) => handleChange('roundingDecimals', parseInt(e.target.value))}
-                min="0"
-                max="8"
-                required
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Economics Configuration */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-gray-900">Economics</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Max Pool Size (USDC)</label>
-              <input
-                type="number"
-                className="input"
-                value={formData.maxTotalPool}
-                onChange={(e) => handleChange('maxTotalPool', e.target.value)}
-                min="100"
-                required
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium mb-1">Time Decay (basis points)</label>
-              <input
-                type="number"
-                className="input"
-                value={formData.timeDecayBps}
-                onChange={(e) => handleChange('timeDecayBps', parseInt(e.target.value))}
-                min="0"
-                max="5000"
-                required
-              />
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Fee (basis points)</label>
-              <input
-                type="number"
-                className="input"
-                value={formData.feeBps}
-                onChange={(e) => handleChange('feeBps', parseInt(e.target.value))}
-                min="0"
-                max="1000"
-                required
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium mb-1">Creator Fee Share (basis points)</label>
-              <input
-                type="number"
-                className="input"
-                value={formData.creatorFeeShareBps}
-                onChange={(e) => handleChange('creatorFeeShareBps', parseInt(e.target.value))}
-                min="0"
-                max="5000"
-                required
-              />
-            </div>
-          </div>
-        </div>
 
         {/* Action Buttons */}
         <div className="space-y-2 pt-4 border-t">
+          <div className="bg-blue-50 p-3 rounded-lg mb-4">
+            <div className="text-sm text-blue-800 font-medium mb-1">
+              💡 Market Creation
+            </div>
+            <div className="text-xs text-blue-600">
+              Creating a market requires staking stHYPE tokens. Oracle and economics settings use optimized defaults.
+            </div>
+          </div>
+
           <button
             type="button"
             onClick={handleApprove}
             disabled={approving}
             className="btn btn-secondary w-full"
           >
-            {approving ? 'Approving...' : '1. Approve stHYPE (1000 tokens)'}
+            {approving ? 'Approving...' : '1. Approve stHYPE for Market Creation'}
           </button>
 
           <button
@@ -521,6 +417,10 @@ export function CreateMarketForm() {
           >
             {isPending || isConfirming ? 'Creating...' : '2. Create Market'}
           </button>
+          
+          <div className="text-xs text-gray-500 text-center">
+            After creation, use your market's Router integration for seamless trading
+          </div>
         </div>
 
         {hash && (

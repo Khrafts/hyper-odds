@@ -80,9 +80,9 @@ export const COMMON_METRICS = [
 
 export const COMMON_TOKENS = [
   { value: '0x0000000000000000000000000000000000000000', label: 'ETH' },
-  { value: '0xA0b86a33E6C8d5a9a5b1a3f1c4b8A2e6d7c8f9e0', label: 'WBTC' },
+  { value: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599', label: 'WBTC' },
   { value: '0x6B175474E89094C44Da98b954EedeAC495271d0F', label: 'DAI' },
-  { value: '0xA0b86a33E6C8d5a9a5b1a3f1c4b8A2e6d7c8f9e0', label: 'USDC' },
+  { value: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', label: 'USDC' },
 ];
 
 export const COMMON_ORACLE_SOURCES = [
