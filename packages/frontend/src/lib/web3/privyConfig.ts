@@ -9,8 +9,9 @@ export const wagmiConfig = createConfig({
   chains: [arbitrumSepolia],
   connectors: [injected()],
   transports: {
-    [arbitrumSepolia.id]: http('https://arb-sepolia.g.alchemy.com/v2/demo'),
+    [arbitrumSepolia.id]: http(process.env.NEXT_PUBLIC_ARBITRUM_RPC || 'https://arbitrum-sepolia-rpc.publicnode.com'),
   },
+  multiInjectedProviderDiscovery: false,
 })
 
 /**

@@ -25,6 +25,12 @@ function MarketDetailContent({ marketId }: { marketId: string }) {
   const market = data?.market
   const searchParams = useSearchParams()
   
+  // Handle transaction success callback
+  const handleTransactionSuccess = async () => {
+    // Refetch GraphQL data after transaction
+    await refetch()
+  }
+  
   // Trading sidebar state
   const [isTradingSidebarOpen, setIsTradingSidebarOpen] = useState(false)
   
@@ -48,9 +54,13 @@ function MarketDetailContent({ marketId }: { marketId: string }) {
     return () => document.removeEventListener('keydown', handleEscape)
   }, [])
   
-  // Calculate current probabilities
-  const totalPool = market ? parseFloat(market.poolYes || '0') + parseFloat(market.poolNo || '0') : 0
-  const yesProb = totalPool > 0 ? (parseFloat(market?.poolYes || '0') / totalPool) * 100 : 50
+  // Calculate current probabilities using effective pools if available
+  const useEffectivePools = market?.effectivePoolYes && market?.effectivePoolNo
+  const yesPoolValue = useEffectivePools ? market.effectivePoolYes : market?.poolYes
+  const noPoolValue = useEffectivePools ? market.effectivePoolNo : market?.poolNo
+  
+  const totalPool = market ? parseFloat(yesPoolValue || '0') + parseFloat(noPoolValue || '0') : 0
+  const yesProb = totalPool > 0 ? (parseFloat(yesPoolValue || '0') / totalPool) * 100 : 50
   const noProb = 100 - yesProb
 
   return (
@@ -140,8 +150,14 @@ function MarketDetailContent({ marketId }: { marketId: string }) {
                     <Clock className="h-4 w-4 text-muted-foreground" />
                     <div>
                       <p className="text-sm text-muted-foreground">Status</p>
-                      <Badge variant={market.resolved ? "secondary" : "default"}>
-                        {market.resolved ? "Resolved" : "Active"}
+                      <Badge variant={
+                        market.cancelled ? "destructive" : 
+                        market.resolved ? "secondary" : 
+                        "default"
+                      }>
+                        {market.cancelled ? "Cancelled" : 
+                         market.resolved ? "Resolved" : 
+                         "Active"}
                       </Badge>
                     </div>
                   </div>
@@ -177,7 +193,20 @@ function MarketDetailContent({ marketId }: { marketId: string }) {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <ActivityFeed marketId={marketId} />
+                    <ActivityFeed 
+                      marketId={marketId} 
+                      trades={market?.deposits?.map(deposit => ({
+                        id: deposit.id,
+                        trader: deposit.user.id,
+                        outcome: deposit.outcome === 1 ? 'YES' : 'NO' as 'YES' | 'NO',
+                        type: 'buy' as 'buy' | 'sell', // Deposits are always buys in this context
+                        shares: BigInt(deposit.amount), // Using amount as shares for now
+                        amount: BigInt(Math.round(parseFloat(deposit.amount) * 1e18)), // Convert to wei
+                        price: 0.5, // We'd need to calculate this from pool ratios
+                        timestamp: new Date(parseInt(deposit.timestamp) * 1000),
+                        txHash: deposit.transactionHash
+                      }))}
+                    />
                   </CardContent>
                 </Card>
               </div>
@@ -298,6 +327,7 @@ function MarketDetailContent({ marketId }: { marketId: string }) {
                 console.log(`Trading ${side} for ${amount} USDC`)
                 // Trading will be handled by the TradingInterface component
               }}
+              onTransactionSuccess={handleTransactionSuccess}
             />
           </div>
         </div>

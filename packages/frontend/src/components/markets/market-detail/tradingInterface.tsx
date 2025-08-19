@@ -46,10 +46,11 @@ import {
 interface TradingInterfaceProps {
   market: Market
   onTrade?: (side: 'YES' | 'NO', amount: string) => Promise<void>
+  onTransactionSuccess?: () => Promise<void>
   disabled?: boolean
 }
 
-export function TradingInterface({ market, onTrade, disabled = false }: TradingInterfaceProps) {
+export function TradingInterface({ market, onTrade, onTransactionSuccess, disabled = false }: TradingInterfaceProps) {
   const { address, isConnected } = useAccount()
   
   // Use trading hooks for contract integration
@@ -105,6 +106,13 @@ export function TradingInterface({ market, onTrade, disabled = false }: TradingI
       updateDepositGasEstimate(selectedSide, amount)
     }
   }, [amount, selectedSide, isConnected, needsApproval, updateApprovalGasEstimate, updateDepositGasEstimate])
+
+  // Call success callback when transaction completes
+  useEffect(() => {
+    if (tradingState.isSuccess && tradingState.stage === 'completed' && onTransactionSuccess) {
+      onTransactionSuccess()
+    }
+  }, [tradingState.isSuccess, tradingState.stage, onTransactionSuccess])
 
   // Calculate current probabilities from real contract pool values
   const { yesProb, noProb } = useMemo(() => {

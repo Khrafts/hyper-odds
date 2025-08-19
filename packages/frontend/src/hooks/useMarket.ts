@@ -14,13 +14,32 @@ const GET_MARKET = gql`
       poolYes
       poolNo
       totalPool
+      effectivePoolYes
+      effectivePoolNo
+      totalEffectivePool
       resolved
+      cancelled
       winningOutcome
       cutoffTime
       resolveTime
       createdAt
+      createdAtBlock
+      resolvedAt
+      resolvedAtBlock
+      feeCollected
+      feeBps
       creator {
         id
+      }
+      deposits(first: 10, orderBy: timestamp, orderDirection: desc) {
+        id
+        user {
+          id
+        }
+        outcome
+        amount
+        timestamp
+        transactionHash
       }
     }
   }
@@ -29,13 +48,15 @@ const GET_MARKET = gql`
 /**
  * Hook to fetch a single market by ID
  */
-export function useMarket(id: string | undefined) {
+export function useMarket(id: string | undefined, options?: { pollInterval?: number }) {
   return useQuery(GET_MARKET, {
     variables: { id },
     skip: !id, // Skip the query if no ID is provided
     notifyOnNetworkStatusChange: true,
     errorPolicy: 'all',
     ssr: false, // Disable SSR for this query
+    pollInterval: options?.pollInterval || 0, // Allow custom polling interval
+    fetchPolicy: 'cache-and-network', // Always fetch from network but use cache while loading
   })
 }
 

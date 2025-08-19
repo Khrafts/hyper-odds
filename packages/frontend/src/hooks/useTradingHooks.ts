@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react'
+import React, { useState, useCallback, useMemo, useEffect } from 'react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract, useReadContracts } from 'wagmi'
 import { parseUnits, formatUnits, Address } from 'viem'
 import { getContractAddress, CONTRACTS, OUTCOME, ERC20_ABI } from '@/lib/web3/contracts'
@@ -85,6 +85,7 @@ export function useTradingHooks(marketAddress?: Address) {
   const { isLoading: isTxLoading, isSuccess: isTxSuccess, error: txError } = useWaitForTransactionReceipt({
     hash: txHash,
   })
+
 
   // Get user's USDC balance and allowance
   const { data: contractData, refetch: refetchContractData } = useReadContracts({

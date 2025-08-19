@@ -44,8 +44,28 @@ export function ConnectWalletButton({
   showBalance = true,
   showChain = true,
 }: ConnectWalletButtonProps) {
+  const [mounted, setMounted] = React.useState(false)
   const { ready, authenticated, user, login, logout } = usePrivy()
   const { address, isConnected, chain } = useAccount()
+
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Prevent rendering during hydration
+  if (!mounted) {
+    return (
+      <Button
+        variant={variant}
+        size={size}
+        disabled
+        className={cn('gap-2', className)}
+      >
+        <Wallet className="h-4 w-4" />
+        Loading...
+      </Button>
+    )
+  }
 
   if (!ready) {
     return (
@@ -204,8 +224,26 @@ export function SimpleConnectButton({
   className?: string
   children?: React.ReactNode
 }) {
+  const [mounted, setMounted] = React.useState(false)
   const { authenticated, login, logout } = usePrivy()
   const { isConnected } = useAccount()
+
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Prevent rendering during hydration
+  if (!mounted) {
+    return (
+      <Button
+        variant="outline"
+        disabled
+        className={className}
+      >
+        Loading...
+      </Button>
+    )
+  }
 
   if (authenticated && isConnected) {
     return (

@@ -74,14 +74,33 @@ export interface Market {
   poolYes: string
   poolNo: string
   totalPool: string
+  effectivePoolYes?: string
+  effectivePoolNo?: string
+  totalEffectivePool?: string
   resolved: boolean
+  cancelled?: boolean
   winningOutcome?: number
   cutoffTime: string
   resolveTime: string
   createdAt: string
+  createdAtBlock?: string
+  resolvedAt?: string
+  resolvedAtBlock?: string
+  feeCollected?: string
+  feeBps?: number
   creator: {
     id: string
   }
+  deposits?: Array<{
+    id: string
+    user: {
+      id: string
+    }
+    outcome: number
+    amount: string
+    timestamp: string
+    transactionHash: string
+  }>
 }
 
 /**
