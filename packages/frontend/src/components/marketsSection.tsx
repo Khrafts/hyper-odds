@@ -2,6 +2,7 @@
 
 import React from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { MarketGrid } from '@/components/markets/marketGrid'
 import { useMarkets, Market } from '@/hooks/useMarkets'
@@ -57,6 +58,8 @@ const mockMarkets: Market[] = [
 ]
 
 export function MarketsSection() {
+  const router = useRouter()
+  
   // Test the market hooks - remove filters to see if that's the issue
   const { data: marketsData, loading: marketsLoading, error: marketsError } = useMarkets(
     undefined, // No filters
@@ -73,7 +76,7 @@ export function MarketsSection() {
 
   return (
     <section className="py-16 sm:py-24 bg-muted/30">
-      <div className="container px-4">
+      <div className="container mx-auto px-4 max-w-7xl">
         <div className="mx-auto max-w-2xl text-center mb-12">
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
             Trending Markets
@@ -104,12 +107,12 @@ export function MarketsSection() {
           loading={marketsLoading}
           error={marketsError?.message}
           onMarketClick={(market) => {
-            // Navigation will be implemented later
-            console.log('Navigate to market:', market.id)
+            // Navigate to market detail page
+            router.push(`/markets/${market.id}`)
           }}
           onTrade={(market, outcome) => {
-            // Trading modal will be implemented later
-            console.log('Trade on market:', market.id, 'outcome:', outcome)
+            // Navigate to market detail page and open trading sidebar
+            router.push(`/markets/${market.id}?trade=${outcome.toLowerCase()}`)
           }}
         />
 

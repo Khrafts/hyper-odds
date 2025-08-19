@@ -1,15 +1,19 @@
 'use client'
 
-import React from 'react'
-import { useParams } from 'next/navigation'
+import React, { useState, useEffect } from 'react'
+import { useParams, useSearchParams } from 'next/navigation'
 import { MarketHeader } from '@/components/markets/market-detail/marketHeader'
 import { TradingInterface } from '@/components/markets/market-detail/tradingInterface'
+import { ActivityFeed } from '@/components/markets/market-detail/activityFeed'
+import { ProbabilityChart } from '@/components/charts/probabilityChart'
 import { PageErrorBoundary, AsyncBoundary, NotFoundError } from '@/components/error'
 import { useMarket } from '@/hooks/useMarket'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ArrowLeft, TrendingUp, Users, Clock, DollarSign } from 'lucide-react'
+import { ArrowLeft, TrendingUp, Users, Clock, DollarSign, BarChart3, Activity, ChevronRight } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import Link from 'next/link'
 
 interface MarketDetailPageParams {
@@ -19,6 +23,35 @@ interface MarketDetailPageParams {
 function MarketDetailContent({ marketId }: { marketId: string }) {
   const { data, loading, error, refetch } = useMarket(marketId)
   const market = data?.market
+  const searchParams = useSearchParams()
+  
+  // Trading sidebar state
+  const [isTradingSidebarOpen, setIsTradingSidebarOpen] = useState(false)
+  
+  // Auto-open sidebar if trade param is present
+  useEffect(() => {
+    const tradeParam = searchParams.get('trade')
+    if (tradeParam && market) {
+      setIsTradingSidebarOpen(true)
+    }
+  }, [searchParams, market])
+  
+  // Handle escape key to close sidebar
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsTradingSidebarOpen(false)
+      }
+    }
+    
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [])
+  
+  // Calculate current probabilities
+  const totalPool = market ? parseFloat(market.poolYes || '0') + parseFloat(market.poolNo || '0') : 0
+  const yesProb = totalPool > 0 ? (parseFloat(market?.poolYes || '0') / totalPool) * 100 : 50
+  const noProb = 100 - yesProb
 
   return (
     <AsyncBoundary
@@ -33,173 +66,181 @@ function MarketDetailContent({ marketId }: { marketId: string }) {
       }
     >
       {market ? (
-        <div className="space-y-8">
-          {/* Navigation */}
-          <div className="flex items-center gap-4">
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/markets">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Markets
-              </Link>
-            </Button>
-          </div>
+        <div className={cn(
+          "transition-all duration-300 ease-in-out",
+          isTradingSidebarOpen ? "mr-96" : "mr-0"
+        )}>
+          <div className="space-y-8">
+            {/* Navigation */}
+            <div className="flex items-center gap-4">
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/markets">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to Markets
+                </Link>
+              </Button>
+            </div>
 
-          {/* Market Header */}
-          <MarketHeader 
-            market={market}
-            onShare={() => {
-              // TODO: Implement share functionality
-              navigator.clipboard?.writeText(window.location.href)
-              console.log('Market shared!')
-            }}
-            onBookmark={() => {
-              // TODO: Implement bookmark functionality
-              console.log('Market bookmarked!')
-            }}
-            onReport={() => {
-              // TODO: Implement report functionality
-              console.log('Market reported!')
-            }}
-          />
+            {/* Market Header */}
+            <MarketHeader 
+              market={market}
+              onShare={() => {
+                navigator.clipboard?.writeText(window.location.href)
+                console.log('Market shared!')
+              }}
+              onBookmark={() => {
+                console.log('Market bookmarked!')
+              }}
+              onReport={() => {
+                console.log('Market reported!')
+              }}
+            />
 
-          <Separator />
-
-          {/* Content Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Main Content Area */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Trading Interface */}
-              <TradingInterface 
-                market={market}
-                onTrade={async (side, amount) => {
-                  // TODO: Implement actual trading logic with contract hooks
-                  console.log(`Trading ${side} for ${amount} ETH`)
-                  // This will be connected to the trading hooks in Task 31
-                  return new Promise((resolve) => {
-                    setTimeout(() => {
-                      console.log('Trade executed successfully')
-                      resolve()
-                    }, 2000)
-                  })
-                }}
-              />
-
-              {/* Market Activity Placeholder */}
+            {/* Quick Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="h-5 w-5" />
-                    Recent Activity
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="bg-muted/30 rounded-lg p-8 text-center">
-                    <p className="text-muted-foreground">
-                      Market activity feed coming soon
-                    </p>
+                <CardContent className="p-4">
+                  <div className="flex items-center space-x-2">
+                    <TrendingUp className="h-4 w-4 text-green-500" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">YES</p>
+                      <p className="text-lg font-bold text-green-600">{yesProb.toFixed(1)}%</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center space-x-2">
+                    <TrendingUp className="h-4 w-4 text-red-500 rotate-180" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">NO</p>
+                      <p className="text-lg font-bold text-red-600">{noProb.toFixed(1)}%</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center space-x-2">
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Pool</p>
+                      <p className="text-lg font-bold">{totalPool.toFixed(0)} USDC</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center space-x-2">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Status</p>
+                      <Badge variant={market.resolved ? "secondary" : "default"}>
+                        {market.resolved ? "Resolved" : "Active"}
+                      </Badge>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Sidebar */}
-            <div className="space-y-6">
-              {/* Market Stats */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <DollarSign className="h-5 w-5" />
-                    Market Statistics
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Total Volume</span>
-                      <span className="text-sm font-medium">
-                        ${parseFloat(market.totalPool || '0').toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">YES Pool</span>
-                      <span className="text-sm font-medium">
-                        ${parseFloat(market.poolYes || '0').toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">NO Pool</span>
-                      <span className="text-sm font-medium">
-                        ${parseFloat(market.poolNo || '0').toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
+            <Separator />
 
-                  <Separator />
+            {/* Content Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Main Content Area */}
+              <div className="lg:col-span-2 space-y-6">
+                {/* Market Chart */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5" />
+                      Probability Over Time
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ProbabilityChart marketId={marketId} />
+                  </CardContent>
+                </Card>
 
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Total Traders</span>
-                      <span className="text-sm font-medium">0</span>
+                {/* Activity Feed */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Activity className="h-5 w-5" />
+                      Recent Activity
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ActivityFeed marketId={marketId} />
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Right Column - Market Info */}
+              <div className="space-y-6">
+                {/* Quick Trade Button */}
+                <Card>
+                  <CardContent className="p-6">
+                    <Button
+                      onClick={() => setIsTradingSidebarOpen(true)}
+                      className="w-full h-12"
+                      size="lg"
+                    >
+                      Trade on this Market
+                      <ChevronRight className="h-4 w-4 ml-2" />
+                    </Button>
+                    <p className="text-xs text-center text-muted-foreground mt-2">
+                      Opens trading sidebar
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* Market Details */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Market Details</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Created</span>
+                      <span>{new Date(parseInt(market.createdAt) * 1000).toLocaleDateString()}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Total Trades</span>
-                      <span className="text-sm font-medium">0</span>
+                    
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Cut-off Time</span>
+                      <span>{new Date(parseInt(market.cutoffTime) * 1000).toLocaleDateString()}</span>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Market Timeline */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Clock className="h-5 w-5" />
-                    Timeline
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3">
-                      <div className="w-2 h-2 bg-primary rounded-full mt-2 flex-shrink-0" />
-                      <div>
-                        <p className="text-sm font-medium">Market Created</p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(parseInt(market.createdAt) * 1000).toLocaleDateString()}
-                        </p>
-                      </div>
+                    
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Resolve Time</span>
+                      <span>{new Date(parseInt(market.resolveTime) * 1000).toLocaleDateString()}</span>
                     </div>
-
-                    {market.cutoffTime && (
-                      <div className="flex items-start gap-3">
-                        <div className="w-2 h-2 bg-muted rounded-full mt-2 flex-shrink-0" />
-                        <div>
-                          <p className="text-sm font-medium">
-                            {new Date(parseInt(market.cutoffTime) * 1000) > new Date() 
-                              ? 'Trading Ends' 
-                              : 'Trading Ended'
-                            }
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(parseInt(market.cutoffTime) * 1000).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {market.resolved && market.resolveTime && (
-                      <div className="flex items-start gap-3">
-                        <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0" />
-                        <div>
-                          <p className="text-sm font-medium">Market Resolved</p>
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(parseInt(market.resolveTime) * 1000).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                    
+                    <Separator />
+                    
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">YES Pool</span>
+                      <span className="font-medium">{parseFloat(market.poolYes || '0').toFixed(2)} USDC</span>
+                    </div>
+                    
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">NO Pool</span>
+                      <span className="font-medium">{parseFloat(market.poolNo || '0').toFixed(2)} USDC</span>
+                    </div>
+                    
+                    <div className="flex justify-between text-sm font-medium">
+                      <span className="text-muted-foreground">Total Pool</span>
+                      <span>{totalPool.toFixed(2)} USDC</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           </div>
         </div>
@@ -208,6 +249,58 @@ function MarketDetailContent({ marketId }: { marketId: string }) {
           onRetry={() => refetch()}
           className="min-h-[400px]"
         />
+      )}
+      
+      {/* Trading Sidebar Overlay */}
+      {isTradingSidebarOpen && market && (
+        <div 
+          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40"
+          onClick={() => setIsTradingSidebarOpen(false)}
+        />
+      )}
+
+      {/* Trading Sidebar */}
+      {market && (
+        <div className={cn(
+          "fixed top-0 right-0 h-full w-96 bg-background border-l shadow-xl z-50 transform transition-transform duration-300 ease-in-out overflow-y-auto",
+          isTradingSidebarOpen ? "translate-x-0" : "translate-x-full"
+        )}>
+          <div className="p-6">
+            {/* Sidebar Header */}
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-lg font-semibold">Trade Market</h2>
+                <p className="text-sm text-muted-foreground">Make your prediction</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsTradingSidebarOpen(false)}
+              >
+                ✕
+              </Button>
+            </div>
+
+            {/* Market Title */}
+            <div className="mb-6">
+              <h3 className="font-medium text-sm mb-2">{market.title}</h3>
+              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                <span>YES: {yesProb.toFixed(1)}%</span>
+                <span>NO: {noProb.toFixed(1)}%</span>
+                <span>Pool: {totalPool.toFixed(0)} USDC</span>
+              </div>
+            </div>
+
+            {/* Trading Interface */}
+            <TradingInterface 
+              market={market}
+              onTrade={async (side, amount) => {
+                console.log(`Trading ${side} for ${amount} USDC`)
+                // Trading will be handled by the TradingInterface component
+              }}
+            />
+          </div>
+        </div>
       )}
     </AsyncBoundary>
   )
@@ -242,8 +335,8 @@ function MarketDetailSkeleton() {
 }
 
 export default function MarketDetailPage() {
-  const params = useParams() as MarketDetailPageParams
-  const marketId = params?.id
+  const params = useParams()
+  const marketId = params?.id as string
 
   if (!marketId) {
     return (

@@ -70,6 +70,14 @@ export function useTradingHooks(marketAddress?: Address) {
     }
   }, [chainId])
 
+  const routerAddress = useMemo(() => {
+    try {
+      return getContractAddress(chainId as any, 'MarketRouter')
+    } catch {
+      return undefined
+    }
+  }, [chainId])
+
   // Contract write hooks
   const { writeContract, data: txHash, error: writeError, isPending: isWritePending } = useWriteContract()
 
@@ -88,12 +96,12 @@ export function useTradingHooks(marketAddress?: Address) {
         functionName: 'balanceOf',
         args: userAddress ? [userAddress] : undefined,
       },
-      // USDC allowance for market
+      // USDC allowance for router
       {
         address: stakeTokenAddress,
         abi: ERC20_ABI,
         functionName: 'allowance',
-        args: userAddress && marketAddress ? [userAddress, marketAddress] : undefined,
+        args: userAddress && routerAddress ? [userAddress, routerAddress] : undefined,
       },
       // Market pool info (pool[0] = NO, pool[1] = YES)
       {
@@ -135,7 +143,7 @@ export function useTradingHooks(marketAddress?: Address) {
       },
     ],
     query: {
-      enabled: Boolean(stakeTokenAddress && marketAddress && userAddress && isConnected),
+      enabled: Boolean(stakeTokenAddress && routerAddress && marketAddress && userAddress && isConnected),
       refetchInterval: 10000, // Refetch every 10 seconds
     },
   })
@@ -176,9 +184,9 @@ export function useTradingHooks(marketAddress?: Address) {
     }
   }, [contractData])
 
-  // Approve USDC spending
+  // Approve USDC spending for Router
   const approveUSDC = useCallback(async (amount: string) => {
-    if (!stakeTokenAddress || !marketAddress || !isConnected) {
+    if (!stakeTokenAddress || !routerAddress || !isConnected) {
       throw new Error('Contract not connected or user not authenticated')
     }
 
@@ -200,7 +208,7 @@ export function useTradingHooks(marketAddress?: Address) {
         address: stakeTokenAddress,
         abi: ERC20_ABI,
         functionName: 'approve',
-        args: [marketAddress, amountInUSDC],
+        args: [routerAddress, amountInUSDC],
       })
 
     } catch (error) {
@@ -213,12 +221,16 @@ export function useTradingHooks(marketAddress?: Address) {
       })
       throw error
     }
-  }, [stakeTokenAddress, marketAddress, isConnected, writeContract, startApproval, failTransaction])
+  }, [stakeTokenAddress, routerAddress, marketAddress, isConnected, writeContract, startApproval, failTransaction])
 
-  // Deposit function
+  // Deposit function via Router
   const deposit = useCallback(async (outcome: 'YES' | 'NO', amount: string) => {
     if (!marketAddress || !isConnected || !userAddress) {
       throw new Error('Market not connected or user not authenticated')
+    }
+
+    if (!routerAddress) {
+      throw new Error('Router contract not available')
     }
 
     try {
@@ -236,11 +248,12 @@ export function useTradingHooks(marketAddress?: Address) {
       const outcomeValue = outcome === 'YES' ? 1 : 0 // 0=NO, 1=YES as per contract
       const amountInUSDC = parseUnits(amount, 6) // USDC has 6 decimals
 
+      // Use Router contract for deposits
       await writeContract({
-        address: marketAddress,
-        abi: CONTRACTS.ParimutuelMarket.abi,
-        functionName: 'deposit',
-        args: [outcomeValue, amountInUSDC],
+        address: routerAddress,
+        abi: CONTRACTS.MarketRouter.abi,
+        functionName: 'depositToMarket',
+        args: [marketAddress, outcomeValue, amountInUSDC],
       })
 
     } catch (error) {
@@ -253,7 +266,7 @@ export function useTradingHooks(marketAddress?: Address) {
       })
       throw error
     }
-  }, [marketAddress, isConnected, userAddress, writeContract, startDeposit, failTransaction])
+  }, [marketAddress, isConnected, userAddress, routerAddress, writeContract, startDeposit, failTransaction])
 
   // Combined approve and deposit function
   const approveAndDeposit = useCallback(async (outcome: 'YES' | 'NO', amount: string) => {

@@ -2,8 +2,8 @@
 
 import React from 'react'
 import dynamic from 'next/dynamic'
-import { ConnectButton } from '@rainbow-me/rainbowkit'
-import { useAccount, useDisconnect } from 'wagmi'
+import { usePrivy } from '@privy-io/react-auth'
+import { useAccount } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { 
   DropdownMenu,
@@ -15,6 +15,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { ChevronDown, Copy, ExternalLink, LogOut, Wallet } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { arbitrumSepolia } from 'wagmi/chains'
 
 interface ConnectWalletButtonProps {
   className?: string
@@ -43,186 +44,156 @@ export function ConnectWalletButton({
   showBalance = true,
   showChain = true,
 }: ConnectWalletButtonProps) {
+  const { ready, authenticated, user, login, logout } = usePrivy()
+  const { address, isConnected, chain } = useAccount()
+
+  if (!ready) {
+    return (
+      <Button
+        variant={variant}
+        size={size}
+        disabled
+        className={cn('gap-2', className)}
+      >
+        <Wallet className="h-4 w-4" />
+        Loading...
+      </Button>
+    )
+  }
+
+  if (!authenticated || !isConnected) {
+    return (
+      <Button
+        variant={variant}
+        size={size}
+        onClick={login}
+        className={cn('gap-2', className)}
+      >
+        <Wallet className="h-4 w-4" />
+        Connect Wallet
+      </Button>
+    )
+  }
+
+  const walletAddress = address || user?.wallet?.address
+
+  if (!walletAddress) {
+    return (
+      <Button
+        variant={variant}
+        size={size}
+        onClick={login}
+        className={cn('gap-2', className)}
+      >
+        <Wallet className="h-4 w-4" />
+        Connect Wallet
+      </Button>
+    )
+  }
+
+  // Check if we're on the wrong network
+  if (chain && chain.id !== arbitrumSepolia.id) {
+    return (
+      <Button
+        variant="destructive"
+        size={size}
+        className={cn('gap-2', className)}
+      >
+        Wrong Network
+      </Button>
+    )
+  }
+
   return (
-    <ConnectButton.Custom>
-      {({
-        account,
-        chain,
-        openAccountModal,
-        openChainModal,
-        openConnectModal,
-        authenticationStatus,
-        mounted,
-      }) => {
-        const ready = mounted && authenticationStatus !== 'loading'
-        const connected =
-          ready &&
-          account &&
-          chain &&
-          (!authenticationStatus || authenticationStatus === 'authenticated')
-
-        if (!ready) {
-          return (
-            <Button
-              variant={variant}
-              size={size}
-              disabled
-              className={cn('gap-2', className)}
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant={variant}
+          size={size}
+          className={cn('gap-1 max-w-[180px] min-w-0', className)}
+        >
+          {showChain && (
+            <div
+              style={{
+                background: '#28a0f0',
+                width: 12,
+                height: 12,
+                borderRadius: 999,
+                overflow: 'hidden',
+                flexShrink: 0,
+              }}
             >
-              <Wallet className="h-4 w-4" />
-              Loading...
-            </Button>
-          )
-        }
-
-        if (!connected) {
-          return (
-            <Button
-              variant={variant}
-              size={size}
-              onClick={openConnectModal}
-              className={cn('gap-2', className)}
-            >
-              <Wallet className="h-4 w-4" />
-              Connect Wallet
-            </Button>
-          )
-        }
-
-        if (chain.unsupported) {
-          return (
-            <Button
-              variant="destructive"
-              size={size}
-              onClick={openChainModal}
-              className={cn('gap-2', className)}
-            >
-              Wrong Network
-            </Button>
-          )
-        }
-
-        return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant={variant}
-                size={size}
-                className={cn('gap-1 max-w-[180px] min-w-0', className)}
-              >
-                {showChain && chain.hasIcon && (
-                  <div
-                    style={{
-                      background: chain.iconBackground,
-                      width: 12,
-                      height: 12,
-                      borderRadius: 999,
-                      overflow: 'hidden',
-                      flexShrink: 0,
-                    }}
-                  >
-                    {chain.iconUrl && (
-                      <img
-                        alt={chain.name ?? 'Chain icon'}
-                        src={chain.iconUrl}
-                        style={{ width: 12, height: 12 }}
-                      />
-                    )}
-                  </div>
-                )}
-                <Avatar className="h-4 w-4 flex-shrink-0">
-                  <AvatarFallback className="text-xs">
-                    {account.address.slice(2, 4).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="hidden sm:inline truncate min-w-0">
-                  {truncateAddress(account.address)}
-                </span>
-                {showBalance && account.displayBalance && (
-                  <span className="hidden lg:inline font-mono text-xs truncate min-w-0">
-                    {account.displayBalance}
-                  </span>
-                )}
-                <ChevronDown className="h-3 w-3 flex-shrink-0" />
-              </Button>
-            </DropdownMenuTrigger>
-              
-              <DropdownMenuContent align="end" className="w-56">
-                <div className="px-2 py-1.5">
-                  <div className="text-sm font-medium">
-                    {account.displayName || 'Account'}
-                  </div>
-                  <div className="text-xs text-muted-foreground font-mono">
-                    {account.address}
-                  </div>
-                  {account.displayBalance && (
-                    <div className="text-xs text-muted-foreground mt-1">
-                      Balance: {account.displayBalance}
-                    </div>
-                  )}
-                  <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                    Network: {chain.name}
-                    {chain.hasIcon && chain.iconUrl && (
-                      <img
-                        alt={chain.name ?? 'Chain icon'}
-                        src={chain.iconUrl}
-                        style={{ width: 12, height: 12 }}
-                      />
-                    )}
-                  </div>
-                </div>
-                
-                <DropdownMenuSeparator />
-                
-                {showChain && (
-                  <>
-                    <DropdownMenuItem
-                      onClick={openChainModal}
-                      className="gap-2"
-                    >
-                      {chain.hasIcon && chain.iconUrl && (
-                        <img
-                          alt="Network"
-                          src={chain.iconUrl}
-                          style={{ width: 16, height: 16 }}
-                        />
-                      )}
-                      Switch Network
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                  </>
-                )}
-                
-                <DropdownMenuItem
-                  onClick={() => copyToClipboard(account.address)}
-                  className="gap-2"
-                >
-                  <Copy className="h-4 w-4" />
-                  Copy Address
-                </DropdownMenuItem>
-                
-                <DropdownMenuItem
-                  onClick={() => window.open(`https://arbiscan.io/address/${account.address}`, '_blank')}
-                  className="gap-2"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  View on Explorer
-                </DropdownMenuItem>
-                
-                <DropdownMenuSeparator />
-                
-                <DropdownMenuItem
-                  onClick={openAccountModal}
-                  className="gap-2"
-                >
-                  <LogOut className="h-4 w-4" />
-                  Disconnect
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-          </DropdownMenu>
-        )
-      }}
-    </ConnectButton.Custom>
+              <img
+                alt="Arbitrum Sepolia"
+                src="https://assets.coingecko.com/coins/images/16547/large/photo_2023-03-29_21.47.00.jpeg"
+                style={{ width: 12, height: 12 }}
+              />
+            </div>
+          )}
+          <Avatar className="h-4 w-4 flex-shrink-0">
+            <AvatarFallback className="text-xs">
+              {walletAddress.slice(2, 4).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <span className="hidden sm:inline truncate min-w-0">
+            {truncateAddress(walletAddress)}
+          </span>
+          <ChevronDown className="h-3 w-3 flex-shrink-0" />
+        </Button>
+      </DropdownMenuTrigger>
+        
+        <DropdownMenuContent align="end" className="w-56">
+          <div className="px-2 py-1.5">
+            <div className="text-sm font-medium">
+              {user?.email?.address ? 'Privy Account' : 'Wallet Account'}
+            </div>
+            <div className="text-xs text-muted-foreground font-mono">
+              {walletAddress}
+            </div>
+            {user?.email?.address && (
+              <div className="text-xs text-muted-foreground mt-1">
+                Email: {user.email.address}
+              </div>
+            )}
+            <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+              Network: {arbitrumSepolia.name}
+              <img
+                alt="Arbitrum Sepolia"
+                src="https://assets.coingecko.com/coins/images/16547/large/photo_2023-03-29_21.47.00.jpeg"
+                style={{ width: 12, height: 12 }}
+              />
+            </div>
+          </div>
+          
+          <DropdownMenuSeparator />
+          
+          <DropdownMenuItem
+            onClick={() => copyToClipboard(walletAddress)}
+            className="gap-2"
+          >
+            <Copy className="h-4 w-4" />
+            Copy Address
+          </DropdownMenuItem>
+          
+          <DropdownMenuItem
+            onClick={() => window.open(`https://sepolia.arbiscan.io/address/${walletAddress}`, '_blank')}
+            className="gap-2"
+          >
+            <ExternalLink className="h-4 w-4" />
+            View on Explorer
+          </DropdownMenuItem>
+          
+          <DropdownMenuSeparator />
+          
+          <DropdownMenuItem
+            onClick={logout}
+            className="gap-2"
+          >
+            <LogOut className="h-4 w-4" />
+            Disconnect
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
@@ -233,34 +204,28 @@ export function SimpleConnectButton({
   className?: string
   children?: React.ReactNode
 }) {
+  const { authenticated, login, logout } = usePrivy()
   const { isConnected } = useAccount()
-  const { disconnect } = useDisconnect()
+
+  if (authenticated && isConnected) {
+    return (
+      <Button
+        variant="outline"
+        onClick={logout}
+        className={className}
+      >
+        {children || 'Disconnect'}
+      </Button>
+    )
+  }
 
   return (
-    <ConnectButton.Custom>
-      {({ openConnectModal }) => {
-        if (isConnected) {
-          return (
-            <Button
-              variant="outline"
-              onClick={() => disconnect()}
-              className={className}
-            >
-              {children || 'Disconnect'}
-            </Button>
-          )
-        }
-
-        return (
-          <Button
-            onClick={openConnectModal}
-            className={className}
-          >
-            {children || 'Connect Wallet'}
-          </Button>
-        )
-      }}
-    </ConnectButton.Custom>
+    <Button
+      onClick={login}
+      className={className}
+    >
+      {children || 'Connect Wallet'}
+    </Button>
   )
 }
 

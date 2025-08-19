@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useState, useMemo, useCallback, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -117,8 +117,8 @@ export function TradingInterface({ market, onTrade, disabled = false }: TradingI
     }
     
     return {
-      yesProb: (noPool / total) * 100, // Inverse for CPMM
-      noProb: (yesPool / total) * 100
+      yesProb: (yesPool / total) * 100, // Direct correlation: more YES pool = higher YES probability
+      noProb: (noPool / total) * 100
     }
   }, [formattedPoolYes, formattedPoolNo])
 

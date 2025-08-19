@@ -26,7 +26,7 @@ export default function HomePage() {
       <div className="min-h-screen">
       {/* Hero Section */}
       <section className="relative overflow-hidden py-24 sm:py-32">
-        <div className="container px-4">
+        <div className="container mx-auto px-4 max-w-7xl">
           <div className="mx-auto max-w-4xl text-center">
             <Badge variant="secondary" className="mb-4">
               🚀 Now in Beta
@@ -56,7 +56,7 @@ export default function HomePage() {
 
       {/* Stats Section */}
       <section className="py-16 sm:py-24">
-        <div className="container px-4">
+        <div className="container mx-auto px-4 max-w-7xl">
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -113,7 +113,7 @@ export default function HomePage() {
       {/* Featured Markets */}
       <ClientOnly fallback={
         <section className="py-16 sm:py-24 bg-muted/30">
-          <div className="container px-4">
+          <div className="container mx-auto px-4 max-w-7xl">
             <div className="mx-auto max-w-2xl text-center mb-12">
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
                 Trending Markets
@@ -131,7 +131,7 @@ export default function HomePage() {
 
       {/* Features Section */}
       <section className="py-16 sm:py-24">
-        <div className="container px-4">
+        <div className="container mx-auto px-4 max-w-7xl">
           <div className="mx-auto max-w-2xl text-center mb-16">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
               Why Choose HyperOdds?
@@ -183,7 +183,7 @@ export default function HomePage() {
 
       {/* CTA Section */}
       <section className="py-16 sm:py-24 bg-primary">
-        <div className="container px-4">
+        <div className="container mx-auto px-4 max-w-7xl">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-bold tracking-tight text-primary-foreground sm:text-4xl">
               Ready to Start Trading?

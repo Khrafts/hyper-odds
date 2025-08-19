@@ -4,14 +4,15 @@ import { Address } from 'viem'
  * Contract addresses for different networks
  */
 export const CONTRACT_ADDRESSES = {
-  // Arbitrum Sepolia testnet
+  // Arbitrum Sepolia testnet - Updated to match fe package
   421614: {
-    ParimutuelMarketFactory: '0x00e5A2346C96da6C54f53d2d53bD5536D53Fae5D' as Address,
+    ParimutuelMarketFactory: '0x3d2519A17eAe6323CaA36fB07ecEcDc96457aFf1' as Address,
     ParimutuelMarket: '0x89b371a0a56713C3E660C9eFCe659853c755dDF9' as Address, // Test market
     MarketImplementation: '0xC6364ccdbd7c26130ce63001Ed874b1F91669462' as Address,
-    StakeToken: '0x33348eC41C542d425e652Ad224Be1662bda21199' as Address, // MockUSDC
+    StakeToken: '0x019a0cD76A076DDd0D105101d77bD1833321BF5A' as Address, // MockUSDC from fe
+    MarketRouter: '0x52dE5EEcD112E57a13Bc41633B30336846b897cc' as Address, // Router contract
     Oracle: '0x964c2247112Bbf53619b78deD036Fe1b285efaE7' as Address,
-    StHYPE: '0xca185ec9f895E1710003204363e91D5C60ACc7b9' as Address,
+    StHYPE: '0xa027E10C1808eE077989DfD560D5Ac00870d7963' as Address, // Updated from fe
   },
   // Arbitrum One mainnet (placeholder)
   42161: {
@@ -19,6 +20,7 @@ export const CONTRACT_ADDRESSES = {
     ParimutuelMarket: '0x0000000000000000000000000000000000000000' as Address,
     MarketImplementation: '0x0000000000000000000000000000000000000000' as Address,
     StakeToken: '0x0000000000000000000000000000000000000000' as Address,
+    MarketRouter: '0x0000000000000000000000000000000000000000' as Address,
     Oracle: '0x0000000000000000000000000000000000000000' as Address,
     StHYPE: '0x0000000000000000000000000000000000000000' as Address,
   },
@@ -292,6 +294,74 @@ export const PARIMUTUEL_MARKET_FACTORY_ABI = [
 ] as const
 
 /**
+ * MarketRouter contract ABI
+ * Router contract for handling deposits and claims with user attribution
+ */
+export const MARKET_ROUTER_ABI = [
+  {
+    inputs: [
+      { name: 'market', type: 'address' },
+      { name: 'outcome', type: 'uint8' },
+      { name: 'amount', type: 'uint256' }
+    ],
+    name: 'depositToMarket',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function'
+  },
+  {
+    inputs: [
+      {
+        components: [
+          { name: 'market', type: 'address' },
+          { name: 'outcome', type: 'uint8' },
+          { name: 'amount', type: 'uint256' }
+        ],
+        name: 'deposits',
+        type: 'tuple[]'
+      }
+    ],
+    name: 'depositToMultiple',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function'
+  },
+  {
+    inputs: [
+      { name: 'market', type: 'address' },
+      { name: 'outcome', type: 'uint8' },
+      { name: 'amount', type: 'uint256' },
+      { name: 'deadline', type: 'uint256' },
+      { name: 'v', type: 'uint8' },
+      { name: 'r', type: 'bytes32' },
+      { name: 's', type: 'bytes32' }
+    ],
+    name: 'depositWithPermit',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function'
+  },
+  {
+    inputs: [
+      { name: 'market', type: 'address' }
+    ],
+    name: 'claimFromMarket',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function'
+  },
+  {
+    inputs: [
+      { name: 'markets', type: 'address[]' }
+    ],
+    name: 'claimFromMultiple',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function'
+  }
+] as const
+
+/**
  * Get contract address for the current network
  */
 export function getContractAddress(
@@ -334,6 +404,9 @@ export const CONTRACTS = {
   },
   ParimutuelMarketFactory: {
     abi: PARIMUTUEL_MARKET_FACTORY_ABI,
+  },
+  MarketRouter: {
+    abi: MARKET_ROUTER_ABI,
   },
   StakeToken: {
     abi: ERC20_ABI,

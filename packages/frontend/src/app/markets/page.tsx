@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useMarkets, MarketFilters } from '@/hooks/useMarkets'
 import { MarketGrid } from '@/components/markets/marketGrid'
 import { Button } from '@/components/ui/button'
@@ -12,6 +13,7 @@ import { PageErrorBoundary } from '@/components/error'
 import { Search, Filter, SortAsc } from 'lucide-react'
 
 function MarketsPageContent() {
+  const router = useRouter()
   const [filters, setFilters] = useState<MarketFilters>({
     status: 'all',
     sortBy: 'newest'
@@ -159,12 +161,12 @@ function MarketsPageContent() {
           error={error}
           onRetry={() => refetch?.()}
           onMarketClick={(market) => {
-            // TODO: Navigate to market detail page
-            console.log('Navigate to market:', market.id)
+            // Navigate to market detail page
+            router.push(`/markets/${market.id}`)
           }}
           onTrade={(market, outcome) => {
-            // TODO: Open trading modal
-            console.log('Trade on market:', market.id, 'outcome:', outcome)
+            // Navigate to market detail page and open trading sidebar
+            router.push(`/markets/${market.id}?trade=${outcome.toLowerCase()}`)
           }}
         />
 

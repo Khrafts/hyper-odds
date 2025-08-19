@@ -1,15 +1,12 @@
 'use client'
 
 import React from 'react'
-import { WagmiProvider } from 'wagmi'
-import { RainbowKitProvider, darkTheme, lightTheme } from '@rainbow-me/rainbowkit'
+import { PrivyProvider } from '@privy-io/react-auth'
+import { WagmiProvider } from '@privy-io/wagmi'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { rainbowKitConfig } from '../lib/web3/config'
+import { wagmiConfig, privyConfig } from '../lib/web3/privyConfig'
 import { GraphQLProvider } from '../lib/graphql/provider'
 import { suppressSSRWarnings, suppressDevelopmentNetworkErrors } from '../lib/ssrUtils'
-
-// Import RainbowKit CSS
-import '@rainbow-me/rainbowkit/styles.css'
 
 // Suppress SSR warnings and development network errors
 suppressSSRWarnings()
@@ -41,25 +38,6 @@ const queryClient = new QueryClient({
   },
 })
 
-/**
- * RainbowKit theme configuration
- */
-const rainbowKitTheme = {
-  lightMode: lightTheme({
-    accentColor: 'hsl(var(--primary))',
-    accentColorForeground: 'hsl(var(--primary-foreground))',
-    borderRadius: 'medium',
-    fontStack: 'system',
-    overlayBlur: 'small',
-  }),
-  darkMode: darkTheme({
-    accentColor: 'hsl(var(--primary))',
-    accentColorForeground: 'hsl(var(--primary-foreground))',
-    borderRadius: 'medium',
-    fontStack: 'system',
-    overlayBlur: 'small',
-  }),
-}
 
 interface ProvidersProps {
   children: React.ReactNode
@@ -71,28 +49,41 @@ interface ProvidersProps {
  */
 export default function Providers({ children }: ProvidersProps) {
   const [mounted, setMounted] = React.useState(false)
+  const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID
 
   // Prevent hydration mismatch by only rendering after mount
   React.useEffect(() => {
     setMounted(true)
   }, [])
 
+  if (!appId) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
+            Configuration Error
+          </h2>
+          <p className="text-muted-foreground">
+            NEXT_PUBLIC_PRIVY_APP_ID environment variable is required
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       {mounted ? (
-        <WagmiProvider config={rainbowKitConfig}>
-          <RainbowKitProvider
-            theme={rainbowKitTheme.lightMode}
-            modalSize="compact"
-            initialChain={rainbowKitConfig.chains[0]}
-            showRecentTransactions={true}
-            coolMode={true}
-          >
+        <PrivyProvider
+          appId={appId}
+          config={privyConfig.config}
+        >
+          <WagmiProvider config={wagmiConfig}>
             <GraphQLProvider>
               {children}
             </GraphQLProvider>
-          </RainbowKitProvider>
-        </WagmiProvider>
+          </WagmiProvider>
+        </PrivyProvider>
       ) : (
         <GraphQLProvider>
           {children}
@@ -139,10 +130,10 @@ export class Web3ErrorBoundary extends React.Component<
           <div className="flex min-h-screen items-center justify-center bg-background">
             <div className="text-center">
               <h2 className="text-2xl font-bold text-foreground mb-4">
-                Web3 Connection Error
+                Wallet Connection Error
               </h2>
               <p className="text-muted-foreground mb-6">
-                Something went wrong with the Web3 connection.
+                Something went wrong with the wallet connection.
               </p>
               <button
                 onClick={() => this.setState({ hasError: false, error: undefined })}
