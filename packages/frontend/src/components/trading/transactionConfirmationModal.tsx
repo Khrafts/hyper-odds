@@ -110,7 +110,7 @@ export function TransactionConfirmationModal({
       case 'approval':
         return `Allow the market contract to spend up to ${amount} USDC from your wallet. This is required before making a prediction.`
       case 'deposit':
-        return `Purchase ${side} shares for ${amount} USDC. You'll receive approximately ${estimatedShares} shares.`
+        return `Stake ${amount} USDC on ${side}. You'll receive ${estimatedShares} effective shares based on time multiplier.`
       case 'claim':
         return 'Claim your winnings from resolved markets. This will transfer your payout to your wallet.'
     }
@@ -243,7 +243,7 @@ export function TransactionConfirmationModal({
             <Alert>
               <Info className="h-4 w-4" />
               <AlertDescription>
-                Shares will be worth 1 USDC each if your prediction is correct, or 0 USDC if incorrect.
+                Parimutuel market: If you win, you receive your deposit plus your proportional share of the losing side's pool. If you lose, you receive nothing.
               </AlertDescription>
             </Alert>
           )}

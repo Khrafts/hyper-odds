@@ -15,14 +15,11 @@ import {
   TrendingDown,
   AlertCircle,
   Wallet,
-  Calculator,
   ArrowRight,
   Info,
-  DollarSign,
-  Percent,
-  Clock,
   CheckCircle,
-  XCircle
+  XCircle,
+  RefreshCw
 } from 'lucide-react'
 import { useAccount } from 'wagmi'
 import { formatUnits } from 'viem'
@@ -77,6 +74,8 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
     isGasLoading,
     gasError,
     clearGasError,
+    // Balance refresh
+    refetchContractData,
   } = useTradingHooks(market.id as `0x${string}`)
   
   const [selectedSide, setSelectedSide] = useState<'YES' | 'NO'>('YES')
@@ -85,6 +84,7 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
   const [error, setError] = useState<string | null>(null)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [slippage, setSlippage] = useState(1) // 1% default slippage
+  const [showTooltip, setShowTooltip] = useState(false)
 
   // Transaction confirmation modal
   const {
@@ -123,43 +123,120 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
     }
   }, [tradingState.isSuccess, tradingState.stage, onTransactionSuccess])
 
+  // Periodic balance refresh to prevent stale data
+  useEffect(() => {
+    if (!isConnected || !refetchContractData) return
+
+    // Refresh balance every 30 seconds when trading interface is open
+    const interval = setInterval(() => {
+      refetchContractData()
+    }, 30000) // 30 seconds
+
+    // Also refresh when the component mounts
+    refetchContractData()
+
+    return () => clearInterval(interval)
+  }, [isConnected, refetchContractData])
+
+  // Refresh balance when user reconnects or addresses change
+  useEffect(() => {
+    if (isConnected && refetchContractData) {
+      refetchContractData()
+    }
+  }, [isConnected, address, refetchContractData])
+
   // Use probability values passed as props for consistency across all components
 
-  // Calculate estimated shares and potential payout
+  // Calculate time multiplier based on contract logic
+  const timeMultiplier = useMemo(() => {
+    const now = Date.now() / 1000 // Current time in seconds
+    const cutoffTime = parseInt(market.cutoffTime || '0')
+    const createdAt = parseInt(market.createdAt || '0')
+    
+    // Assume timeDecayBps from contract - typical value might be 2000 (20%)
+    const timeDecayBps = 2000 // 20% time decay spread
+    
+    if (timeDecayBps === 0) return 1.0 // No decay
+    
+    const timeRemaining = cutoffTime > now ? cutoffTime - now : 0
+    const totalMarketTime = cutoffTime - createdAt
+    
+    if (totalMarketTime === 0) return 1.0 // Prevent division by zero
+    
+    const timeRatio = Math.min(timeRemaining / totalMarketTime, 1.0)
+    
+    // Contract formula: multiplier = 1.0 - halfSpread + (timeRatio * timeDecayBps) / 10000
+    const halfSpread = timeDecayBps / 2 / 10000 // Convert to decimal
+    return 1.0 - halfSpread + (timeRatio * timeDecayBps) / 10000
+  }, [market.cutoffTime, market.createdAt])
+
+  // Calculate effective shares (what you actually get)
   const estimatedShares = useMemo(() => {
     if (!amount || parseFloat(amount) <= 0) return '0'
     
     const depositAmount = parseFloat(amount)
-    const selectedPool = selectedSide === 'YES' 
-      ? parseFloat(market.poolYes || '0')
-      : parseFloat(market.poolNo || '0')
-    const oppositePool = selectedSide === 'YES'
-      ? parseFloat(market.poolNo || '0')
-      : parseFloat(market.poolYes || '0')
     
-    if (selectedPool === 0 || oppositePool === 0) return '0'
-    
-    // CPMM formula: shares = oppositePool - (selectedPool * oppositePool) / (selectedPool + depositAmount)
-    const k = selectedPool * oppositePool
-    const newSelectedPool = selectedPool + depositAmount
-    const newOppositePool = k / newSelectedPool
-    const shares = oppositePool - newOppositePool
-    
-    return shares.toFixed(4)
-  }, [amount, selectedSide, market.poolYes, market.poolNo])
+    // Parimutuel: base shares = deposit amount, but effective shares are modified by time multiplier
+    // For payout calculations, effective shares matter
+    const effectiveShares = depositAmount * timeMultiplier
+    return effectiveShares.toFixed(4)
+  }, [amount, timeMultiplier])
 
-  // Calculate potential return
+  // Calculate price per share based on time multiplier
+  const pricePerShare = useMemo(() => {
+    if (timeMultiplier === 0) return 1.0
+    // Price per effective share = 1 / timeMultiplier
+    // If timeMultiplier < 1 (late entry), you pay more per effective share
+    // If timeMultiplier > 1 (early entry), you pay less per effective share
+    return 1 / timeMultiplier
+  }, [timeMultiplier])
+
+  // Calculate potential return based on effective shares (contract logic)
   const potentialReturn = useMemo(() => {
-    const shares = parseFloat(estimatedShares)
     const investment = parseFloat(amount || '0')
     
     if (investment === 0) return { profit: 0, roi: 0 }
     
-    const profit = shares - investment
+    const yesPool = parseFloat(market.poolYes || '0')
+    const noPool = parseFloat(market.poolNo || '0')
+    
+    // Calculate your effective shares with time multiplier
+    const yourEffectiveShares = investment * timeMultiplier
+    
+    // After your deposit, estimate total effective shares for your side
+    // Note: We can't know exact effective shares of existing holders without their timestamps,
+    // so we approximate by assuming average time multiplier of 1.0 for existing pools
+    const existingYesEffectiveShares = yesPool * 1.0 // Approximate
+    const existingNoEffectiveShares = noPool * 1.0 // Approximate
+    
+    const totalYesEffectiveShares = selectedSide === 'YES' 
+      ? existingYesEffectiveShares + yourEffectiveShares 
+      : existingYesEffectiveShares
+    const totalNoEffectiveShares = selectedSide === 'NO'
+      ? existingNoEffectiveShares + yourEffectiveShares
+      : existingNoEffectiveShares
+    
+    // After deposit, calculate losing and winning pools (raw USDC)
+    const newYesPool = selectedSide === 'YES' ? yesPool + investment : yesPool
+    const newNoPool = selectedSide === 'NO' ? noPool + investment : noPool
+    
+    const losingPool = selectedSide === 'YES' ? newNoPool : newYesPool
+    const totalWinningEffectiveShares = selectedSide === 'YES' ? totalYesEffectiveShares : totalNoEffectiveShares
+    
+    if (totalWinningEffectiveShares === 0) return { profit: 0, roi: 0 }
+    
+    // Contract logic: payout = userActualStake + (availableWinnings * userEffectiveStake) / totalWinningEffectiveStakes
+    const feeRate = 0.05 // 5% fee on losing pool
+    const availableWinnings = losingPool * (1 - feeRate)
+    const winningsShare = (availableWinnings * yourEffectiveShares) / totalWinningEffectiveShares
+    
+    // Total payout = your original investment back + your share of winnings
+    const totalPayout = investment + winningsShare
+    const profit = totalPayout - investment
     const roi = (profit / investment) * 100
     
     return { profit, roi }
-  }, [estimatedShares, amount])
+  }, [amount, selectedSide, market.poolYes, market.poolNo, timeMultiplier])
 
   // Calculate new probability after trade
   const newProbability = useMemo(() => {
@@ -181,9 +258,9 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
     const total = newYesPool + newNoPool
     
     if (selectedSide === 'YES') {
-      return (newNoPool / total) * 100
-    } else {
       return (newYesPool / total) * 100
+    } else {
+      return (newNoPool / total) * 100
     }
   }, [amount, selectedSide, market.poolYes, market.poolNo, yesProb, noProb])
 
@@ -349,10 +426,21 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
             Trade Prediction
           </span>
           {isConnected && (
-            <Badge variant="outline" className="font-normal">
-              <Wallet className="h-3 w-3 mr-1" />
-              {balanceInUSDC.toFixed(2)} USDC
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="font-normal">
+                <Wallet className="h-3 w-3 mr-1" />
+                {balanceInUSDC.toFixed(2)} USDC
+              </Badge>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => refetchContractData?.()}
+                className="h-6 w-6 p-0"
+                title="Refresh balance"
+              >
+                <RefreshCw className="h-3 w-3" />
+              </Button>
+            </div>
           )}
         </CardTitle>
       </CardHeader>
@@ -434,7 +522,7 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
           </div>
 
           {/* Quick Amount Buttons */}
-          <div className="flex gap-2">
+          <div className="grid grid-cols-5 gap-2">
             {quickAmounts.map((quickAmount) => (
               <Button
                 key={quickAmount}
@@ -442,9 +530,9 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
                 size="sm"
                 onClick={() => setAmount(quickAmount.toString())}
                 disabled={disabled || tradingState.isLoading || !isConnected || quickAmount > balanceInUSDC}
-                className="flex-1"
+                className="text-xs"
               >
-                {quickAmount} USDC
+                {quickAmount >= 1000 ? `${quickAmount/1000}K` : quickAmount}
               </Button>
             ))}
             <Button
@@ -452,7 +540,7 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
               size="sm"
               onClick={() => setAmount(balanceInUSDC.toString())}
               disabled={disabled || tradingState.isLoading || !isConnected || balanceInUSDC === 0}
-              className="flex-1"
+              className="text-xs"
             >
               Max
             </Button>
@@ -464,46 +552,92 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
           <>
             <Separator />
             <div className="space-y-3 bg-muted/30 rounded-lg p-4">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Estimated Shares</span>
-                <span className="font-medium">{estimatedShares}</span>
+              <h4 className="text-sm font-medium">
+                Trade Summary
+              </h4>
+              
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="relative">
+                  <div className="text-muted-foreground flex items-center gap-1">
+                    Effective Shares
+                    <div className="relative">
+                      <Info 
+                        className="h-3 w-3 cursor-help" 
+                        onMouseEnter={() => setShowTooltip(true)}
+                        onMouseLeave={() => setShowTooltip(false)}
+                      />
+                      {showTooltip && (
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 p-3 bg-black text-white text-xs rounded-lg shadow-lg z-10">
+                          <div className="font-medium mb-1">
+                            {amount} USDC × {timeMultiplier.toFixed(2)} time multiplier = {estimatedShares} effective shares
+                          </div>
+                          <div className="text-gray-300">
+                            Early entry gets bonus multiplier, late entry gets penalty. These determine your share of winnings.
+                          </div>
+                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-black"></div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="font-medium">{estimatedShares}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">Your Share</div>
+                  <div className="font-medium text-blue-600">
+                    {(() => {
+                      const investment = parseFloat(amount || '0')
+                      if (investment === 0) return '0.0%'
+                      
+                      const yourEffectiveShares = investment * timeMultiplier
+                      const yesPool = parseFloat(market.poolYes || '0')
+                      const noPool = parseFloat(market.poolNo || '0')
+                      
+                      const existingYesEffectiveShares = yesPool * 1.0
+                      const existingNoEffectiveShares = noPool * 1.0
+                      
+                      const totalWinningEffectiveShares = selectedSide === 'YES' 
+                        ? existingYesEffectiveShares + yourEffectiveShares 
+                        : existingNoEffectiveShares + yourEffectiveShares
+                      
+                      const sharePercentage = (yourEffectiveShares / totalWinningEffectiveShares) * 100
+                      return `${sharePercentage.toFixed(1)}%`
+                    })()}
+                  </div>
+                </div>
               </div>
               
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Avg. Price per Share</span>
-                <span className="font-medium">
-                  {(parseFloat(amount) / parseFloat(estimatedShares)).toFixed(4)} USDC
-                </span>
-              </div>
+              <Separator />
               
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Potential Return</span>
-                <span className={cn(
-                  "font-medium",
-                  potentialReturn.profit > 0 ? "text-green-600" : "text-red-600"
-                )}>
-                  {potentialReturn.profit > 0 ? '+' : ''}{potentialReturn.profit.toFixed(2)} USDC
-                  ({potentialReturn.roi > 0 ? '+' : ''}{potentialReturn.roi.toFixed(1)}%)
-                </span>
-              </div>
-              
-              <Separator className="my-2" />
-              
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">New {selectedSide} Probability</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground">
-                    {selectedSide === 'YES' ? yesDisplay : noDisplay}
-                  </span>
-                  <ArrowRight className="h-3 w-3" />
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Potential Return</span>
                   <span className={cn(
                     "font-medium",
-                    newProbability > (selectedSide === 'YES' ? yesProb : noProb)
-                      ? "text-green-600"
-                      : "text-red-600"
+                    potentialReturn.profit > 0 ? "text-green-600" : "text-red-600"
                   )}>
-                    {newProbability.toFixed(1)}%
+                    {potentialReturn.profit > 0 ? '+' : ''}{potentialReturn.profit.toFixed(2)} USDC
+                    <span className="text-xs ml-1">
+                      ({potentialReturn.roi > 0 ? '+' : ''}{potentialReturn.roi.toFixed(1)}%)
+                    </span>
                   </span>
+                </div>
+                
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">New {selectedSide} Probability</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground text-xs">
+                      {selectedSide === 'YES' ? yesDisplay : noDisplay}
+                    </span>
+                    <ArrowRight className="h-3 w-3" />
+                    <span className={cn(
+                      "font-medium",
+                      newProbability > (selectedSide === 'YES' ? yesProb : noProb)
+                        ? "text-green-600"
+                        : "text-red-600"
+                    )}>
+                      {newProbability.toFixed(1)}%
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -654,7 +788,7 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
           ) : market.cutoffTime && new Date(parseInt(market.cutoffTime) * 1000) < new Date() ? (
             'Trading has ended for this market'
           ) : (
-            'You will receive shares that can be redeemed for 1 USDC each if your prediction is correct'
+            'If your prediction wins, you get your deposit back plus your share of the losing pool (minus fees)'
           )}
         </p>
       </CardContent>
