@@ -24,6 +24,7 @@ export function MarketCard({ market, onClick, onTrade }: MarketCardProps) {
   const poolYes = parseFloat(market.poolYes || '0')
   const poolNo = parseFloat(market.poolNo || '0')
   const totalPool = poolYes + poolNo
+  // Probability based on stake distribution: more stake = higher probability
   const yesProb = totalPool > 0 ? (poolYes / totalPool) * 100 : 50
   const noProb = totalPool > 0 ? (poolNo / totalPool) * 100 : 50
 
@@ -135,7 +136,7 @@ export function MarketCard({ market, onClick, onTrade }: MarketCardProps) {
                 handleTrade('YES')
               }}
             >
-              Buy YES @ {(yesProb / 100).toFixed(2)}
+              Buy YES
             </Button>
             <Button
               size="sm"
@@ -146,7 +147,7 @@ export function MarketCard({ market, onClick, onTrade }: MarketCardProps) {
                 handleTrade('NO')
               }}
             >
-              Buy NO @ {(noProb / 100).toFixed(2)}
+              Buy NO
             </Button>
           </div>
         )}

@@ -47,6 +47,17 @@ const GET_MARKETS_SIMPLE = gql`
     markets(first: 5) {
       id
       title
+      description
+      poolYes
+      poolNo
+      totalPool
+      resolved
+      cutoffTime
+      resolveTime
+      createdAt
+      creator {
+        id
+      }
     }
   }
 `

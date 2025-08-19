@@ -125,8 +125,8 @@ export function TradingInterface({ market, onTrade, onTransactionSuccess, disabl
     }
     
     return {
-      yesProb: (yesPool / total) * 100, // Direct correlation: more YES pool = higher YES probability
-      noProb: (noPool / total) * 100
+      yesProb: (yesPool / total) * 100, // Probability based on stake: more stake = higher probability
+      noProb: (noPool / total) * 100   // Probability based on stake: more stake = higher probability
     }
   }, [formattedPoolYes, formattedPoolNo])
 

@@ -300,13 +300,13 @@ function createMarketPriceSnapshot(
   snapshot.poolYes = market.poolYes
   snapshot.totalPool = market.totalPool
   
-  // Calculate probabilities using CPMM formula
-  // In CPMM, probability = opposite pool / total pool
+  // Calculate probabilities based on stake distribution
+  // More stake on an outcome = higher probability for that outcome
   let total = market.poolNo.plus(market.poolYes)
   if (total.gt(BigDecimal.fromString("0"))) {
-    // YES probability = NO pool / total (because buying YES reduces NO pool)
-    snapshot.probabilityYes = market.poolNo.div(total)
-    snapshot.probabilityNo = market.poolYes.div(total)
+    // YES probability = YES pool / total (more stake = higher probability)
+    snapshot.probabilityYes = market.poolYes.div(total)
+    snapshot.probabilityNo = market.poolNo.div(total)
   } else {
     snapshot.probabilityYes = BigDecimal.fromString("0.5")
     snapshot.probabilityNo = BigDecimal.fromString("0.5")
