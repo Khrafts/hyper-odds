@@ -582,7 +582,7 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
                   <div className="font-medium">{estimatedShares}</div>
                 </div>
                 <div>
-                  <div className="text-muted-foreground">Your Share</div>
+                  <div className="text-muted-foreground">Your Share of Winning Pool</div>
                   <div className="font-medium text-blue-600">
                     {(() => {
                       const investment = parseFloat(amount || '0')
@@ -592,16 +592,19 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
                       const yesPool = parseFloat(market.poolYes || '0')
                       const noPool = parseFloat(market.poolNo || '0')
                       
-                      const existingYesEffectiveShares = yesPool * 1.0
-                      const existingNoEffectiveShares = noPool * 1.0
+                      // Note: We can't know the exact effective shares of existing holders
+                      // without their deposit timestamps, so this is an approximation
+                      // assuming average time multiplier of 1.0 for existing pools
+                      const existingWinningPoolEffectiveShares = selectedSide === 'YES' ? yesPool * 1.0 : noPool * 1.0
                       
-                      const totalWinningEffectiveShares = selectedSide === 'YES' 
-                        ? existingYesEffectiveShares + yourEffectiveShares 
-                        : existingNoEffectiveShares + yourEffectiveShares
+                      const totalWinningEffectiveShares = existingWinningPoolEffectiveShares + yourEffectiveShares
                       
                       const sharePercentage = (yourEffectiveShares / totalWinningEffectiveShares) * 100
-                      return `${sharePercentage.toFixed(1)}%`
+                      return `~${sharePercentage.toFixed(1)}%`
                     })()}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Approximation - exact share depends on other holders' entry times
                   </div>
                 </div>
               </div>

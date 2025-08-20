@@ -28,7 +28,11 @@ function MarketDetailContent({ marketId }: { marketId: string }) {
   
   // Handle transaction success callback
   const handleTransactionSuccess = async () => {
-    // Refetch GraphQL data after transaction
+    // Refetch GraphQL data after transaction to update:
+    // - Market pools (poolYes, poolNo)
+    // - Activity feed (recent deposits)
+    // - Market statistics (volume, traders count)
+    // - Probability calculations
     await refetch()
   }
   

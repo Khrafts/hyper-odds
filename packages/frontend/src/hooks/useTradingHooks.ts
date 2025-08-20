@@ -150,6 +150,9 @@ export function useTradingHooks(marketAddress?: Address) {
       refetchOnWindowFocus: false, // Disable refetch on window focus
       refetchOnMount: false, // Disable refetch on mount
       refetchOnReconnect: false, // Disable refetch on reconnect
+      // Prevent hydration mismatches
+      staleTime: 30000, // Consider data fresh for 30 seconds
+      gcTime: 300000, // Keep in cache for 5 minutes
     },
   })
 
@@ -339,8 +342,10 @@ export function useTradingHooks(marketAddress?: Address) {
         txHash: txHash,
         stage: 'completed',
       }))
-      // Refetch data after successful transaction
+      // Refetch contract data after successful transaction
       refetchContractData()
+      
+      // Note: GraphQL data refetch is handled by the parent component's onTransactionSuccess callback
     } else if (writeError || txError) {
       setTradingState(prev => ({
         ...prev,
@@ -360,7 +365,7 @@ export function useTradingHooks(marketAddress?: Address) {
         txHash: txHash,
       }))
     }
-  }, [isTxSuccess, isTxLoading, isWritePending, writeError, txError, txHash])
+  }, [isTxSuccess, isTxLoading, isWritePending, writeError, txError, txHash, completeTransaction, refetchContractData])
 
   // Helper to check if amount needs approval
   const needsApproval = useCallback((amount: string) => {
@@ -420,6 +425,23 @@ export function useTradingHooks(marketAddress?: Address) {
     return estimates ? estimates[selectedGasSpeed] : null
   }, [gasEstimates, selectedGasSpeed])
 
+  // Memoize the merged trading state to prevent setState during render
+  const mergedTradingState = useMemo(() => {
+    const baseState = { ...tradingState }
+    
+    // Only merge store state if it's for the current market
+    if (storeState.currentTransaction?.marketId === marketAddress) {
+      return {
+        ...baseState,
+        isLoading: storeState.isLoading,
+        error: storeState.error ? new Error(storeState.error) : null,
+        stage: storeState.stage,
+      }
+    }
+    
+    return baseState
+  }, [tradingState, storeState, marketAddress])
+
   return {
     // Actions
     deposit,
@@ -435,15 +457,7 @@ export function useTradingHooks(marketAddress?: Address) {
     setSelectedGasSpeed,
     
     // State (merged local and store state)
-    tradingState: {
-      ...tradingState,
-      // Use store state if available for current market
-      ...(storeState.currentTransaction?.marketId === marketAddress && {
-        isLoading: storeState.isLoading,
-        error: storeState.error ? new Error(storeState.error) : null,
-        stage: storeState.stage,
-      }),
-    },
+    tradingState: mergedTradingState,
     
     // Gas-related state
     gasEstimates,
