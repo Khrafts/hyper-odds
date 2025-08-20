@@ -132,30 +132,31 @@ export function useMarkets(
   filters?: MarketFilters,
   pagination?: PaginationParams
 ) {
-  // Temporarily use simple query for debugging
+  // Use complex query with filtering when filters are provided
+  if (filters) {
+    const where = buildWhereClause(filters)
+    const { orderBy, orderDirection } = filters?.sortBy ? buildOrderBy(filters.sortBy) : { orderBy: 'createdAt', orderDirection: 'desc' }
+
+    return useQuery(GET_MARKETS, {
+      variables: {
+        first: pagination?.first ?? 20,
+        skip: 0, // Convert after cursor to skip if needed
+        where,
+        orderBy,
+        orderDirection,
+      },
+      notifyOnNetworkStatusChange: true,
+      errorPolicy: 'all',
+      ssr: false, // Disable SSR for this query
+    })
+  }
+  
+  // Fallback to simple query when no filters
   return useQuery(GET_MARKETS_SIMPLE, {
     notifyOnNetworkStatusChange: true,
     errorPolicy: 'all',
     ssr: false, // Disable SSR for this query
   })
-  
-  /* Original complex query - temporarily disabled
-  const where = filters ? buildWhereClause(filters) : undefined
-  const { orderBy, orderDirection } = filters?.sortBy ? buildOrderBy(filters.sortBy) : { orderBy: 'createdAt', orderDirection: 'desc' }
-
-  return useQuery(GET_MARKETS, {
-    variables: {
-      first: pagination?.first ?? 20,
-      skip: 0, // Convert after cursor to skip if needed
-      where,
-      orderBy,
-      orderDirection,
-    },
-    notifyOnNetworkStatusChange: true,
-    errorPolicy: 'all',
-    ssr: false, // Disable SSR for this query
-  })
-  */
 }
 
 /**

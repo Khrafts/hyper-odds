@@ -244,11 +244,19 @@ export function MarketHeader({
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">0 traders</span>
+                <span className="text-sm">
+                  {(() => {
+                    // Count unique traders from deposits
+                    const uniqueTraders = new Set(market.deposits?.map((d: any) => d.user.id) || [])
+                    return `${uniqueTraders.size} trader${uniqueTraders.size !== 1 ? 's' : ''}`
+                  })()}
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">0 trades</span>
+                <span className="text-sm">
+                  {market.deposits?.length || 0} trade{(market.deposits?.length || 0) !== 1 ? 's' : ''}
+                </span>
               </div>
             </div>
             <p className="text-xs text-muted-foreground">

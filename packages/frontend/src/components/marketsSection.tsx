@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { MarketGrid } from '@/components/markets/marketGrid'
-import { useMarkets, Market } from '@/hooks/useMarkets'
+import { useActiveMarkets, Market } from '@/hooks/useMarkets'
 import { ArrowRight } from 'lucide-react'
 
 // Mock data for demonstration (fallback)
@@ -60,19 +60,21 @@ const mockMarkets: Market[] = [
 export function MarketsSection() {
   const router = useRouter()
   
-  // Test the market hooks - remove filters to see if that's the issue
-  const { data: marketsData, loading: marketsLoading, error: marketsError } = useMarkets(
-    undefined, // No filters
+  // Get only active (live) markets
+  const { data: marketsData, loading: marketsLoading, error: marketsError } = useActiveMarkets(
     { first: 3 }
   )
 
   // TODO: Handle real GraphQL data structure when complex query is fixed
 
-  // Use real data if available, fallback to mock data
+  // Use real data if available, fallback to filtered mock data (only live markets)
   // marketsData contains the markets array directly from the GraphQL query
   const markets = (marketsData?.markets && Array.isArray(marketsData.markets)) 
     ? marketsData.markets 
-    : mockMarkets
+    : mockMarkets.filter(market => !market.resolved && !market.cancelled)
+
+  // Ensure markets is always an array
+  const safeMarkets = Array.isArray(markets) ? markets : []
 
   return (
     <section className="py-16 sm:py-24 bg-muted/30">
@@ -86,24 +88,9 @@ export function MarketsSection() {
           </p>
         </div>
         
-        <div className="text-center mb-4 text-sm text-muted-foreground">
-          {marketsLoading ? (
-            <div className="text-blue-600">🔄 Testing GraphQL hooks - Loading real markets...</div>
-          ) : marketsError ? (
-            <div className="text-amber-600">
-              ⚠️ GraphQL Error: {marketsError.message}
-              <br />
-              <small>Displaying mock data instead - hooks are working!</small>
-            </div>
-          ) : marketsData?.markets?.length ? (
-            <div className="text-green-600">✅ Success! Loaded {marketsData.markets.length} real markets from GraphQL</div>
-          ) : (
-            <div className="text-gray-600">📊 Using mock data - hooks are ready</div>
-          )}
-        </div>
         
         <MarketGrid 
-          markets={markets}
+          markets={safeMarkets}
           loading={marketsLoading}
           error={marketsError?.message}
           onMarketClick={(market) => {

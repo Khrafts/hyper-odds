@@ -320,7 +320,7 @@ function TradeItem({ trade }: TradeItemProps) {
                 <DollarSign className="h-3 w-3" />
                 {formatAmount(trade.amount)}
               </span>
-              <span>@${trade.price.toFixed(3)}</span>
+              {trade.price > 0 && <span>@${trade.price.toFixed(3)}</span>}
               {trade.impact && Math.abs(trade.impact) > 0.5 && (
                 <span className={cn(
                   'flex items-center gap-0.5',

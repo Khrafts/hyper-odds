@@ -209,8 +209,8 @@ function MarketDetailContent({ marketId }: { marketId: string }) {
                         outcome: deposit.outcome === 1 ? 'YES' : 'NO' as 'YES' | 'NO',
                         type: 'buy' as 'buy' | 'sell', // Deposits are always buys in this context
                         shares: BigInt(deposit.amount), // Using amount as shares for now
-                        amount: BigInt(Math.round(parseFloat(deposit.amount) * 1e18)), // Convert to wei
-                        price: 0.5, // We'd need to calculate this from pool ratios
+                        amount: BigInt(Math.round(parseFloat(deposit.amount) * 1e6)), // Convert to USDC (6 decimals)
+                        price: 0, // Price calculation removed - will not display
                         timestamp: new Date(parseInt(deposit.timestamp) * 1000),
                         txHash: deposit.transactionHash
                       }))}

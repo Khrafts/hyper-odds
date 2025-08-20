@@ -37,7 +37,7 @@ export function MarketGrid({
         onRetry={onRetry}
         loadingFallback={<MarketGridSkeleton />}
       >
-        {markets.length === 0 ? (
+        {!Array.isArray(markets) || markets.length === 0 ? (
           <div className="text-center py-12">
             <div className="mx-auto max-w-md">
               <h3 className="text-lg font-semibold text-muted-foreground">
@@ -50,7 +50,7 @@ export function MarketGrid({
           </div>
         ) : (
           <div className={`grid gap-6 ${className || 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
-            {markets.map((market) => (
+            {(Array.isArray(markets) ? markets : []).map((market) => (
               <MarketCard
                 key={market.id}
                 market={market}
