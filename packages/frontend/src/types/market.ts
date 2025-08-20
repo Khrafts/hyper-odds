@@ -11,95 +11,123 @@ export type OrderType = 'market' | 'limit'
  * Core market data structure
  */
 export interface Market {
-  id: string
-  marketId: string
-  question: string
-  description?: string
-  imageUrl?: string
-  category?: string
-  tags?: string[]
+  id: string // market address
+  title: string
+  description: string
   
   // Pool state
   poolYes: string
   poolNo: string
-  totalVolume: string
-  totalTrades: number
+  totalPool: string
+  effectivePoolYes: string
+  effectivePoolNo: string
+  totalEffectivePool: string
+  feeCollected: string
   
   // Status
   resolved: boolean
-  resolvedOutcome?: MarketOutcome
-  status: MarketStatus
+  cancelled: boolean
+  winningOutcome?: number // 0 = NO, 1 = YES
   
-  // Timestamps
+  // Economics
+  feeBps: number
+  creatorFeeShareBps: number
+  maxTotalPool: string
+  timeDecayBps: number
+  
+  // Timestamps (BigInt as string)
+  cutoffTime: string
+  resolveTime: string
   createdAt: string
-  updatedAt: string
-  expirationTime?: string
   resolvedAt?: string
   
   // Creator
   creator: {
     id: string
-    address: string
+    totalDeposited?: string
+    marketsCreated?: string
   }
+  
+  // Relations (optional, loaded separately)
+  deposits?: Deposit[]
+  positions?: Position[]
   
   // Computed fields
   probability?: number
   yesPrice?: number
   noPrice?: number
-  liquidity?: string
 }
 
 /**
  * Position in a market
  */
 export interface Position {
-  id: string
-  market: Market
+  id: string // market-user
+  market?: Market
   user: User
-  sharesYes: string
-  sharesNo: string
-  averageCostYes?: string
-  averageCostNo?: string
-  realizedPnl?: string
-  unrealizedPnl?: string
+  
+  // Stakes
+  stakeNo: string
+  stakeYes: string
+  totalStake: string
+  
+  // Effective Stakes (with time decay)
+  effectiveStakeNo: string
+  effectiveStakeYes: string
+  totalEffectiveStake: string
+  
+  // Outcome
+  claimed: boolean
+  payout: string
+  profit: string
+  
+  // Metadata
   createdAt: string
   updatedAt: string
+  claimedAt?: string
 }
 
 /**
- * Trade/transaction in a market
+ * Deposit in a market
  */
-export interface Trade {
-  id: string
-  tradeId: string
-  market: Market
-  trader: User
-  outcome: 'YES' | 'NO'
-  type: 'buy' | 'sell'
-  shares: string
+export interface Deposit {
+  id: string // tx-logIndex
+  market?: Market
+  user: User
+  outcome: number // 0 = NO, 1 = YES
   amount: string
-  price: string
+  effectiveAmount: string // After time decay multiplier
+  timeMultiplier: string
+  
+  // Metadata
   timestamp: string
-  txHash: string
-  blockNumber: number
-  gasUsed?: string
-  gasFee?: string
+  blockNumber: string
+  transactionHash: string
+  logIndex: string
 }
 
 /**
  * User/trader information
  */
 export interface User {
-  id: string
-  address: string
+  id: string // user address
+  
+  // Stats
+  totalDeposited?: string
+  totalClaimed?: string
+  totalProfit?: string
+  marketsCreated?: string
+  marketsParticipated?: string
+  
+  // Metadata
+  firstSeenAt?: string
+  firstSeenAtBlock?: string
+  lastActiveAt?: string
+  lastActiveAtBlock?: string
+  
+  // Frontend-only fields
   ensName?: string
   avatar?: string
-  totalVolume?: string
-  totalTrades?: number
-  winRate?: number
-  pnl?: string
-  createdAt: string
-  lastActiveAt?: string
 }
 
 /**
@@ -175,9 +203,7 @@ export type MarketSortBy =
  */
 export interface PaginationParams {
   first?: number
-  after?: string
-  before?: string
-  last?: number
+  skip?: number
 }
 
 /**

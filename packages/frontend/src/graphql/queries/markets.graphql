@@ -2,154 +2,134 @@
 
 query GetMarkets(
   $first: Int = 20
-  $after: String
-  $where: MarketFilter
-  $orderBy: MarketOrderBy
+  $skip: Int = 0
+  $where: Market_filter
+  $orderBy: Market_orderBy
 ) {
   markets(
     first: $first
-    after: $after
+    skip: $skip
     where: $where
     orderBy: $orderBy
   ) {
-    edges {
-      node {
-        id
-        marketId
-        question
-        description
-        outcome
-        poolYes
-        poolNo
-        resolved
-        resolvedOutcome
-        createdAt
-        updatedAt
-        expirationTime
-        creator {
-          id
-          address
-        }
-        trades {
-          totalCount
-        }
-      }
-      cursor
+    id
+    title
+    description
+    poolYes
+    poolNo
+    resolved
+    cancelled
+    winningOutcome
+    creator {
+      id
+      totalDeposited
+      marketsCreated
     }
-    pageInfo {
-      hasNextPage
-      hasPreviousPage
-      startCursor
-      endCursor
-    }
-    totalCount
+    feeBps
+    creatorFeeShareBps
+    cutoffTime
+    resolveTime
+    createdAt
+    resolvedAt
+    totalPool
+    effectivePoolYes
+    effectivePoolNo
   }
 }
 
 query GetMarket($id: ID!) {
   market(id: $id) {
     id
-    marketId
-    question
+    title
     description
-    outcome
     poolYes
     poolNo
     resolved
-    resolvedOutcome
-    createdAt
-    updatedAt
-    expirationTime
+    cancelled
+    winningOutcome
     creator {
       id
-      address
+      totalDeposited
+      marketsCreated
     }
-    trades {
-      edges {
-        node {
-          id
-          tradeId
-          outcome
-          shares
-          amount
-          timestamp
-          trader {
-            id
-            address
-          }
-        }
+    feeBps
+    creatorFeeShareBps
+    cutoffTime
+    resolveTime
+    createdAt
+    resolvedAt
+    totalPool
+    effectivePoolYes
+    effectivePoolNo
+    deposits {
+      id
+      user {
+        id
       }
+      outcome
+      amount
+      effectiveAmount
+      timeMultiplier
+      timestamp
     }
     positions {
-      edges {
-        node {
-          id
-          sharesYes
-          sharesNo
-          user {
-            id
-            address
-          }
-        }
-      }
-    }
-  }
-}
-
-query GetActiveMarkets($first: Int = 20, $after: String) {
-  markets(
-    first: $first
-    after: $after
-    where: { resolved: false }
-    orderBy: { field: CREATED_AT, direction: DESC }
-  ) {
-    edges {
-      node {
+      id
+      user {
         id
-        marketId
-        question
-        description
-        poolYes
-        poolNo
-        expirationTime
-        trades {
-          totalCount
-        }
       }
-      cursor
+      stakeYes
+      stakeNo
+      totalStake
+      effectiveStakeYes
+      effectiveStakeNo
+      claimed
+      payout
     }
-    pageInfo {
-      hasNextPage
-      endCursor
-    }
-    totalCount
   }
 }
 
-query GetResolvedMarkets($first: Int = 20, $after: String) {
+query GetActiveMarkets($first: Int = 20, $skip: Int = 0) {
   markets(
     first: $first
-    after: $after
+    skip: $skip
+    where: { resolved: false, cancelled: false }
+    orderBy: createdAt
+    orderDirection: desc
+  ) {
+    id
+    title
+    description
+    poolYes
+    poolNo
+    cutoffTime
+    resolveTime
+    totalPool
+    effectivePoolYes
+    effectivePoolNo
+    creator {
+      id
+    }
+  }
+}
+
+query GetResolvedMarkets($first: Int = 20, $skip: Int = 0) {
+  markets(
+    first: $first
+    skip: $skip
     where: { resolved: true }
-    orderBy: { field: UPDATED_AT, direction: DESC }
+    orderBy: resolvedAt
+    orderDirection: desc
   ) {
-    edges {
-      node {
-        id
-        marketId
-        question
-        description
-        resolvedOutcome
-        poolYes
-        poolNo
-        updatedAt
-      }
-      cursor
+    id
+    title
+    description
+    winningOutcome
+    poolYes
+    poolNo
+    resolvedAt
+    totalPool
+    creator {
+      id
     }
-    pageInfo {
-      hasNextPage
-      endCursor
-    }
-    totalCount
   }
 }

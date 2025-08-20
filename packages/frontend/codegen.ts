@@ -4,7 +4,7 @@ import { env } from './src/lib/env'
 const config: CodegenConfig = {
   overwrite: true,
   schema: env.NEXT_PUBLIC_GRAPHQL_ENDPOINT || 'http://localhost:8000/graphql',
-  documents: ['src/**/*.{ts,tsx}', '!src/graphql/__generated__/**/*'],
+  documents: ['src/**/*.{ts,tsx}', '!src/graphql/__generated__/**/*', '!src/hooks/graphql/**/*'],
   generates: {
     'src/graphql/__generated__/': {
       preset: 'client',
@@ -26,10 +26,7 @@ const config: CodegenConfig = {
         skipTypename: false,
         enumsAsTypes: false,
         dedupeOperationSuffix: true,
-        namingConvention: {
-          typeNames: 'PascalCase',
-          enumValues: 'UPPER_CASE',
-        },
+        namingConvention: 'keep',
         scalars: {
           DateTime: 'string',
           Date: 'string',

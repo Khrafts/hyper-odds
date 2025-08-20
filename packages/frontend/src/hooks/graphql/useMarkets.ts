@@ -6,24 +6,24 @@ import { Market, MarketFilters, PaginationParams } from '@/types'
  * GraphQL Fragments
  */
 const MARKET_FRAGMENT = gql`
-  fragment MarketFields on Market {
+  fragment MarketFieldsGQL on Market {
     id
-    marketId
-    question
+    title
     description
     poolYes
     poolNo
     resolved
-    resolvedOutcome
-    expirationTime
+    cancelled
+    winningOutcome
+    cutoffTime
+    resolveTime
     createdAt
-    updatedAt
+    resolvedAt
+    totalPool
+    effectivePoolYes
+    effectivePoolNo
     creator {
       id
-      address
-    }
-    trades {
-      totalCount
     }
   }
 `
@@ -33,62 +33,53 @@ const MARKET_FRAGMENT = gql`
  */
 const GET_MARKETS = gql`
   ${MARKET_FRAGMENT}
-  query GetMarkets(
+  query GetMarketsGQL(
     $first: Int
-    $after: String
-    $where: MarketFilter
-    $orderBy: MarketOrderBy
+    $skip: Int
+    $where: Market_filter
+    $orderBy: Market_orderBy
+    $orderDirection: OrderDirection
   ) {
-    markets(first: $first, after: $after, where: $where, orderBy: $orderBy) {
-      edges {
-        node {
-          ...MarketFields
-        }
-        cursor
-      }
-      pageInfo {
-        hasNextPage
-        hasPreviousPage
-        startCursor
-        endCursor
-      }
-      totalCount
+    markets(
+      first: $first
+      skip: $skip
+      where: $where
+      orderBy: $orderBy
+      orderDirection: $orderDirection
+    ) {
+      ...MarketFieldsGQL
     }
   }
 `
 
 const GET_MARKET = gql`
   ${MARKET_FRAGMENT}
-  query GetMarket($id: ID!) {
+  query GetMarketGQL($id: ID!) {
     market(id: $id) {
-      ...MarketFields
-      trades {
-        edges {
-          node {
-            id
-            outcome
-            shares
-            amount
-            timestamp
-            trader {
-              id
-              address
-            }
-          }
+      ...MarketFieldsGQL
+      deposits {
+        id
+        user {
+          id
         }
+        outcome
+        amount
+        effectiveAmount
+        timeMultiplier
+        timestamp
       }
       positions {
-        edges {
-          node {
-            id
-            sharesYes
-            sharesNo
-            user {
-              id
-              address
-            }
-          }
+        id
+        user {
+          id
         }
+        stakeYes
+        stakeNo
+        totalStake
+        effectiveStakeYes
+        effectiveStakeNo
+        claimed
+        payout
       }
     }
   }
@@ -154,14 +145,15 @@ export function useMarkets(
   pagination?: PaginationParams
 ) {
   const where = filters ? buildWhereClause(filters) : undefined
-  const orderBy = filters?.sortBy ? buildOrderBy(filters.sortBy) : undefined
+  const { orderBy, orderDirection } = filters?.sortBy ? buildOrderBy(filters.sortBy) : { orderBy: 'createdAt', orderDirection: 'desc' }
 
   return useQuery(GET_MARKETS, {
     variables: {
       first: pagination?.first ?? 20,
-      after: pagination?.after,
+      skip: pagination?.skip ?? 0,
       where,
       orderBy,
+      orderDirection,
     },
     notifyOnNetworkStatusChange: true,
   })
@@ -246,14 +238,14 @@ function buildWhereClause(filters: MarketFilters) {
 function buildOrderBy(sortBy: string) {
   switch (sortBy) {
     case 'newest':
-      return { field: 'CREATED_AT', direction: 'DESC' }
+      return { orderBy: 'createdAt', orderDirection: 'desc' }
     case 'oldest':
-      return { field: 'CREATED_AT', direction: 'ASC' }
+      return { orderBy: 'createdAt', orderDirection: 'asc' }
     case 'volume':
-      return { field: 'TOTAL_VOLUME', direction: 'DESC' }
+      return { orderBy: 'totalPool', orderDirection: 'desc' }
     case 'trades':
-      return { field: 'TOTAL_TRADES', direction: 'DESC' }
+      return { orderBy: 'totalPool', orderDirection: 'desc' }
     default:
-      return { field: 'CREATED_AT', direction: 'DESC' }
+      return { orderBy: 'createdAt', orderDirection: 'desc' }
   }
 }

@@ -77,14 +77,12 @@ const cache = new InMemoryCache({
   typePolicies: {
     Query: {
       fields: {
-        // Market pagination
+        // Markets array (not paginated in subgraph)
         markets: {
-          keyArgs: ['where', 'orderBy'],
-          merge(existing = { edges: [], pageInfo: {} }, incoming) {
-            return {
-              ...incoming,
-              edges: [...(existing.edges || []), ...(incoming.edges || [])],
-            }
+          keyArgs: ['where', 'orderBy', 'orderDirection'],
+          merge(existing = [], incoming = []) {
+            // Simple replace merge for non-paginated arrays
+            return incoming
           },
         },
         // Market details
@@ -96,9 +94,9 @@ const cache = new InMemoryCache({
         },
         // User positions (array-based, not paginated)
         positions: {
-          keyArgs: ['where', 'orderBy'],
-          merge(existing = [], incoming) {
-            return incoming || []
+          keyArgs: ['where', 'orderBy', 'orderDirection'],
+          merge(existing = [], incoming = []) {
+            return incoming
           },
         },
       },

@@ -14,6 +14,15 @@ const envSchema = z.object({
 })
 
 function createEnv() {
+  // Load dotenv for non-Next.js contexts (like codegen)
+  if (typeof window === 'undefined' && !process.env.NEXT_PUBLIC_GRAPHQL_ENDPOINT) {
+    try {
+      require('dotenv').config({ path: '.env.local' })
+    } catch (e) {
+      // dotenv might not be available in production
+    }
+  }
+
   // Ensure proper string coercion for Next.js client/server differences
   const cleanedEnv = {
     NEXT_PUBLIC_GRAPHQL_ENDPOINT: String(process.env.NEXT_PUBLIC_GRAPHQL_ENDPOINT || ''),
