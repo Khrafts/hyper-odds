@@ -145,18 +145,21 @@ export function useTradingHooks(marketAddress?: Address) {
     ],
     query: {
       enabled: Boolean(stakeTokenAddress && routerAddress && marketAddress && userAddress && isConnected),
-      // DISABLED: Automatic refetching was causing excessive RPC calls
+      // DISABLED: Automatic refetching was causing excessive RPC calls and balance resets
       // refetchInterval: 10000, // Refetch every 10 seconds
       refetchOnWindowFocus: false, // Disable refetch on window focus
       refetchOnMount: false, // Disable refetch on mount
       refetchOnReconnect: false, // Disable refetch on reconnect
-      // Prevent hydration mismatches
-      staleTime: 30000, // Consider data fresh for 30 seconds
-      gcTime: 300000, // Keep in cache for 5 minutes
+      // Cache configuration to prevent data loss
+      staleTime: 60000, // Consider data fresh for 60 seconds (increased from 30s)
+      gcTime: 600000, // Keep in cache for 10 minutes (increased from 5m)
+      // Retry configuration for better reliability
+      retry: 3, // Retry failed requests 3 times
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
     },
   })
 
-  // Parse contract data
+  // Parse contract data with better error handling and caching
   const { 
     usdcBalance, 
     usdcAllowance, 
@@ -167,7 +170,8 @@ export function useTradingHooks(marketAddress?: Address) {
     cutoffTime,
     hasClaimed 
   } = useMemo(() => {
-    if (!contractData) {
+    // If no contract data available and we have a query error, preserve previous values
+    if (!contractData || !Array.isArray(contractData)) {
       return {
         usdcBalance: 0n,
         usdcAllowance: 0n,

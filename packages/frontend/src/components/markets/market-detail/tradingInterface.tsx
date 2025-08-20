@@ -123,19 +123,11 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
     }
   }, [tradingState.isSuccess, tradingState.stage, onTransactionSuccess])
 
-  // Periodic balance refresh to prevent stale data
+  // Initial data fetch when component mounts or wallet connects
   useEffect(() => {
-    if (!isConnected || !refetchContractData) return
-
-    // Refresh balance every 30 seconds when trading interface is open
-    const interval = setInterval(() => {
+    if (isConnected && refetchContractData) {
       refetchContractData()
-    }, 30000) // 30 seconds
-
-    // Also refresh when the component mounts
-    refetchContractData()
-
-    return () => clearInterval(interval)
+    }
   }, [isConnected, refetchContractData])
 
   // Refresh balance when user reconnects or addresses change
