@@ -126,12 +126,12 @@ const cache = new InMemoryCache({
       keyFields: ['id'],
       fields: {
         // Optimistic updates for position fields
-        sharesYes: {
+        stakeYes: {
           merge(existing, incoming) {
             return incoming
           },
         },
-        sharesNo: {
+        stakeNo: {
           merge(existing, incoming) {
             return incoming
           },

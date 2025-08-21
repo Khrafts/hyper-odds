@@ -9,8 +9,10 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AlertCircle, TrendingUp, TrendingDown, DollarSign, Trophy, Activity, Wallet } from 'lucide-react'
 import { usePositionSummary, useUserPositions, useClaimablePositions } from '@/hooks/usePositions'
+import { PositionCardsList } from '@/components/portfolio/positionCard'
+import { ClaimRewards } from '@/components/portfolio/claimRewards'
 import ConnectButton, { SSRSafeConnectButton } from '@/components/web3/connectButton'
-import { ComponentErrorBoundary } from '@/components/error'
+import { ComponentErrorBoundary } from '@/components/error/errorBoundary'
 import { ClientOnly } from '@/components/clientOnly'
 import { cn } from '@/lib/utils'
 
@@ -26,39 +28,47 @@ function PortfolioPageContent() {
   const { address, isConnected } = useWallet()
   const [activeTab, setActiveTab] = useState('overview')
 
-  // Fetch portfolio data
-  const { summary, loading: summaryLoading } = usePositionSummary(address)
-  const { positions, loading: positionsLoading } = useUserPositions(address)
-  const { claimablePositions, totalClaimable, loading: claimableLoading } = useClaimablePositions(address)
+  // For demo/testing purposes, use the test user if no wallet is connected
+  const testUserAddress = '0x9f522a1caf502058230900e3836c6e89ba4f4939'
+  // Normalize address to lowercase for GraphQL queries
+  const effectiveAddress = (address || testUserAddress)?.toLowerCase()
 
-  if (!isConnected) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="text-center space-y-6">
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold">Portfolio</h1>
-            <p className="text-muted-foreground">
-              Connect your wallet to view your trading positions and performance
-            </p>
-          </div>
-          
-          <div className="flex flex-col items-center gap-4">
-            <Wallet className="h-16 w-16 text-muted-foreground opacity-50" />
-            <SSRSafeConnectButton />
-          </div>
-        </div>
-      </div>
-    )
-  }
+  // Fetch portfolio data
+  const { summary, loading: summaryLoading } = usePositionSummary(effectiveAddress)
+  const { positions, loading: positionsLoading } = useUserPositions(effectiveAddress)
+  const { claimablePositions, totalClaimable, loading: claimableLoading } = useClaimablePositions(effectiveAddress)
+
+  // For demo purposes, show test data even when not connected
+  // Remove this logic later in production
+  const shouldShowDemoData = !isConnected
 
   return (
     <ComponentErrorBoundary componentName="PortfolioPage">
       <div className="container mx-auto px-4 py-8 space-y-8">
+        {shouldShowDemoData && (
+          <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
+              <AlertCircle className="h-5 w-5" />
+              <div>
+                <p className="font-medium">Demo Mode</p>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  Showing test user data. Connect your wallet to see your actual portfolio.
+                </p>
+              </div>
+              <div className="ml-auto">
+                <SSRSafeConnectButton />
+              </div>
+            </div>
+          </div>
+        )}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Portfolio</h1>
             <p className="text-muted-foreground">
-              Track your positions and trading performance
+              {shouldShowDemoData 
+                ? "Demo Portfolio - Showing test user data"
+                : "Track your positions and trading performance"
+              }
             </p>
           </div>
           
@@ -102,22 +112,21 @@ function PortfolioPageContent() {
           </TabsContent>
 
           <TabsContent value="positions" className="space-y-6">
-            <PositionsList 
+            <PositionCardsList 
               positions={positions}
               loading={positionsLoading}
-              showAll={true}
+              emptyMessage="No positions found. Start trading to see your positions here!"
             />
           </TabsContent>
 
           <TabsContent value="claimable" className="space-y-6">
-            <ClaimablePositions 
-              positions={claimablePositions}
-              loading={claimableLoading}
+            <ClaimRewards 
+              userId={effectiveAddress}
             />
           </TabsContent>
 
           <TabsContent value="history" className="space-y-6">
-            <TradingHistory address={address} />
+            <TradingHistory address={effectiveAddress} />
           </TabsContent>
         </Tabs>
       </div>
@@ -246,7 +255,7 @@ function PortfolioOverview({ summary, positions, loading }: PortfolioOverviewPro
     )
   }
 
-  const activePositions = positions.filter(p => p.isActive)
+  const activePositions = positions.filter(p => p.status === 'active')
   const recentPositions = positions.slice(0, 5)
 
   return (
@@ -257,10 +266,12 @@ function PortfolioOverview({ summary, positions, loading }: PortfolioOverviewPro
           <CardTitle>Recent Positions</CardTitle>
         </CardHeader>
         <CardContent>
-          <PositionsList 
+          <PositionCardsList 
             positions={recentPositions}
             loading={false}
-            showAll={false}
+            compact={true}
+            showActions={false}
+            emptyMessage="No recent positions"
           />
         </CardContent>
       </Card>
@@ -274,29 +285,33 @@ function PortfolioOverview({ summary, positions, loading }: PortfolioOverviewPro
           <CardContent>
             {activePositions.length > 0 ? (
               <div className="space-y-3">
-                {activePositions.slice(0, 3).map(position => (
-                  <div key={position.id} className="flex justify-between items-center">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
-                        {position.market.question || 'Market Question'}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {position.shares} {position.outcome} shares
-                      </p>
+                {activePositions.slice(0, 3).map(position => {
+                  const dominantOutcome = parseFloat(position.stakeYes || '0') > parseFloat(position.stakeNo || '0') ? 'YES' : 'NO'
+                  const totalStake = parseFloat(position.totalStake || '0')
+                  return (
+                    <div key={position.id} className="flex justify-between items-center">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">
+                          {position.market.title || 'Market Title'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          ${totalStake.toFixed(2)} {dominantOutcome} stake
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-medium">
+                          ${totalStake.toFixed(2)}
+                        </p>
+                        <p className={cn(
+                          'text-xs',
+                          position.roi >= 0 ? 'text-green-600' : 'text-red-600'
+                        )}>
+                          {position.roi >= 0 ? '+' : ''}{position.roi.toFixed(1)}%
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium">
-                        ${parseFloat(position.currentValue).toFixed(2)}
-                      </p>
-                      <p className={cn(
-                        'text-xs',
-                        position.pnlPercent >= 0 ? 'text-green-600' : 'text-red-600'
-                      )}>
-                        {position.pnlPercent >= 0 ? '+' : ''}{position.pnlPercent.toFixed(1)}%
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             ) : (
               <p className="text-muted-foreground text-center py-4">
@@ -351,81 +366,7 @@ function PortfolioOverview({ summary, positions, loading }: PortfolioOverviewPro
   )
 }
 
-// Placeholder components - will be implemented in subsequent tasks
-function PositionsList({ positions, loading, showAll }: any) {
-  if (loading) {
-    return (
-      <div className="space-y-3">
-        {[1, 2, 3].map(i => (
-          <Skeleton key={i} className="h-16 w-full" />
-        ))}
-      </div>
-    )
-  }
-
-  if (positions.length === 0) {
-    return (
-      <div className="text-center py-8">
-        <AlertCircle className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-50" />
-        <p className="text-muted-foreground">No positions found</p>
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-3">
-      {positions.map((position: any) => (
-        <div key={position.id} className="p-4 border rounded-lg">
-          <div className="flex justify-between items-start">
-            <div className="flex-1">
-              <h3 className="font-medium">{position.market.question || 'Market Question'}</h3>
-              <p className="text-sm text-muted-foreground">
-                {position.shares} {position.outcome} shares
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="font-medium">${parseFloat(position.currentValue).toFixed(2)}</p>
-              <p className={cn(
-                'text-sm',
-                position.pnlPercent >= 0 ? 'text-green-600' : 'text-red-600'
-              )}>
-                {position.pnlPercent >= 0 ? '+' : ''}{position.pnlPercent.toFixed(1)}%
-              </p>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function ClaimablePositions({ positions, loading }: any) {
-  if (loading) {
-    return <Skeleton className="h-48 w-full" />
-  }
-
-  if (positions.length === 0) {
-    return (
-      <Card>
-        <CardContent className="text-center py-8">
-          <Trophy className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-50" />
-          <p className="text-muted-foreground">No positions ready to claim</p>
-        </CardContent>
-      </Card>
-    )
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Claimable Positions</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <PositionsList positions={positions} loading={false} showAll={true} />
-      </CardContent>
-    </Card>
-  )
-}
+// Trading History placeholder - will be implemented in future tasks
 
 function TradingHistory({ address }: { address?: string }) {
   return (

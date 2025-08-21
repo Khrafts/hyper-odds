@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Separator } from '@/components/ui/separator'
-import { ComponentErrorBoundary } from '@/components/error'
+import { ComponentErrorBoundary } from '@/components/error/errorBoundary'
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -19,12 +19,12 @@ import {
   BarChart3,
   Target
 } from 'lucide-react'
-import { UserPosition } from '@/types/user'
+import { PositionWithStats } from '@/types/user'
 import { cn } from '@/lib/utils'
 import { formatEther } from 'viem'
 
 interface PositionCardProps {
-  position: UserPosition
+  position: PositionWithStats
   onClaim?: () => Promise<void>
   onSell?: (shares: string) => Promise<void>
   className?: string
@@ -40,22 +40,27 @@ export function PositionCard({
   compact = false,
   showActions = true
 }: PositionCardProps) {
-  const pnl = parseFloat(position.unrealizedPnl)
-  const pnlPercent = position.pnlPercent
-  const currentValue = parseFloat(position.currentValue)
-  const invested = parseFloat(position.totalInvested)
+  const pnl = parseFloat(position.unrealizedPnl || '0')
+  const pnlPercent = position.roi || 0
+  const stakeYes = parseFloat(position.stakeYes || '0')
+  const stakeNo = parseFloat(position.stakeNo || '0')
+  const totalStake = parseFloat(position.totalStake || '0')
+  const potentialPayout = parseFloat(position.potentialPayout || '0')
 
   const pnlColor = pnl >= 0 ? 'text-green-600' : 'text-red-600'
   const pnlBgColor = pnl >= 0 ? 'bg-green-50 dark:bg-green-950' : 'bg-red-50 dark:bg-red-950'
   const pnlIcon = pnl >= 0 ? TrendingUp : TrendingDown
   const PnlIcon = pnlIcon
 
-  const outcomeColor = position.outcome === 'YES' ? 'bg-green-600' : 'bg-red-600'
-  const isResolved = !position.isActive
-  const canClaim = position.canClaim && position.claimableAmount
+  const dominantOutcome = stakeYes > stakeNo ? 'YES' : 'NO'
+  const outcomeColor = dominantOutcome === 'YES' ? 'bg-green-600' : 'bg-red-600'
+  const isResolved = position.market.resolved || position.market.cancelled
+  const canClaim = position.status === 'claimable'
 
-  // Calculate market probability (mock for now)
-  const marketProbability = position.outcome === 'YES' ? 65 : 35
+  // Use actual market probabilities
+  const marketProbabilityYes = Math.round(position.currentProbabilityYes * 100)
+  const marketProbabilityNo = Math.round(position.currentProbabilityNo * 100)
+  const marketProbability = dominantOutcome === 'YES' ? marketProbabilityYes : marketProbabilityNo
 
   if (compact) {
     return (
@@ -76,11 +81,11 @@ export function PositionCard({
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
               <Link 
-                href={`/markets/${position.marketId}`}
+                href={`/markets/${position.market.id}`}
                 className="hover:underline"
               >
                 <h3 className="font-semibold text-base line-clamp-2 leading-tight">
-                  {position.market.question || 'Market Question'}
+                  {position.market.title || 'Market Title'}
                 </h3>
               </Link>
               <p className="text-sm text-muted-foreground mt-1">
@@ -94,7 +99,7 @@ export function PositionCard({
               <Badge 
                 className={cn('text-white', outcomeColor)}
               >
-                {position.outcome}
+                {dominantOutcome}
               </Badge>
               
               {isResolved && (
@@ -114,9 +119,9 @@ export function PositionCard({
           {/* Position Summary */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">Position Value</p>
+              <p className="text-sm text-muted-foreground">Total Stake</p>
               <p className="text-lg font-semibold">
-                ${currentValue.toFixed(2)}
+                ${totalStake.toFixed(2)}
               </p>
             </div>
             
@@ -139,13 +144,13 @@ export function PositionCard({
           {/* Position Details */}
           <div className="space-y-3">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Shares Owned</span>
-              <span className="font-medium">{parseFloat(position.shares).toFixed(0)}</span>
+              <span className="text-sm text-muted-foreground">YES Stake</span>
+              <span className="font-medium">${stakeYes.toFixed(2)}</span>
             </div>
             
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Total Invested</span>
-              <span className="font-medium">${invested.toFixed(2)}</span>
+              <span className="text-sm text-muted-foreground">NO Stake</span>
+              <span className="font-medium">${stakeNo.toFixed(2)}</span>
             </div>
             
             <div className="flex justify-between items-center">
@@ -159,15 +164,13 @@ export function PositionCard({
               </div>
             </div>
             
-            {position.firstTradeAt && (
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Held Since</span>
-                <span className="text-sm font-medium flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  {new Date(position.firstTradeAt).toLocaleDateString()}
-                </span>
-              </div>
-            )}
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Created</span>
+              <span className="text-sm font-medium flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                {new Date(parseInt(position.createdAt) * 1000).toLocaleDateString()}
+              </span>
+            </div>
           </div>
 
           {/* Performance Indicator */}
@@ -193,17 +196,17 @@ export function PositionCard({
                   size="sm"
                 >
                   <Trophy className="h-4 w-4 mr-2" />
-                  Claim ${parseFloat(position.claimableAmount || '0').toFixed(2)}
+                  Claim ${potentialPayout.toFixed(2)}
                 </Button>
               )}
               
-              {position.isActive && (
+              {position.status === 'active' && (
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
                     size="sm"
                     className="flex-1"
-                    onClick={() => onSell?.(position.shares)}
+                    onClick={() => onSell?.(totalStake.toString())}
                   >
                     Sell All
                   </Button>
@@ -212,7 +215,7 @@ export function PositionCard({
                     size="sm"
                     asChild
                   >
-                    <Link href={`/markets/${position.marketId}`}>
+                    <Link href={`/markets/${position.market.id}`}>
                       <Target className="h-4 w-4 mr-1" />
                       Trade
                     </Link>
@@ -220,7 +223,7 @@ export function PositionCard({
                 </div>
               )}
               
-              {!position.isActive && !canClaim && (
+              {position.status === 'lost' && (
                 <div className="text-center py-2">
                   <AlertCircle className="h-8 w-8 mx-auto text-muted-foreground opacity-50 mb-2" />
                   <p className="text-sm text-muted-foreground">Position closed</p>
@@ -237,7 +240,7 @@ export function PositionCard({
               asChild
               className="text-muted-foreground hover:text-foreground"
             >
-              <Link href={`/markets/${position.marketId}`}>
+              <Link href={`/markets/${position.market.id}`}>
                 <ExternalLink className="h-3 w-3 mr-1" />
                 View Market
               </Link>
@@ -250,7 +253,7 @@ export function PositionCard({
 }
 
 interface CompactPositionCardProps {
-  position: UserPosition
+  position: PositionWithStats
   pnl: number
   pnlPercent: number
   pnlColor: string
@@ -264,8 +267,11 @@ function CompactPositionCard({
   pnlColor, 
   className 
 }: CompactPositionCardProps) {
-  const outcomeColor = position.outcome === 'YES' ? 'bg-green-600' : 'bg-red-600'
-  const currentValue = parseFloat(position.currentValue)
+  const stakeYes = parseFloat(position.stakeYes || '0')
+  const stakeNo = parseFloat(position.stakeNo || '0')
+  const dominantOutcome = stakeYes > stakeNo ? 'YES' : 'NO'
+  const outcomeColor = dominantOutcome === 'YES' ? 'bg-green-600' : 'bg-red-600'
+  const totalStake = parseFloat(position.totalStake || '0')
 
   return (
     <Card className={cn('hover:shadow-sm transition-shadow', className)}>
@@ -274,20 +280,20 @@ function CompactPositionCard({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <Badge className={cn('text-white text-xs', outcomeColor)}>
-                {position.outcome}
+                {dominantOutcome}
               </Badge>
               <span className="text-sm font-medium truncate">
-                {parseFloat(position.shares).toFixed(0)} shares
+                ${totalStake.toFixed(2)} staked
               </span>
             </div>
             <p className="text-sm text-muted-foreground truncate">
-              {position.market.question || 'Market Question'}
+              {position.market.title || 'Market Title'}
             </p>
           </div>
           
           <div className="text-right ml-4">
             <p className="text-sm font-semibold">
-              ${currentValue.toFixed(2)}
+              ${totalStake.toFixed(2)}
             </p>
             <p className={cn('text-xs', pnlColor)}>
               {pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}
@@ -298,7 +304,7 @@ function CompactPositionCard({
           </div>
         </div>
         
-        {position.canClaim && (
+        {position.status === 'claimable' && (
           <div className="mt-2 pt-2 border-t">
             <div className="flex items-center justify-between">
               <span className="text-xs text-green-600 font-medium">Ready to claim</span>
@@ -313,10 +319,10 @@ function CompactPositionCard({
 
 // List wrapper component
 interface PositionCardsListProps {
-  positions: UserPosition[]
+  positions: PositionWithStats[]
   loading?: boolean
-  onClaim?: (position: UserPosition) => Promise<void>
-  onSell?: (position: UserPosition, shares: string) => Promise<void>
+  onClaim?: (position: PositionWithStats) => Promise<void>
+  onSell?: (position: PositionWithStats, shares: string) => Promise<void>
   compact?: boolean
   showActions?: boolean
   emptyMessage?: string

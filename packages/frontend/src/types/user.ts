@@ -6,19 +6,25 @@
 import { Market, MarketOutcome } from './market'
 
 /**
- * User/trader base information
+ * User/trader base information from GraphQL schema
  */
 export interface User {
-  id: string
-  address: string
-  ensName?: string
-  avatar?: string
-  totalVolume?: string
-  totalTrades?: number
-  winRate?: number
-  pnl?: string
-  createdAt: string
-  lastActiveAt?: string
+  id: string // user address
+  totalDeposited: string
+  totalClaimed: string
+  totalProfit: string
+  marketsCreated: number
+  marketsParticipated: number
+  firstSeenAt: string
+  firstSeenAtBlock: number
+  lastActiveAt: string
+  lastActiveAtBlock: number
+  
+  // Relations
+  createdMarkets?: Market[]
+  deposits?: Deposit[]
+  claims?: Claim[]
+  positions?: Position[]
 }
 
 /**
@@ -57,7 +63,108 @@ export interface UserProfile extends User {
 }
 
 /**
- * User position in a specific market
+ * Position from GraphQL schema
+ */
+export interface Position {
+  id: string // market-user
+  market: {
+    id: string
+    title: string
+    description: string
+    resolved: boolean
+    cancelled: boolean
+    winningOutcome?: number
+    poolNo: string
+    poolYes: string
+    totalPool: string
+    cutoffTime: string
+    resolveTime: string
+    feeBps: number
+  }
+  user: {
+    id: string
+  }
+  
+  // Stakes
+  stakeNo: string
+  stakeYes: string
+  totalStake: string
+  
+  // Effective Stakes (with time decay multipliers)
+  effectiveStakeNo: string
+  effectiveStakeYes: string
+  totalEffectiveStake: string
+  
+  // Outcome
+  claimed: boolean
+  payout: string
+  profit: string
+  
+  // Metadata
+  createdAt: string
+  updatedAt: string
+  claimedAt?: string
+}
+
+/**
+ * Deposit from GraphQL schema
+ */
+export interface Deposit {
+  id: string // tx-logIndex
+  market: {
+    id: string
+    title: string
+  }
+  user: {
+    id: string
+  }
+  outcome: number // 0 = NO, 1 = YES
+  amount: string
+  effectiveAmount: string // Amount after time decay multiplier
+  timeMultiplier: string // The multiplier applied (e.g., 1.125 for early, 0.875 for late)
+  
+  // Metadata
+  timestamp: string
+  blockNumber: string
+  transactionHash: string
+  logIndex: string
+}
+
+/**
+ * Claim from GraphQL schema
+ */
+export interface Claim {
+  id: string // tx-logIndex
+  market: {
+    id: string
+    title: string
+  }
+  user: {
+    id: string
+  }
+  payout: string
+  
+  // Metadata
+  timestamp: string
+  blockNumber: string
+  transactionHash: string
+  logIndex: string
+}
+
+/**
+ * Enhanced position with calculated fields
+ */
+export interface PositionWithStats extends Position {
+  currentProbabilityYes: number
+  currentProbabilityNo: number
+  potentialPayout: string
+  roi: number
+  status: 'active' | 'won' | 'lost' | 'pending' | 'claimable'
+  unrealizedPnl: string
+}
+
+/**
+ * Legacy UserPosition interface for backward compatibility
  */
 export interface UserPosition {
   id: string

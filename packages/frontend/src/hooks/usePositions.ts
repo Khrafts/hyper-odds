@@ -3,7 +3,7 @@
  * Builds on GraphQL hooks with additional calculations and utilities
  */
 
-import { useMemo } from 'react'
+import React, { useMemo } from 'react'
 import { useWallet } from '@/hooks/useWallet'
 import { 
   useUserPositions as useUserPositionsGraphQL, 
@@ -11,58 +11,78 @@ import {
   useActivePositions as useActivePositionsGraphQL,
   usePosition 
 } from './graphql/usePositions'
-import { UserPosition, PositionSummary, PositionStatus } from '@/types/user'
+import { Position, PositionWithStats, UserPosition, PositionSummary, PositionStatus } from '@/types/user'
 import { formatEther, parseEther } from 'viem'
 
 /**
  * Enhanced user positions hook with calculations
+ * Returns PositionWithStats[] instead of UserPosition[]
  */
-export function useUserPositions(userId?: string, includeResolved = true) {
+export function useUserPositions(userId?: string, includeResolved = true): {
+  positions: PositionWithStats[]
+  loading: boolean
+  error: any
+  refetch: any
+} {
   const { address } = useWallet()
-  const targetUserId = userId || address
+  // Convert addresses to lowercase for GraphQL queries (Ethereum addresses are case-insensitive)
+  const targetUserId = (userId || address)?.toLowerCase()
   
   const { data, loading, error, refetch } = useUserPositionsGraphQL(
     targetUserId || '', 
     includeResolved ? 100 : 50
   )
 
+  // Debug logging - remove in production
+  React.useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('useUserPositions Debug:', {
+        originalAddress: address,
+        targetUserId,
+        loading,
+        error: error?.message || error,
+        data,
+        hasPositions: data?.positions?.length || 0
+      })
+    }
+  }, [targetUserId, address, loading, error, data])
+
   const positions = useMemo(() => {
     if (!data?.positions) return []
     
-    return data.positions.map(position => {
+    return data.positions.map((position: Position) => {
       const market = position.market
       
-      // Calculate current prices
+      // Calculate current prices based on pools
       const poolYes = parseFloat(market.poolYes || '0')
       const poolNo = parseFloat(market.poolNo || '0')
       const totalPool = poolYes + poolNo
       
-      const yesPrice = totalPool > 0 ? poolYes / totalPool : 0.5
-      const noPrice = totalPool > 0 ? poolNo / totalPool : 0.5
+      const probabilityYes = totalPool > 0 ? poolYes / totalPool : 0.5
+      const probabilityNo = totalPool > 0 ? poolNo / totalPool : 0.5
       
-      // Calculate position value
-      const sharesYes = parseFloat(position.sharesYes || '0')
-      const sharesNo = parseFloat(position.sharesNo || '0')
-      const totalShares = sharesYes + sharesNo
+      // Get stakes from position
+      const stakeYes = parseFloat(position.stakeYes || '0')
+      const stakeNo = parseFloat(position.stakeNo || '0')
+      const totalStake = parseFloat(position.totalStake || '0')
       
-      const currentValueYes = sharesYes * yesPrice
-      const currentValueNo = sharesNo * noPrice
-      const currentValue = currentValueYes + currentValueNo
+      // Calculate current position value
+      const currentValue = (stakeYes * probabilityYes) + (stakeNo * probabilityNo)
       
-      // Estimate invested amount (would be better from indexer)
-      const avgPrice = 0.5 // Placeholder - would calculate from trade history
-      const estimatedInvested = totalShares * avgPrice
-      
-      const pnl = currentValue - estimatedInvested
-      const pnlPercent = estimatedInvested > 0 ? (pnl / estimatedInvested) * 100 : 0
+      // PnL calculation using the profit field from indexer
+      const profit = parseFloat(position.profit || '0')
+      const payout = parseFloat(position.payout || '0')
       
       // Determine position status
-      let status: PositionStatus
+      let status: 'active' | 'won' | 'lost' | 'claimable'
       if (market.resolved) {
-        if (market.resolvedOutcome === 1 && sharesYes > 0) {
-          status = 'won'
-        } else if (market.resolvedOutcome === 0 && sharesNo > 0) {
-          status = 'won'
+        if (position.claimed) {
+          status = profit > 0 ? 'won' : 'lost'
+        } else if (market.winningOutcome !== undefined) {
+          const hasWinningStake = 
+            (market.winningOutcome === 1 && stakeYes > 0) || 
+            (market.winningOutcome === 0 && stakeNo > 0)
+          status = hasWinningStake ? 'claimable' : 'lost'
         } else {
           status = 'lost'
         }
@@ -70,27 +90,15 @@ export function useUserPositions(userId?: string, includeResolved = true) {
         status = 'active'
       }
       
-      const enhancedPosition: UserPosition = {
-        id: position.id,
-        marketId: market.id,
-        market: market,
-        user: position.user,
-        outcome: sharesYes > sharesNo ? 'YES' : 'NO',
-        shares: totalShares.toString(),
-        sharesYes: position.sharesYes,
-        sharesNo: position.sharesNo,
-        totalInvested: estimatedInvested.toString(),
-        currentValue: currentValue.toString(),
-        realizedPnl: '0', // Would need claim data
-        unrealizedPnl: pnl.toString(),
-        pnlPercent,
-        firstTradeAt: new Date().toISOString(), // Placeholder
-        lastTradeAt: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        isActive: status === 'active',
-        canClaim: status === 'won',
-        claimableAmount: status === 'won' ? currentValue.toString() : undefined
+      // Convert to PositionWithStats format
+      const enhancedPosition: PositionWithStats = {
+        ...position,
+        currentProbabilityYes: probabilityYes,
+        currentProbabilityNo: probabilityNo,
+        potentialPayout: payout.toString(),
+        roi: totalStake > 0 ? (profit / totalStake) * 100 : 0,
+        status,
+        unrealizedPnl: profit.toString()
       }
       
       return enhancedPosition
@@ -99,7 +107,7 @@ export function useUserPositions(userId?: string, includeResolved = true) {
 
   const filteredPositions = useMemo(() => {
     if (includeResolved) return positions
-    return positions.filter(p => p.isActive)
+    return positions.filter(p => p.status === 'active')
   }, [positions, includeResolved])
 
   return {
@@ -125,6 +133,7 @@ export function usePositionSummary(userId?: string): {
   loading: boolean
   error: any
 } {
+  // Address normalization is handled in useUserPositions
   const { positions, loading, error } = useUserPositions(userId, true)
 
   const summary = useMemo(() => {
@@ -262,14 +271,15 @@ export function useMarketLeaderboard(marketId: string, limit = 10) {
  * Hook for claimable positions
  */
 export function useClaimablePositions(userId?: string) {
+  // Address normalization is handled in useUserPositions
   const { positions, loading, error } = useUserPositions(userId, true)
   
   const claimablePositions = useMemo(() => {
-    return positions.filter(p => p.canClaim && p.claimableAmount && parseFloat(p.claimableAmount) > 0)
+    return positions.filter(p => p.status === 'claimable')
   }, [positions])
 
   const totalClaimable = useMemo(() => {
-    return claimablePositions.reduce((sum, p) => sum + parseFloat(p.claimableAmount || '0'), 0)
+    return claimablePositions.reduce((sum, p) => sum + parseFloat(p.potentialPayout), 0)
   }, [claimablePositions])
 
   return {

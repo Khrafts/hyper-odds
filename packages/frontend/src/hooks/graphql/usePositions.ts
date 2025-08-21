@@ -2,27 +2,39 @@ import { useQuery } from '@apollo/client'
 import { gql } from '@apollo/client'
 
 /**
- * Fragments
+ * Fragments based on the actual GraphQL schema
  */
 const POSITION_FRAGMENT = gql`
   fragment PositionFields on Position {
     id
-    sharesYes
-    sharesNo
+    stakeNo
+    stakeYes
+    totalStake
+    effectiveStakeNo
+    effectiveStakeYes
+    totalEffectiveStake
+    claimed
+    payout
+    profit
+    createdAt
+    updatedAt
+    claimedAt
     market {
       id
-      marketId
-      question
+      title
       description
       poolYes
       poolNo
+      totalPool
       resolved
-      resolvedOutcome
-      expirationTime
+      cancelled
+      winningOutcome
+      cutoffTime
+      resolveTime
+      feeBps
     }
     user {
       id
-      address
     }
   }
 `
@@ -43,18 +55,13 @@ const GET_USER_POSITIONS = gql`
 `
 
 const GET_MARKET_POSITIONS = gql`
+  ${POSITION_FRAGMENT}
   query GetMarketPositions($marketId: ID!, $first: Int) {
     positions(
       first: $first
       where: { market: $marketId }
     ) {
-      id
-      sharesYes
-      sharesNo
-      user {
-        id
-        address
-      }
+      ...PositionFields
     }
   }
 `
@@ -75,7 +82,7 @@ const GET_ACTIVE_POSITIONS = gql`
       first: $first
       where: { 
         user: $userId
-        market: { resolved: false }
+        market_: { resolved: false }
       }
     ) {
       ...PositionFields
@@ -91,10 +98,25 @@ const GET_ACTIVE_POSITIONS = gql`
  * Hook to fetch user's positions
  */
 export function useUserPositions(userId: string, limit = 50) {
-  return useQuery(GET_USER_POSITIONS, {
+  const result = useQuery(GET_USER_POSITIONS, {
     variables: { userId, first: limit },
     skip: !userId,
   })
+
+  // Debug logging - remove in production
+  if (process.env.NODE_ENV === 'development') {
+    console.log('GraphQL useUserPositions:', {
+      userId,
+      limit,
+      skip: !userId,
+      loading: result.loading,
+      error: result.error,
+      data: result.data,
+      networkStatus: result.networkStatus
+    })
+  }
+
+  return result
 }
 
 /**
