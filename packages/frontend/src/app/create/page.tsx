@@ -57,25 +57,6 @@ function CreateMarketContent() {
     error: txReceiptError 
   } = useWaitForTransactionReceipt({ 
     hash,
-    onSuccess: (receipt) => {
-      // Dismiss loading toasts
-      toast.dismiss('approval-tx');
-      toast.dismiss('creation-tx');
-      
-      if (lastTxType === 'creation') {
-        toast.success('🎉 Market created successfully! Your market is now live.');
-      }
-      
-      // Refetch data after successful transaction
-      refetchAllowance();
-      refetchBalance();
-    },
-    onError: (error) => {
-      // Dismiss loading toasts
-      toast.dismiss('approval-tx');
-      toast.dismiss('creation-tx');
-      toast.error(`Transaction failed: ${error.message}`);
-    }
   });
 
   const [formData, setFormData] = useState<MarketFormData>(getDefaultFormData());
@@ -148,21 +129,41 @@ function CreateMarketContent() {
     }
   }, [isConnected, needsApproval, allowanceLoading]);
 
-  // Handle transaction confirmation toasts
+  // Handle transaction confirmation
   useEffect(() => {
-    if (txSuccess && lastTxType === 'approval') {
+    if (txSuccess && hash) {
+      // Dismiss loading toasts
       toast.dismiss('approval-tx');
-      toast.success('✅ Approval confirmed! You can now create your market.');
+      toast.dismiss('creation-tx');
+      
+      if (lastTxType === 'approval') {
+        toast.success('✅ Approval confirmed! You can now create your market.');
+        // Force refetch allowance
+        setTimeout(() => {
+          refetchAllowance();
+        }, 1000);
+      } else if (lastTxType === 'creation') {
+        toast.success('🎉 Market created successfully! Your market is now live.');
+        // Reset form after successful creation
+        setFormData(getDefaultFormData());
+      }
+      
+      // Clear transaction state
       setLastTxType(null);
-      // Force refetch allowance
-      setTimeout(() => {
-        refetchAllowance();
-      }, 1000);
-    } else if (txSuccess && lastTxType === 'creation') {
-      setLastTxType(null);
-      // Success message is already handled in useWaitForTransactionReceipt
+      refetchBalance();
     }
-  }, [txSuccess, lastTxType, refetchAllowance]);
+  }, [txSuccess, hash, lastTxType, refetchAllowance, refetchBalance]);
+
+  // Handle transaction errors
+  useEffect(() => {
+    if (txError && txReceiptError) {
+      // Dismiss loading toasts
+      toast.dismiss('approval-tx');
+      toast.dismiss('creation-tx');
+      toast.error(`Transaction failed: ${txReceiptError.message || 'Unknown error'}`);
+      setLastTxType(null);
+    }
+  }, [txError, txReceiptError]);
 
   const handleApprove = async () => {
     if (!isConnected || !address || !chainId) {
@@ -181,7 +182,7 @@ function CreateMarketContent() {
       const factoryAddress = getContractAddress(chainId, 'ParimutuelMarketFactory');
       const stHypeAddress = getContractAddress(chainId, 'StHYPE');
       
-      await writeContract({
+      writeContract({
         address: stHypeAddress,
         abi: ERC20_ABI,
         functionName: 'approve',
@@ -285,7 +286,7 @@ function CreateMarketContent() {
         isProtocolMarket: false,
       };
 
-      await writeContract({
+      writeContract({
         address: factoryAddress,
         abi: PARIMUTUEL_MARKET_FACTORY_ABI,
         functionName: 'createMarket',
@@ -805,18 +806,7 @@ function CreateMarketContent() {
                 )}
               </Button>
 
-              {hash && (
-                <div className="text-center p-4 bg-green-50 dark:bg-green-950/20 rounded-lg">
-                  <div className="text-sm font-medium text-green-900 dark:text-green-100 mb-1">
-                    Transaction Submitted!
-                  </div>
-                  <div className="text-xs text-green-700 dark:text-green-300 font-mono">
-                    {hash.slice(0, 10)}...{hash.slice(-8)}
-                  </div>
-                </div>
-              )}
-
-              <div className="text-xs text-muted-foreground text-center">
+              <div className="text-xs text-muted-foreground text-center mt-4">
                 Market creation cost: ~1000 stHYPE • Oracle: HyperLiquid + Coinbase
               </div>
             </CardContent>
