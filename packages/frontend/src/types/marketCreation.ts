@@ -103,9 +103,10 @@ export const getDefaultFormData = (): MarketFormData => {
   const windowStart = new Date(tomorrow);
   windowStart.setHours(windowStart.getHours() + 1);
   
-  // Default window end to 1 hour after window start for SNAPSHOT_AT
+  // Default window end to 1 minute after window start for SNAPSHOT_AT
+  // This ensures resolve time is calculated correctly (cutoff + duration)
   const windowEnd = new Date(windowStart);
-  windowEnd.setHours(windowEnd.getHours() + 1);
+  windowEnd.setMinutes(windowEnd.getMinutes() + 1);
   
   return {
     // Basic info
@@ -152,10 +153,13 @@ export const getAutoWindowTimes = (cutoffTime: string, windowKind: WindowKind) =
   windowStart.setHours(windowStart.getHours() + 1);
   
   // Window end depends on the kind
+  // IMPORTANT: For SNAPSHOT_AT, we need tEnd > tStart for proper resolve time calculation
   const windowEnd = new Date(windowStart);
   switch (windowKind) {
     case WindowKind.SNAPSHOT_AT:
-      // For snapshots, end time = start time (we only need one point)
+      // For snapshots, we need a small window for the resolve time to be calculated correctly
+      // Set end time to 1 minute after start time
+      windowEnd.setMinutes(windowEnd.getMinutes() + 1);
       break;
     case WindowKind.WINDOW_SUM:
     case WindowKind.WINDOW_COUNT:
