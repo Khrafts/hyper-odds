@@ -190,18 +190,18 @@ This is a focused, time-boxed version of the MVP plan optimized for a 3-day hack
 ### Market Display Tasks (Day 1, Hours 13-18)
 
 #### Task 19: Create Market Data Hooks (1.5 hours)
-- Create `src/hooks/use-markets.ts`
-- Create `src/hooks/use-market.ts`
+- Create `src/hooks/useMarkets.ts`
+- Create `src/hooks/useMarket.ts`
 - Test: Hooks return data
 
 #### Task 20: Create Market Card Component (2 hours)
-- Create `src/components/markets/market-card.tsx`
+- Create `src/components/markets/marketCard.tsx`
 - Show title, odds, volume
 - Add hover effects
 - Test: Card renders with data
 
 #### Task 21: Create Market Grid Component (1.5 hours)
-- Create `src/components/markets/market-grid.tsx`
+- Create `src/components/markets/marketGrid.tsx`
 - Handle loading/error states
 - Test: Grid displays cards
 
@@ -218,12 +218,12 @@ This is a focused, time-boxed version of the MVP plan optimized for a 3-day hack
 - Test: Contract addresses load
 
 #### Task 24: Create Contract Interaction Hooks (2 hours)
-- Create `src/hooks/use-trading.ts`
+- Create `src/hooks/useTrading.ts`
 - Implement deposit and claim functions
 - Test: Hooks can interact with contracts
 
 #### Task 25: Create Connect Button Component (1 hour)
-- Create `src/components/web3/connect-button.tsx`
+- Create `src/components/web3/connectButton.tsx`
 - Style RainbowKit button
 - Test: Wallet connection works
 
@@ -235,7 +235,7 @@ This is a focused, time-boxed version of the MVP plan optimized for a 3-day hack
 ### Trading Tasks (Day 2, Hours 25-36)
 
 #### Task 27: Create Market Header Component (1.5 hours)
-- Create `src/components/markets/market-detail/market-header.tsx`
+- Create `src/components/markets/market-detail/marketHeader.tsx`
 - Show market title, description, status
 - Test: Header displays market info
 
@@ -245,7 +245,7 @@ This is a focused, time-boxed version of the MVP plan optimized for a 3-day hack
 - Test: Page loads for market ID
 
 #### Task 29: Create Trading Interface Component (3 hours)
-- Create `src/components/markets/market-detail/trading-interface.tsx`
+- Create `src/components/markets/market-detail/tradingInterface.tsx`
 - YES/NO buttons, amount input
 - Calculate payouts
 - Test: Interface calculates correctly
@@ -261,7 +261,7 @@ This is a focused, time-boxed version of the MVP plan optimized for a 3-day hack
 - Test: Deposits execute successfully
 
 #### Task 32: Add Transaction State Management (1.5 hours)
-- Create `src/stores/use-trading-store.ts`
+- Create `src/stores/useTradingStore.ts`
 - Manage transaction states
 - Test: State updates correctly
 
@@ -286,17 +286,17 @@ This is a focused, time-boxed version of the MVP plan optimized for a 3-day hack
 - Test: Package imports
 
 #### Task 37: Create Basic Market Chart (2.5 hours)
-- Create `src/components/charts/probability-chart.tsx`
+- Create `src/components/charts/probabilityChart.tsx`
 - Show basic probability over time
 - Test: Chart renders with data
 
 #### Task 38: Create Position Manager Component (1.5 hours)
-- Create `src/components/markets/market-detail/position-manager.tsx`
+- Create `src/components/markets/market-detail/positionManager.tsx`
 - Show user position and P&L
 - Test: Position data displays
 
 #### Task 39: Create Activity Feed Component (1.5 hours)
-- Create `src/components/markets/market-detail/activity-feed.tsx`
+- Create `src/components/markets/market-detail/activityFeed.tsx`
 - Show recent trades
 - Test: Activity displays
 
@@ -305,7 +305,7 @@ This is a focused, time-boxed version of the MVP plan optimized for a 3-day hack
 - Test: Types compile
 
 #### Task 41: Create Position Hooks (1 hour)
-- Create `src/hooks/use-positions.ts`
+- Create `src/hooks/usePositions.ts`
 - Test: Hooks return position data
 
 #### Task 42: Create Portfolio Page Structure (1 hour)
@@ -314,12 +314,12 @@ This is a focused, time-boxed version of the MVP plan optimized for a 3-day hack
 - Test: Page renders
 
 #### Task 43: Create Position Card Component (1.5 hours)
-- Create `src/components/portfolio/position-card.tsx`
+- Create `src/components/portfolio/positionCard.tsx`
 - Show position details
 - Test: Card displays position
 
 #### Task 44: Create Claim Rewards Component (2 hours)
-- Create `src/components/portfolio/claim-rewards.tsx`
+- Create `src/components/portfolio/claimRewards.tsx`
 - Implement claiming functionality
 - Test: Claims work correctly
 

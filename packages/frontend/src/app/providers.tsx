@@ -85,9 +85,14 @@ export default function Providers({ children }: ProvidersProps) {
           </WagmiProvider>
         </PrivyProvider>
       ) : (
-        <GraphQLProvider>
-          {children}
-        </GraphQLProvider>
+        // During initial mount, show a minimal loading state instead of rendering children
+        // This prevents wagmi hooks from being called outside of WagmiProvider
+        <div className="flex min-h-screen items-center justify-center bg-background">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
+        </div>
       )}
     </QueryClientProvider>
   )

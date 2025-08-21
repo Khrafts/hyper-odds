@@ -21,7 +21,7 @@ import {
   XCircle,
   RefreshCw
 } from 'lucide-react'
-import { useAccount } from 'wagmi'
+import { useWallet } from '@/hooks/useWallet'
 import { formatUnits } from 'viem'
 import { Market } from '@/hooks/useMarkets'
 import { calculateMarketProbabilities } from '@/lib/probability'
@@ -53,7 +53,7 @@ interface TradingInterfaceProps {
 }
 
 export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noProb, onTrade, onTransactionSuccess, disabled = false }: TradingInterfaceProps) {
-  const { address, isConnected } = useAccount()
+  const { address, isConnected } = useWallet()
   
   // Use trading hooks for contract integration
   const {

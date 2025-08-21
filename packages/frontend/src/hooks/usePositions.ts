@@ -4,7 +4,7 @@
  */
 
 import { useMemo } from 'react'
-import { useAccount } from 'wagmi'
+import { useWallet } from '@/hooks/useWallet'
 import { 
   useUserPositions as useUserPositionsGraphQL, 
   useMarketPositions,
@@ -18,7 +18,7 @@ import { formatEther, parseEther } from 'viem'
  * Enhanced user positions hook with calculations
  */
 export function useUserPositions(userId?: string, includeResolved = true) {
-  const { address } = useAccount()
+  const { address } = useWallet()
   const targetUserId = userId || address
   
   const { data, loading, error, refetch } = useUserPositionsGraphQL(

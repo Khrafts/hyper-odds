@@ -3,7 +3,6 @@
 import React from 'react'
 import dynamic from 'next/dynamic'
 import { usePrivy } from '@privy-io/react-auth'
-import { useAccount } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { 
   DropdownMenu,
@@ -46,7 +45,6 @@ export function ConnectWalletButton({
 }: ConnectWalletButtonProps) {
   const [mounted, setMounted] = React.useState(false)
   const { ready, authenticated, user, login, logout } = usePrivy()
-  const { address, isConnected, chain } = useAccount()
 
   React.useEffect(() => {
     setMounted(true)
@@ -81,7 +79,8 @@ export function ConnectWalletButton({
     )
   }
 
-  if (!authenticated || !isConnected) {
+  // Show connect button if not authenticated with Privy
+  if (!authenticated) {
     return (
       <Button
         variant={variant}
@@ -95,7 +94,18 @@ export function ConnectWalletButton({
     )
   }
 
-  const walletAddress = address || user?.wallet?.address
+  // Get wallet address from Privy
+  const walletAddress = user?.wallet?.address
+
+  // Debug logging in development
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Wallet Connection Debug:', {
+      ready,
+      authenticated,
+      user: user?.id,
+      walletAddress
+    })
+  }
 
   if (!walletAddress) {
     return (
@@ -111,18 +121,7 @@ export function ConnectWalletButton({
     )
   }
 
-  // Check if we're on the wrong network
-  if (chain && chain.id !== arbitrumSepolia.id) {
-    return (
-      <Button
-        variant="destructive"
-        size={size}
-        className={cn('gap-2', className)}
-      >
-        Wrong Network
-      </Button>
-    )
-  }
+  // Note: Network checking can be handled by Privy or at the transaction level
 
   return (
     <DropdownMenu>
@@ -226,7 +225,6 @@ export function SimpleConnectButton({
 }) {
   const [mounted, setMounted] = React.useState(false)
   const { authenticated, login, logout } = usePrivy()
-  const { isConnected } = useAccount()
 
   React.useEffect(() => {
     setMounted(true)
@@ -245,7 +243,7 @@ export function SimpleConnectButton({
     )
   }
 
-  if (authenticated && isConnected) {
+  if (authenticated) {
     return (
       <Button
         variant="outline"

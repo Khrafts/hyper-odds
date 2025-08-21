@@ -3,19 +3,17 @@
 query GetUser($id: ID!) {
   user(id: $id) {
     id
-    address
     positions {
       edges {
         node {
           id
-          sharesYes
-          sharesNo
+          stakeYes
+          stakeNo
           market {
             id
-            marketId
-            question
+            title
             resolved
-            resolvedOutcome
+            winningOutcome
           }
         }
       }
@@ -31,8 +29,7 @@ query GetUser($id: ID!) {
           timestamp
           market {
             id
-            marketId
-            question
+            title
           }
         }
       }
@@ -42,8 +39,8 @@ query GetUser($id: ID!) {
       edges {
         node {
           id
-          marketId
-          question
+          id
+          title
           resolved
         }
       }
@@ -53,11 +50,10 @@ query GetUser($id: ID!) {
 }
 
 query GetUserByAddress($address: String!) {
-  users(where: { address: $address }, first: 1) {
+  users(where: { id: $address }, first: 1) {
     edges {
       node {
         id
-        address
         positions {
           totalCount
         }
@@ -80,7 +76,6 @@ query GetTopTraders($first: Int = 10) {
     edges {
       node {
         id
-        address
         trades {
           totalCount
         }

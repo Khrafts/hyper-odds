@@ -19,12 +19,12 @@ query GetRecentTrades(
         timestamp
         market {
           id
-          marketId
-          question
+          id
+          title
         }
         trader {
           id
-          address
+          id
         }
       }
       cursor
@@ -58,7 +58,7 @@ query GetMarketTrades(
         timestamp
         trader {
           id
-          address
+          id
         }
       }
       cursor
@@ -92,8 +92,8 @@ query GetUserTrades(
         timestamp
         market {
           id
-          marketId
-          question
+          id
+          title
           poolYes
           poolNo
         }

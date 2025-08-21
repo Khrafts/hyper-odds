@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { useAccount } from 'wagmi'
+import { useWallet } from '@/hooks/useWallet'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -23,7 +23,7 @@ export default function PortfolioPage() {
 }
 
 function PortfolioPageContent() {
-  const { address, isConnected } = useAccount()
+  const { address, isConnected } = useWallet()
   const [activeTab, setActiveTab] = useState('overview')
 
   // Fetch portfolio data

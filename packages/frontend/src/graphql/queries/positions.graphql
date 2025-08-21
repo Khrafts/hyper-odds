@@ -14,21 +14,21 @@ query GetUserPositions(
     edges {
       node {
         id
-        sharesYes
-        sharesNo
+        stakeYes
+        stakeNo
         market {
           id
-          marketId
-          question
+          id
+          title
           description
           poolYes
           poolNo
           resolved
-          resolvedOutcome
+          winningOutcome
         }
         user {
           id
-          address
+          id
         }
       }
       cursor
@@ -55,11 +55,11 @@ query GetMarketPositions(
     edges {
       node {
         id
-        sharesYes
-        sharesNo
+        stakeYes
+        stakeNo
         user {
           id
-          address
+          id
         }
       }
       cursor
@@ -75,22 +75,22 @@ query GetMarketPositions(
 query GetPosition($id: ID!) {
   position(id: $id) {
     id
-    sharesYes
-    sharesNo
+    stakeYes
+    stakeNo
     market {
       id
-      marketId
-      question
+      id
+      title
       description
       poolYes
       poolNo
       resolved
-      resolvedOutcome
-      expirationTime
+      winningOutcome
+      resolveTime
     }
     user {
       id
-      address
+      id
     }
   }
 }

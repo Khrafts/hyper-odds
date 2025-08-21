@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react'
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract, useReadContracts } from 'wagmi'
+import { useWriteContract, useWaitForTransactionReceipt, useReadContract, useReadContracts } from 'wagmi'
+import { useWallet } from '@/hooks/useWallet'
 import { parseUnits, formatUnits, Address } from 'viem'
 import { getContractAddress, CONTRACTS, OUTCOME, ERC20_ABI } from '@/lib/web3/contracts'
 import { useChainId } from 'wagmi'
@@ -16,7 +17,7 @@ export interface TradingState {
 }
 
 export function useTradingHooks(marketAddress?: Address) {
-  const { address: userAddress, isConnected } = useAccount()
+  const { address: userAddress, isConnected } = useWallet()
   const chainId = useChainId()
   
   // Use Zustand store for transaction state
