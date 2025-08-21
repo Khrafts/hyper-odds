@@ -239,7 +239,7 @@ export const ERC20_ABI = [
 
 /**
  * ParimutuelMarketFactory contract ABI
- * Factory contract for creating new prediction markets
+ * Factory contract for creating new prediction markets with complex parameters
  */
 export const PARIMUTUEL_MARKET_FACTORY_ABI = [
   // Read functions
@@ -265,17 +265,71 @@ export const PARIMUTUEL_MARKET_FACTORY_ABI = [
     type: 'function',
   },
 
-  // Write functions
+  // Write functions - Complex market creation
   {
     inputs: [
-      { internalType: 'string', name: '_question', type: 'string' },
-      { internalType: 'uint256', name: '_cutoffTime', type: 'uint256' },
-      { internalType: 'uint256', name: '_resolveTime', type: 'uint256' },
+      {
+        components: [
+          { name: 'title', type: 'string' },
+          { name: 'description', type: 'string' },
+          {
+            components: [
+              { name: 'kind', type: 'uint8' },
+              { name: 'metricId', type: 'bytes32' },
+              { name: 'token', type: 'address' },
+              { name: 'valueDecimals', type: 'uint8' }
+            ],
+            name: 'subject',
+            type: 'tuple'
+          },
+          {
+            components: [
+              { name: 'op', type: 'uint8' },
+              { name: 'threshold', type: 'int256' }
+            ],
+            name: 'predicate',
+            type: 'tuple'
+          },
+          {
+            components: [
+              { name: 'kind', type: 'uint8' },
+              { name: 'tStart', type: 'uint64' },
+              { name: 'tEnd', type: 'uint64' }
+            ],
+            name: 'window',
+            type: 'tuple'
+          },
+          {
+            components: [
+              { name: 'primarySourceId', type: 'bytes32' },
+              { name: 'fallbackSourceId', type: 'bytes32' },
+              { name: 'roundingDecimals', type: 'uint8' }
+            ],
+            name: 'oracle',
+            type: 'tuple'
+          },
+          { name: 'cutoffTime', type: 'uint64' },
+          { name: 'creator', type: 'address' },
+          {
+            components: [
+              { name: 'feeBps', type: 'uint16' },
+              { name: 'creatorFeeShareBps', type: 'uint16' },
+              { name: 'maxTotalPool', type: 'uint256' },
+              { name: 'timeDecayBps', type: 'uint16' }
+            ],
+            name: 'econ',
+            type: 'tuple'
+          },
+          { name: 'isProtocolMarket', type: 'bool' }
+        ],
+        name: 'p',
+        type: 'tuple'
+      }
     ],
     name: 'createMarket',
-    outputs: [{ internalType: 'address', name: '', type: 'address' }],
+    outputs: [{ name: '', type: 'address' }],
     stateMutability: 'nonpayable',
-    type: 'function',
+    type: 'function'
   },
 
   // Events

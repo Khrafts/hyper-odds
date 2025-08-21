@@ -1,4 +1,5 @@
 import { usePrivy } from '@privy-io/react-auth'
+import { useChainId as useWagmiChainId } from 'wagmi'
 
 /**
  * Unified wallet hook that provides consistent connection state across the app
@@ -24,6 +25,13 @@ export function useWallet() {
     connect: login,
     disconnect: logout,
   }
+}
+
+/**
+ * Hook to get the current chain ID
+ */
+export function useChainId() {
+  return useWagmiChainId()
 }
 
 /**
