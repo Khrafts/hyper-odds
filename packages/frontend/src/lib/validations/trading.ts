@@ -221,13 +221,6 @@ export function validateMarketState(market: {
     }
   }
   
-  // Check liquidity
-  const yesPool = parseFloat(market.poolYes || '0')
-  const noPool = parseFloat(market.poolNo || '0')
-  if (yesPool <= 0 || noPool <= 0) {
-    return { canTrade: false, reason: 'Insufficient liquidity' }
-  }
-  
   return { canTrade: true }
 }
 

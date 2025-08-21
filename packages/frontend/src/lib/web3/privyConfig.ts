@@ -36,6 +36,12 @@ export const privyConfig = {
     smartWallets: {
       createOnLogin: 'all-users' as const,
     },
+    // External wallet configuration for wagmi integration
+    externalWallets: {
+      walletConnect: {
+        enabled: true,
+      },
+    },
   },
 }
 
