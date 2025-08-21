@@ -139,26 +139,42 @@ export function usePositionSummary(userId?: string): {
   const summary = useMemo(() => {
     if (!positions || positions.length === 0) return null
 
-    const activePositions = positions.filter(p => p.isActive)
-    const wonPositions = positions.filter(p => !p.isActive && parseFloat(p.unrealizedPnl) > 0)
-    const lostPositions = positions.filter(p => !p.isActive && parseFloat(p.unrealizedPnl) <= 0)
+    const activePositions = positions.filter(p => p.status === 'active')
+    const wonPositions = positions.filter(p => p.status === 'won')
+    const lostPositions = positions.filter(p => p.status === 'lost')
 
-    const totalInvested = positions.reduce((sum, p) => sum + parseFloat(p.totalInvested), 0)
-    const currentValue = positions.reduce((sum, p) => sum + parseFloat(p.currentValue), 0)
-    const totalPnl = currentValue - totalInvested
+    // Use totalStake as the invested amount and calculate current value based on stakes and probabilities
+    const totalInvested = positions.reduce((sum, p) => sum + parseFloat(p.totalStake || '0'), 0)
+    
+    // For unrealized positions, current value should be the total stake (what they could get back if market closed now)
+    // In parimutuel markets, until resolution, the "fair value" is essentially what was staked
+    const currentValue = totalInvested  // For active positions, current value = total stake
+    
+    // For unrealized positions, P&L should be 0 until markets resolve
+    // Only show P&L for resolved positions using the profit field from indexer
+    const realizedPnl = positions.reduce((sum, p) => {
+      if (p.status === 'won' || p.status === 'lost') {
+        return sum + parseFloat(p.profit || '0')
+      }
+      return sum
+    }, 0)
+    
+    const totalPnl = realizedPnl  // Only count realized gains/losses
     const totalPnlPercent = totalInvested > 0 ? (totalPnl / totalInvested) * 100 : 0
 
-    const winRate = positions.length > 0 ? (wonPositions.length / (wonPositions.length + lostPositions.length)) * 100 : 0
+    // Only calculate win rate if there are resolved positions
+    const resolvedPositions = wonPositions.length + lostPositions.length
+    const winRate = resolvedPositions > 0 ? (wonPositions.length / resolvedPositions) * 100 : 0
 
-    const claimablePositions = positions.filter(p => p.canClaim)
+    const claimablePositions = positions.filter(p => p.status === 'claimable')
     const totalClaimable = claimablePositions.reduce((sum, p) => 
-      sum + parseFloat(p.claimableAmount || '0'), 0
+      sum + parseFloat(p.potentialPayout || '0'), 0
     )
 
-    // Find largest position by current value
+    // Find largest position by total stake
     const largestPosition = positions.reduce((max, p) => 
-      parseFloat(p.currentValue) > parseFloat(max.currentValue || '0') ? p : max, 
-      positions[0] || { currentValue: '0' }
+      parseFloat(p.totalStake || '0') > parseFloat(max.totalStake || '0') ? p : max, 
+      positions[0] || { totalStake: '0' }
     )
 
     const averagePosition = positions.length > 0 ? totalInvested / positions.length : 0
@@ -177,7 +193,7 @@ export function usePositionSummary(userId?: string): {
       totalClaimed: '0', // Would need claim data from indexer
       winRate,
       averagePosition: averagePosition.toString(),
-      largestPosition: largestPosition.currentValue
+      largestPosition: largestPosition.totalStake || '0'
     }
 
     return positionSummary

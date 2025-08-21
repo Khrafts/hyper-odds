@@ -174,7 +174,7 @@ function PortfolioSummaryCards({ summary, loading, claimableAmount }: PortfolioS
   }
 
   const totalPnl = parseFloat(summary.totalPnl)
-  const pnlColor = totalPnl >= 0 ? 'text-green-600' : 'text-red-600'
+  const pnlColor = totalPnl === 0 ? 'text-muted-foreground' : totalPnl > 0 ? 'text-green-600' : 'text-red-600'
   const pnlIcon = totalPnl >= 0 ? TrendingUp : TrendingDown
   const PnlIcon = pnlIcon
 
@@ -190,7 +190,7 @@ function PortfolioSummaryCards({ summary, loading, claimableAmount }: PortfolioS
             ${parseFloat(summary.currentValue).toFixed(2)}
           </div>
           <p className="text-xs text-muted-foreground">
-            ${parseFloat(summary.totalInvested).toFixed(2)} invested
+            ${parseFloat(summary.totalInvested).toFixed(2)} total staked
           </p>
         </CardContent>
       </Card>
@@ -205,7 +205,7 @@ function PortfolioSummaryCards({ summary, loading, claimableAmount }: PortfolioS
             {totalPnl >= 0 ? '+' : ''}${totalPnl.toFixed(2)}
           </div>
           <p className={cn('text-xs', pnlColor)}>
-            {summary.totalPnlPercent >= 0 ? '+' : ''}{summary.totalPnlPercent.toFixed(2)}%
+            {totalPnl === 0 ? 'Unrealized' : `${summary.totalPnlPercent >= 0 ? '+' : ''}${summary.totalPnlPercent.toFixed(2)}%`}
           </p>
         </CardContent>
       </Card>
@@ -229,9 +229,14 @@ function PortfolioSummaryCards({ summary, loading, claimableAmount }: PortfolioS
           <Trophy className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{summary.winRate.toFixed(1)}%</div>
+          <div className="text-2xl font-bold">
+            {summary.wonPositions + summary.lostPositions > 0 ? `${summary.winRate.toFixed(1)}%` : 'N/A'}
+          </div>
           <p className="text-xs text-muted-foreground">
-            {summary.wonPositions}W / {summary.lostPositions}L
+            {summary.wonPositions + summary.lostPositions > 0 
+              ? `${summary.wonPositions}W / ${summary.lostPositions}L` 
+              : 'No resolved positions'
+            }
           </p>
         </CardContent>
       </Card>
@@ -286,7 +291,8 @@ function PortfolioOverview({ summary, positions, loading }: PortfolioOverviewPro
             {activePositions.length > 0 ? (
               <div className="space-y-3">
                 {activePositions.slice(0, 3).map(position => {
-                  const dominantOutcome = parseFloat(position.stakeYes || '0') > parseFloat(position.stakeNo || '0') ? 'YES' : 'NO'
+                  const stakeYes = parseFloat(position.stakeYes || '0')
+                  const stakeNo = parseFloat(position.stakeNo || '0')
                   const totalStake = parseFloat(position.totalStake || '0')
                   return (
                     <div key={position.id} className="flex justify-between items-center">
@@ -294,9 +300,18 @@ function PortfolioOverview({ summary, positions, loading }: PortfolioOverviewPro
                         <p className="text-sm font-medium truncate">
                           {position.market.title || 'Market Title'}
                         </p>
-                        <p className="text-xs text-muted-foreground">
-                          ${totalStake.toFixed(2)} {dominantOutcome} stake
-                        </p>
+                        <div className="flex gap-1 items-center flex-wrap">
+                          {stakeYes > 0 && (
+                            <span className="text-xs bg-green-100 text-green-800 px-1 rounded">
+                              YES: ${stakeYes.toFixed(0)}
+                            </span>
+                          )}
+                          {stakeNo > 0 && (
+                            <span className="text-xs bg-red-100 text-red-800 px-1 rounded">
+                              NO: ${stakeNo.toFixed(0)}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-medium">

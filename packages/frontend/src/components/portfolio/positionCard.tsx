@@ -96,11 +96,19 @@ export function PositionCard({
             </div>
             
             <div className="flex flex-col items-end gap-2">
-              <Badge 
-                className={cn('text-white', outcomeColor)}
-              >
-                {dominantOutcome}
-              </Badge>
+              {/* Show both positions if user has stakes in both YES and NO */}
+              <div className="flex gap-1">
+                {stakeYes > 0 && (
+                  <Badge className="text-white bg-green-600 text-xs">
+                    YES: ${stakeYes.toFixed(0)}
+                  </Badge>
+                )}
+                {stakeNo > 0 && (
+                  <Badge className="text-white bg-red-600 text-xs">
+                    NO: ${stakeNo.toFixed(0)}
+                  </Badge>
+                )}
+              </div>
               
               {isResolved && (
                 <Badge variant={canClaim ? 'default' : 'secondary'}>
@@ -278,12 +286,19 @@ function CompactPositionCard({
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <Badge className={cn('text-white text-xs', outcomeColor)}>
-                {dominantOutcome}
-              </Badge>
-              <span className="text-sm font-medium truncate">
-                ${totalStake.toFixed(2)} staked
+            <div className="flex items-center gap-1 mb-1 flex-wrap">
+              {stakeYes > 0 && (
+                <Badge className="text-white bg-green-600 text-xs">
+                  YES: ${stakeYes.toFixed(0)}
+                </Badge>
+              )}
+              {stakeNo > 0 && (
+                <Badge className="text-white bg-red-600 text-xs">
+                  NO: ${stakeNo.toFixed(0)}
+                </Badge>
+              )}
+              <span className="text-xs text-muted-foreground">
+                (Total: ${totalStake.toFixed(0)})
               </span>
             </div>
             <p className="text-sm text-muted-foreground truncate">
