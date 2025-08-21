@@ -99,12 +99,13 @@ export const getDefaultFormData = (): MarketFormData => {
   tomorrow.setDate(tomorrow.getDate() + 1);
   tomorrow.setHours(0, 0, 0, 0);
   
-  // Default to 1 week from tomorrow for window end
-  const weekFromTomorrow = new Date(tomorrow);
-  weekFromTomorrow.setDate(weekFromTomorrow.getDate() + 7);
-  
-  // Default window start to tomorrow
+  // Auto-set window start to 1 hour after cutoff (smart default)
   const windowStart = new Date(tomorrow);
+  windowStart.setHours(windowStart.getHours() + 1);
+  
+  // Default window end to 1 hour after window start for SNAPSHOT_AT
+  const windowEnd = new Date(windowStart);
+  windowEnd.setHours(windowEnd.getHours() + 1);
   
   return {
     // Basic info
@@ -124,7 +125,7 @@ export const getDefaultFormData = (): MarketFormData => {
     // Window
     windowKind: WindowKind.SNAPSHOT_AT,
     tStart: formatDateForInput(windowStart),
-    tEnd: formatDateForInput(weekFromTomorrow),
+    tEnd: formatDateForInput(windowEnd),
     
     // Oracle - Using defaults
     primarySourceId: 'HYPERLIQUID',
@@ -139,6 +140,33 @@ export const getDefaultFormData = (): MarketFormData => {
     
     // Timing
     cutoffTime: formatDateForInput(tomorrow),
+  };
+};
+
+// Helper to automatically set window times based on cutoff time
+export const getAutoWindowTimes = (cutoffTime: string, windowKind: WindowKind) => {
+  const cutoff = new Date(cutoffTime);
+  
+  // Window starts 1 hour after cutoff
+  const windowStart = new Date(cutoff);
+  windowStart.setHours(windowStart.getHours() + 1);
+  
+  // Window end depends on the kind
+  const windowEnd = new Date(windowStart);
+  switch (windowKind) {
+    case WindowKind.SNAPSHOT_AT:
+      // For snapshots, end time = start time (we only need one point)
+      break;
+    case WindowKind.WINDOW_SUM:
+    case WindowKind.WINDOW_COUNT:
+      // For aggregations, default to 24 hours
+      windowEnd.setHours(windowEnd.getHours() + 24);
+      break;
+  }
+  
+  return {
+    tStart: formatDateForInput(windowStart),
+    tEnd: formatDateForInput(windowEnd),
   };
 };
 

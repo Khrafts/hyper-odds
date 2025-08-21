@@ -28,47 +28,48 @@ function PortfolioPageContent() {
   const { address, isConnected } = useWallet()
   const [activeTab, setActiveTab] = useState('overview')
 
-  // For demo/testing purposes, use the test user if no wallet is connected
-  const testUserAddress = '0x9f522a1caf502058230900e3836c6e89ba4f4939'
-  // Normalize address to lowercase for GraphQL queries
-  const effectiveAddress = (address || testUserAddress)?.toLowerCase()
+  // Only use address when wallet is connected
+  const effectiveAddress = isConnected && address ? address.toLowerCase() : null
 
-  // Fetch portfolio data
+  // Fetch portfolio data only when wallet is connected
   const { summary, loading: summaryLoading } = usePositionSummary(effectiveAddress)
   const { positions, loading: positionsLoading } = useUserPositions(effectiveAddress)
   const { claimablePositions, totalClaimable, loading: claimableLoading } = useClaimablePositions(effectiveAddress)
 
-  // For demo purposes, show test data even when not connected
-  // Remove this logic later in production
-  const shouldShowDemoData = !isConnected
+  if (!isConnected) {
+    return (
+      <ComponentErrorBoundary componentName="PortfolioPage">
+        <div className="container mx-auto px-4 py-8">
+          <Card className="max-w-2xl mx-auto">
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl flex items-center justify-center gap-2">
+                <Wallet className="h-6 w-6" />
+                Portfolio
+              </CardTitle>
+              <p className="text-muted-foreground">
+                Connect your wallet to view your trading portfolio
+              </p>
+            </CardHeader>
+            <CardContent className="text-center py-12">
+              <div className="text-muted-foreground mb-6">
+                Your portfolio tracks all your prediction market positions, P&L, and claimable rewards.
+              </div>
+              <SSRSafeConnectButton />
+            </CardContent>
+          </Card>
+        </div>
+      </ComponentErrorBoundary>
+    )
+  }
 
   return (
     <ComponentErrorBoundary componentName="PortfolioPage">
       <div className="container mx-auto px-4 py-8 space-y-8">
-        {shouldShowDemoData && (
-          <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-            <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
-              <AlertCircle className="h-5 w-5" />
-              <div>
-                <p className="font-medium">Demo Mode</p>
-                <p className="text-sm text-blue-700 dark:text-blue-300">
-                  Showing test user data. Connect your wallet to see your actual portfolio.
-                </p>
-              </div>
-              <div className="ml-auto">
-                <SSRSafeConnectButton />
-              </div>
-            </div>
-          </div>
-        )}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Portfolio</h1>
             <p className="text-muted-foreground">
-              {shouldShowDemoData 
-                ? "Demo Portfolio - Showing test user data"
-                : "Track your positions and trading performance"
-              }
+              Track your positions and trading performance
             </p>
           </div>
           
@@ -126,7 +127,7 @@ function PortfolioPageContent() {
           </TabsContent>
 
           <TabsContent value="history" className="space-y-6">
-            <TradingHistory address={effectiveAddress} />
+            <TradingHistory />
           </TabsContent>
         </Tabs>
       </div>
@@ -383,7 +384,7 @@ function PortfolioOverview({ summary, positions, loading }: PortfolioOverviewPro
 
 // Trading History placeholder - will be implemented in future tasks
 
-function TradingHistory({ address }: { address?: string }) {
+function TradingHistory() {
   return (
     <Card>
       <CardHeader>

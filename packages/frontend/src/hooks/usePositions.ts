@@ -18,15 +18,14 @@ import { formatEther, parseEther } from 'viem'
  * Enhanced user positions hook with calculations
  * Returns PositionWithStats[] instead of UserPosition[]
  */
-export function useUserPositions(userId?: string, includeResolved = true): {
+export function useUserPositions(userId?: string | null, includeResolved = true): {
   positions: PositionWithStats[]
   loading: boolean
   error: any
   refetch: any
 } {
-  const { address } = useWallet()
-  // Convert addresses to lowercase for GraphQL queries (Ethereum addresses are case-insensitive)
-  const targetUserId = (userId || address)?.toLowerCase()
+  // Only use the provided userId, don't fallback to anything
+  const targetUserId = userId?.toLowerCase()
   
   const { data, loading, error, refetch } = useUserPositionsGraphQL(
     targetUserId || '', 
@@ -37,7 +36,6 @@ export function useUserPositions(userId?: string, includeResolved = true): {
   React.useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
       console.log('useUserPositions Debug:', {
-        originalAddress: address,
         targetUserId,
         loading,
         error: error?.message || error,
@@ -45,7 +43,7 @@ export function useUserPositions(userId?: string, includeResolved = true): {
         hasPositions: data?.positions?.length || 0
       })
     }
-  }, [targetUserId, address, loading, error, data])
+  }, [targetUserId, loading, error, data])
 
   const positions = useMemo(() => {
     if (!data?.positions) return []
@@ -128,12 +126,12 @@ export function useActivePositions(userId?: string) {
 /**
  * Hook for position summary/portfolio overview
  */
-export function usePositionSummary(userId?: string): {
+export function usePositionSummary(userId?: string | null): {
   summary: PositionSummary | null
   loading: boolean
   error: any
 } {
-  // Address normalization is handled in useUserPositions
+  // Only fetch data if userId is provided
   const { positions, loading, error } = useUserPositions(userId, true)
 
   const summary = useMemo(() => {
@@ -286,8 +284,8 @@ export function useMarketLeaderboard(marketId: string, limit = 10) {
 /**
  * Hook for claimable positions
  */
-export function useClaimablePositions(userId?: string) {
-  // Address normalization is handled in useUserPositions
+export function useClaimablePositions(userId?: string | null) {
+  // Only fetch data if userId is provided
   const { positions, loading, error } = useUserPositions(userId, true)
   
   const claimablePositions = useMemo(() => {
