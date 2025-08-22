@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { MarketsSection } from '@/components/marketsSection'
 import { ClientOnly } from '@/components/clientOnly'
 import { PageErrorBoundary } from '@/components/error'
+import { useProtocolStats } from '@/hooks/useProtocolStats'
 import { 
   TrendingUp, 
   Users, 
@@ -18,6 +19,75 @@ import {
   Shield,
   Globe
 } from 'lucide-react'
+
+function StatsSection() {
+  const { stats, loading, error } = useProtocolStats()
+
+  if (error) {
+    console.error('Failed to load protocol stats:', error)
+  }
+
+  return (
+    <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Total Volume</CardTitle>
+          <DollarSign className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">
+            {loading ? '...' : stats.formattedTotalVolume}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {loading ? '...' : `+${stats.growthMetrics.volumeGrowth}% from last month`}
+          </p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Active Markets</CardTitle>
+          <Activity className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">
+            {loading ? '...' : stats.activeMarkets}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {loading ? '...' : `+${stats.growthMetrics.marketsThisWeek} new this week`}
+          </p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Total Traders</CardTitle>
+          <Users className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">
+            {loading ? '...' : stats.totalTraders.toLocaleString()}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {loading ? '...' : `+${stats.growthMetrics.traderGrowth}% this week`}
+          </p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Markets Resolved</CardTitle>
+          <TrendingUp className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">
+            {loading ? '...' : stats.resolvedMarkets}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {loading ? '...' : `${stats.resolutionRate.toFixed(1)}% accuracy`}
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
 
 export default function HomePage() {
 
@@ -57,56 +127,52 @@ export default function HomePage() {
       {/* Stats Section */}
       <section className="py-16 sm:py-24">
         <div className="container mx-auto px-4 max-w-7xl">
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Volume</CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">$2.4M</div>
-                <p className="text-xs text-muted-foreground">
-                  +12% from last month
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Active Markets</CardTitle>
-                <Activity className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">127</div>
-                <p className="text-xs text-muted-foreground">
-                  +3 new today
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Traders</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">8,429</div>
-                <p className="text-xs text-muted-foreground">
-                  +18% this week
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Markets Resolved</CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">342</div>
-                <p className="text-xs text-muted-foreground">
-                  98.2% accuracy
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+          <ClientOnly fallback={
+            <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Volume</CardTitle>
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">...</div>
+                  <p className="text-xs text-muted-foreground">Loading...</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Active Markets</CardTitle>
+                  <Activity className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">...</div>
+                  <p className="text-xs text-muted-foreground">Loading...</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Traders</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">...</div>
+                  <p className="text-xs text-muted-foreground">Loading...</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Markets Resolved</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">...</div>
+                  <p className="text-xs text-muted-foreground">Loading...</p>
+                </CardContent>
+              </Card>
+            </div>
+          }>
+            <StatsSection />
+          </ClientOnly>
         </div>
       </section>
 

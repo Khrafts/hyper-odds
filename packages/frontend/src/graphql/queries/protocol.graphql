@@ -1,0 +1,58 @@
+# Protocol statistics queries
+
+query GetProtocolStats {
+  # Get total volume across all markets
+  markets(first: 1000) {
+    totalPool
+  }
+  
+  # Count active markets
+  activeMarketsCount: markets(where: { resolved: false, cancelled: false }, first: 1000) {
+    id
+  }
+  
+  # Count resolved markets
+  resolvedMarketsCount: markets(where: { resolved: true }, first: 1000) {
+    id
+  }
+  
+  # Get unique users count (approximated from positions)
+  positions(first: 1000) {
+    user {
+      id
+    }
+  }
+}
+
+# Get aggregated protocol statistics
+query GetAggregatedStats {
+  # Total volume calculation
+  markets(first: 1000, orderBy: totalPool, orderDirection: desc) {
+    id
+    totalPool
+    resolved
+    cancelled
+    createdAt
+    resolvedAt
+  }
+  
+  # User activity
+  users(first: 1000, orderBy: totalDeposited, orderDirection: desc) {
+    id
+    totalDeposited
+    marketsCreated
+    totalClaimed
+  }
+  
+  # Recent activity for growth metrics
+  recentMarkets: markets(
+    first: 100
+    orderBy: createdAt
+    orderDirection: desc
+    where: { createdAt_gt: "1" }
+  ) {
+    id
+    createdAt
+    totalPool
+  }
+}

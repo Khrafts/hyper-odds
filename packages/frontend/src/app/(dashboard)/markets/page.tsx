@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useMarkets, MarketFilters } from '@/hooks/useMarkets'
+import { useMarketCounts } from '@/hooks/useProtocolStats'
 import { MarketGrid } from '@/components/markets/marketGrid'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -44,6 +45,9 @@ function MarketsPageContent() {
     { first: 20 }
   )
 
+  // Get market counts for stats display
+  const { counts, loading: countsLoading } = useMarketCounts()
+
   // Use markets from GraphQL data or empty array
   const markets = marketsData?.markets || []
 
@@ -82,11 +86,15 @@ function MarketsPageContent() {
             {/* Stats */}
             <div className="hidden md:flex items-center gap-6 text-sm">
               <div className="text-center">
-                <div className="font-semibold">{markets.length}</div>
+                <div className="font-semibold">
+                  {countsLoading ? '...' : counts.total}
+                </div>
                 <div className="text-muted-foreground">Markets</div>
               </div>
               <div className="text-center">
-                <div className="font-semibold">$2.4M</div>
+                <div className="font-semibold">
+                  {countsLoading ? '...' : counts.totalVolume}
+                </div>
                 <div className="text-muted-foreground">Volume</div>
               </div>
             </div>
