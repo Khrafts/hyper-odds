@@ -7,10 +7,18 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { wagmiConfig, privyConfig } from '../lib/web3/privyConfig'
 import { GraphQLProvider } from '../lib/graphql/provider'
 import { suppressSSRWarnings, suppressDevelopmentNetworkErrors } from '../lib/ssrUtils'
+import { prepareMetaMaskConnection } from '../lib/web3/metamaskUtils'
 
 // Suppress SSR warnings and development network errors
 suppressSSRWarnings()
 suppressDevelopmentNetworkErrors()
+
+// Prepare MetaMask connection on load
+if (typeof window !== 'undefined') {
+  window.addEventListener('load', () => {
+    prepareMetaMaskConnection()
+  })
+}
 
 /**
  * React Query client configuration

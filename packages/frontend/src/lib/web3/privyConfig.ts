@@ -1,47 +1,79 @@
 import { http, createConfig } from 'wagmi'
 import { arbitrumSepolia } from 'wagmi/chains'
-import { injected } from 'wagmi/connectors'
+import { injected, walletConnect } from 'wagmi/connectors'
 
 /**
- * Wagmi configuration for Privy integration
+ * Wagmi configuration for Privy integration with better MetaMask handling
  */
 export const wagmiConfig = createConfig({
   chains: [arbitrumSepolia],
-  connectors: [injected()],
+  connectors: [
+    // More specific injected connector with better error handling
+    injected({
+      shimDisconnect: false, // Disable shimming to prevent connection conflicts
+    }),
+    // Add WalletConnect as fallback
+    ...(process.env.NEXT_PUBLIC_WC_PROJECT_ID ? [
+      walletConnect({
+        projectId: process.env.NEXT_PUBLIC_WC_PROJECT_ID,
+        metadata: {
+          name: 'HyperOdds',
+          description: 'Prediction Markets Platform',
+          url: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+          icons: ['https://walletconnect.com/walletconnect-logo.png'],
+        },
+      })
+    ] : []),
+  ],
   transports: {
-    [arbitrumSepolia.id]: http(process.env.NEXT_PUBLIC_ARBITRUM_RPC || 'https://arbitrum-sepolia-rpc.publicnode.com'),
+    [arbitrumSepolia.id]: http(
+      process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC || 
+      process.env.NEXT_PUBLIC_ARBITRUM_RPC || 
+      'https://arbitrum-sepolia-rpc.publicnode.com'
+    ),
   },
-  multiInjectedProviderDiscovery: false,
+  multiInjectedProviderDiscovery: false, // Prevent conflicts with multiple injected providers
+  syncConnectedChain: false, // Let Privy handle chain management
 })
 
 /**
- * Privy configuration
+ * Privy configuration with improved MetaMask handling
  */
 export const privyConfig = {
   appId: process.env.NEXT_PUBLIC_PRIVY_APP_ID || 'dummy-app-id',
   config: {
-    loginMethods: ['wallet', 'email'] as const,
+    loginMethods: ['wallet'] as const, // Simplify to just wallet for now
     appearance: {
       theme: 'light' as const,
       accentColor: 'hsl(var(--primary))',
       borderRadius: 'medium' as const,
+      showWalletLoginFirst: true, // Prioritize wallet login
     },
     defaultChain: arbitrumSepolia,
     supportedChains: [arbitrumSepolia],
     embeddedWallets: {
-      createOnLogin: 'users-without-wallets' as const,
+      createOnLogin: 'off' as const, // Disable embedded wallets to avoid conflicts
       requireUserPasswordOnCreate: false,
     },
-    // Enable smart wallets for better UX
+    // Disable smart wallets to simplify connection
     smartWallets: {
-      createOnLogin: 'all-users' as const,
+      createOnLogin: 'off' as const,
     },
-    // External wallet configuration for wagmi integration
+    // External wallet configuration with better error handling
     externalWallets: {
       walletConnect: {
         enabled: true,
+        connectionOptions: 'all' as const,
+      },
+      metamask: {
+        connectionOptions: 'all' as const,
+      },
+      coinbaseWallet: {
+        connectionOptions: 'all' as const,
       },
     },
+    // Add better error handling and connection recovery
+    walletConnectCloudProjectId: process.env.NEXT_PUBLIC_WC_PROJECT_ID,
   },
 }
 

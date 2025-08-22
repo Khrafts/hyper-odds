@@ -15,6 +15,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { ChevronDown, Copy, ExternalLink, LogOut, Wallet } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { arbitrumSepolia } from 'wagmi/chains'
+import { handleMetaMaskError, diagnoseMetaMaskConnection } from '@/lib/web3/metamaskUtils'
 
 interface ConnectWalletButtonProps {
   className?: string
@@ -44,11 +45,44 @@ export function ConnectWalletButton({
   showChain = true,
 }: ConnectWalletButtonProps) {
   const [mounted, setMounted] = React.useState(false)
+  const [connectionError, setConnectionError] = React.useState<string | null>(null)
   const { ready, authenticated, user, login, logout } = usePrivy()
 
   React.useEffect(() => {
     setMounted(true)
   }, [])
+
+  // Enhanced login with error handling
+  const handleLogin = React.useCallback(async () => {
+    try {
+      setConnectionError(null)
+      
+      // Diagnose MetaMask connection before attempting login
+      const diagnosis = await diagnoseMetaMaskConnection()
+      if (diagnosis.error && !diagnosis.isInstalled) {
+        setConnectionError('Please install MetaMask or another Web3 wallet to continue')
+        return
+      }
+      
+      await login()
+    } catch (error) {
+      console.error('Wallet connection error:', error)
+      const friendlyError = handleMetaMaskError(error)
+      setConnectionError(friendlyError)
+    }
+  }, [login])
+
+  // Enhanced logout with error handling
+  const handleLogout = React.useCallback(async () => {
+    try {
+      setConnectionError(null)
+      await logout()
+    } catch (error) {
+      console.error('Wallet disconnection error:', error)
+      const friendlyError = handleMetaMaskError(error)
+      setConnectionError(friendlyError)
+    }
+  }, [logout])
 
   // Prevent rendering during hydration
   if (!mounted) {
@@ -82,15 +116,22 @@ export function ConnectWalletButton({
   // Show connect button if not authenticated with Privy
   if (!authenticated) {
     return (
-      <Button
-        variant={variant}
-        size={size}
-        onClick={login}
-        className={cn('gap-2', className)}
-      >
-        <Wallet className="h-4 w-4" />
-        Connect Wallet
-      </Button>
+      <div className="flex flex-col gap-2">
+        <Button
+          variant={variant}
+          size={size}
+          onClick={handleLogin}
+          className={cn('gap-2', className)}
+        >
+          <Wallet className="h-4 w-4" />
+          Connect Wallet
+        </Button>
+        {connectionError && (
+          <div className="text-xs text-destructive">
+            {connectionError}
+          </div>
+        )}
+      </div>
     )
   }
 
@@ -109,15 +150,22 @@ export function ConnectWalletButton({
 
   if (!walletAddress) {
     return (
-      <Button
-        variant={variant}
-        size={size}
-        onClick={login}
-        className={cn('gap-2', className)}
-      >
-        <Wallet className="h-4 w-4" />
-        Connect Wallet
-      </Button>
+      <div className="flex flex-col gap-2">
+        <Button
+          variant={variant}
+          size={size}
+          onClick={handleLogin}
+          className={cn('gap-2', className)}
+        >
+          <Wallet className="h-4 w-4" />
+          Connect Wallet
+        </Button>
+        {connectionError && (
+          <div className="text-xs text-destructive">
+            {connectionError}
+          </div>
+        )}
+      </div>
     )
   }
 
@@ -205,7 +253,7 @@ export function ConnectWalletButton({
           <DropdownMenuSeparator />
           
           <DropdownMenuItem
-            onClick={logout}
+            onClick={handleLogout}
             className="gap-2"
           >
             <LogOut className="h-4 w-4" />
@@ -224,11 +272,44 @@ export function SimpleConnectButton({
   children?: React.ReactNode
 }) {
   const [mounted, setMounted] = React.useState(false)
+  const [connectionError, setConnectionError] = React.useState<string | null>(null)
   const { authenticated, login, logout } = usePrivy()
 
   React.useEffect(() => {
     setMounted(true)
   }, [])
+
+  // Enhanced login with error handling
+  const handleLogin = React.useCallback(async () => {
+    try {
+      setConnectionError(null)
+      
+      // Diagnose MetaMask connection before attempting login
+      const diagnosis = await diagnoseMetaMaskConnection()
+      if (diagnosis.error && !diagnosis.isInstalled) {
+        setConnectionError('Please install MetaMask or another Web3 wallet to continue')
+        return
+      }
+      
+      await login()
+    } catch (error) {
+      console.error('Wallet connection error:', error)
+      const friendlyError = handleMetaMaskError(error)
+      setConnectionError(friendlyError)
+    }
+  }, [login])
+
+  // Enhanced logout with error handling
+  const handleLogout = React.useCallback(async () => {
+    try {
+      setConnectionError(null)
+      await logout()
+    } catch (error) {
+      console.error('Wallet disconnection error:', error)
+      const friendlyError = handleMetaMaskError(error)
+      setConnectionError(friendlyError)
+    }
+  }, [logout])
 
   // Prevent rendering during hydration
   if (!mounted) {
@@ -245,23 +326,37 @@ export function SimpleConnectButton({
 
   if (authenticated) {
     return (
-      <Button
-        variant="outline"
-        onClick={logout}
-        className={className}
-      >
-        {children || 'Disconnect'}
-      </Button>
+      <div className="flex flex-col gap-2">
+        <Button
+          variant="outline"
+          onClick={handleLogout}
+          className={className}
+        >
+          {children || 'Disconnect'}
+        </Button>
+        {connectionError && (
+          <div className="text-xs text-destructive">
+            {connectionError}
+          </div>
+        )}
+      </div>
     )
   }
 
   return (
-    <Button
-      onClick={login}
-      className={className}
-    >
-      {children || 'Connect Wallet'}
-    </Button>
+    <div className="flex flex-col gap-2">
+      <Button
+        onClick={handleLogin}
+        className={className}
+      >
+        {children || 'Connect Wallet'}
+      </Button>
+      {connectionError && (
+        <div className="text-xs text-destructive">
+          {connectionError}
+        </div>
+      )}
+    </div>
   )
 }
 
