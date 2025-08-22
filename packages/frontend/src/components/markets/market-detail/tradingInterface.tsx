@@ -450,10 +450,10 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
         <div className="grid grid-cols-2 gap-4">
           <div 
             className={cn(
-              "p-4 rounded-lg border-2 cursor-pointer transition-all",
+              "p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 ease-out transform",
               selectedSide === 'YES' 
-                ? "border-green-500 bg-green-50 dark:bg-green-950/30" 
-                : "border-border hover:border-green-500/50"
+                ? "border-green-500 bg-green-50 dark:bg-green-950/30 scale-[1.02]" 
+                : "border-border hover:border-green-500/50 hover:scale-[1.01] active:scale-[0.99]"
             )}
             onClick={() => setSelectedSide('YES')}
           >
@@ -474,10 +474,10 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
           
           <div 
             className={cn(
-              "p-4 rounded-lg border-2 cursor-pointer transition-all",
+              "p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 ease-out transform",
               selectedSide === 'NO' 
-                ? "border-red-500 bg-red-50 dark:bg-red-950/30" 
-                : "border-border hover:border-red-500/50"
+                ? "border-red-500 bg-red-50 dark:bg-red-950/30 scale-[1.02]" 
+                : "border-border hover:border-red-500/50 hover:scale-[1.01] active:scale-[0.99]"
             )}
             onClick={() => setSelectedSide('NO')}
           >

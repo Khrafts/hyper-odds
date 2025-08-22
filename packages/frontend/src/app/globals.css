@@ -236,3 +236,84 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* Optimized animations for better performance */
+@layer utilities {
+  /* Smooth transitions for interactive elements */
+  .transition-smooth {
+    @apply transition-all duration-200 ease-in-out;
+  }
+  
+  .transition-fast {
+    @apply transition-all duration-150 ease-out;
+  }
+  
+  /* Focus states with smooth animations */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background transition-all duration-150;
+  }
+  
+  /* Hover states for cards and interactive elements */
+  .hover-lift {
+    @apply transition-transform duration-200 ease-out hover:-translate-y-1;
+  }
+  
+  .hover-scale {
+    @apply transition-transform duration-200 ease-out hover:scale-105;
+  }
+  
+  /* Button press effect */
+  .active-scale {
+    @apply active:scale-95 transition-transform duration-100;
+  }
+  
+  /* Smooth color transitions */
+  .hover-bg {
+    @apply transition-colors duration-200 ease-in-out;
+  }
+  
+  /* Animated underline for links */
+  .link-underline {
+    @apply relative after:absolute after:bottom-0 after:left-0 after:h-[2px] after:w-0 after:bg-current after:transition-all after:duration-200 hover:after:w-full;
+  }
+  
+  /* Pulse animation for loading states */
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+  
+  .animate-shimmer {
+    background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.1) 50%, transparent 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+  
+  /* Smooth fade animations */
+  .animate-in {
+    animation: fadeIn 0.2s ease-out;
+  }
+  
+  .animate-out {
+    animation: fadeOut 0.15s ease-in;
+  }
+  
+  @keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+  
+  /* Optimized spinner animation */
+  @keyframes spin-smooth {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  
+  .animate-spin-smooth {
+    animation: spin-smooth 1s linear infinite;
+  }
+}

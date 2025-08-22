@@ -52,7 +52,7 @@ export function MarketCard({ market, onClick, onTrade }: MarketCardProps) {
   return (
     <ComponentErrorBoundary componentName="MarketCard">
       <Card 
-        className="hover:shadow-lg transition-shadow cursor-pointer"
+        className="hover:shadow-lg transition-smooth hover-lift cursor-pointer group"
         onClick={onClick}
       >
         <CardHeader className="pb-3">
@@ -84,11 +84,11 @@ export function MarketCard({ market, onClick, onTrade }: MarketCardProps) {
           </div>
           <div className="relative h-6 bg-muted rounded-full overflow-hidden">
             <div
-              className="absolute left-0 top-0 h-full bg-gradient-to-r from-green-500 to-green-400"
+              className="absolute left-0 top-0 h-full bg-gradient-to-r from-green-500 to-green-400 transition-all duration-500 ease-out"
               style={{ width: `${yesProb}%` }}
             />
             <div
-              className="absolute right-0 top-0 h-full bg-gradient-to-l from-red-500 to-red-400"
+              className="absolute right-0 top-0 h-full bg-gradient-to-l from-red-500 to-red-400 transition-all duration-500 ease-out"
               style={{ width: `${noProb}%` }}
             />
           </div>
@@ -130,7 +130,7 @@ export function MarketCard({ market, onClick, onTrade }: MarketCardProps) {
             <Button
               size="sm"
               variant="outline"
-              className="flex-1 text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-950"
+              className="flex-1 text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-950 transition-smooth active-scale focus-ring"
               onClick={(e) => {
                 e.stopPropagation()
                 handleTrade('YES')
@@ -141,7 +141,7 @@ export function MarketCard({ market, onClick, onTrade }: MarketCardProps) {
             <Button
               size="sm"
               variant="outline"
-              className="flex-1 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
+              className="flex-1 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950 transition-smooth active-scale focus-ring"
               onClick={(e) => {
                 e.stopPropagation()
                 handleTrade('NO')

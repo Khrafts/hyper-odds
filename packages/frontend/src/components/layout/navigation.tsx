@@ -112,8 +112,8 @@ export function Navigation({
 
   const itemClasses = (href: string) => {
     const base = orientation === 'horizontal'
-      ? "flex items-center space-x-2 px-3 py-2 text-sm font-medium rounded-md transition-colors"
-      : "flex items-center space-x-3 px-3 py-2 text-sm font-medium rounded-md transition-colors w-full"
+      ? "flex items-center space-x-2 px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.98]"
+      : "flex items-center space-x-3 px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ease-out hover:translate-x-1 active:translate-x-0 w-full"
     
     if (variant === 'minimal') {
       return cn(
