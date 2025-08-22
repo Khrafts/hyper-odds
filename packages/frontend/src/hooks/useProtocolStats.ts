@@ -123,8 +123,8 @@ export function useProtocolStats() {
       growthMetrics: {
         marketsThisWeek,
         marketsThisMonth,
-        volumeGrowth: 12, // Placeholder - would need historical data
-        traderGrowth: 18, // Placeholder - would need historical data
+        volumeGrowth: 0, // Set to 0 until we have historical data
+        traderGrowth: 0, // Set to 0 until we have historical data
       }
     }
   }, [data])

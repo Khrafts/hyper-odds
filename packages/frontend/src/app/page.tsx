@@ -39,7 +39,7 @@ function StatsSection() {
             {loading ? '...' : stats.formattedTotalVolume}
           </div>
           <p className="text-xs text-muted-foreground">
-            {loading ? '...' : `+${stats.growthMetrics.volumeGrowth}% from last month`}
+            {loading ? '...' : stats.growthMetrics.volumeGrowth > 0 ? `+${stats.growthMetrics.volumeGrowth}% from last month` : 'All time volume'}
           </p>
         </CardContent>
       </Card>
@@ -67,7 +67,7 @@ function StatsSection() {
             {loading ? '...' : stats.totalTraders.toLocaleString()}
           </div>
           <p className="text-xs text-muted-foreground">
-            {loading ? '...' : `+${stats.growthMetrics.traderGrowth}% this week`}
+            {loading ? '...' : stats.growthMetrics.traderGrowth > 0 ? `+${stats.growthMetrics.traderGrowth}% this week` : 'Total traders'}
           </p>
         </CardContent>
       </Card>
@@ -81,7 +81,7 @@ function StatsSection() {
             {loading ? '...' : stats.resolvedMarkets}
           </div>
           <p className="text-xs text-muted-foreground">
-            {loading ? '...' : `${stats.resolutionRate.toFixed(1)}% accuracy`}
+            {loading ? '...' : stats.resolutionRate > 0 ? `${stats.resolutionRate.toFixed(1)}% resolution rate` : 'Markets resolved'}
           </p>
         </CardContent>
       </Card>
