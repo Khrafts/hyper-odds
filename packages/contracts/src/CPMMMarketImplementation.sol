@@ -24,6 +24,7 @@ contract CPMMMarketImplementation is IMarket, ReentrancyGuard, Pausable {
     uint256 public constant PRECISION = 1e18;
     uint256 public constant MIN_TRADE_AMOUNT = 1e15; // 0.001 tokens minimum
     uint256 public constant MAX_POSITION_BPS = 2500; // 25% max position
+    uint256 public constant MIN_LIQUIDITY_BPS = 1000; // 10% minimum liquidity protection
 
     // ============ Core State ============
     uint256 public reserveYES;
@@ -298,6 +299,9 @@ contract CPMMMarketImplementation is IMarket, ReentrancyGuard, Pausable {
         // Check position limits to prevent whale manipulation
         _checkPositionLimit(msg.sender, outcome, sharesOut);
         
+        // Check minimum liquidity protection
+        _checkMinimumLiquidity(outcome, sharesOut, feeAmount);
+        
         // Transfer payment from user
         stakeToken.safeTransferFrom(msg.sender, address(this), amountIn);
         
@@ -506,5 +510,26 @@ contract CPMMMarketImplementation is IMarket, ReentrancyGuard, Pausable {
         uint256 maxAllowedShares = (initialLiquidity / 2) * MAX_POSITION_BPS / BPS_DIVISOR;
         
         require(newUserShares <= maxAllowedShares, "Position limit exceeded");
+    }
+    
+    /**
+     * @notice Check if a trade would violate minimum liquidity protection
+     * @param outcome 0 for NO, 1 for YES
+     * @param sharesOut Amount of shares that would be removed from reserves
+     * @param feeAmount Fee amount that would also be removed
+     */
+    function _checkMinimumLiquidity(
+        uint8 outcome,
+        uint256 sharesOut,
+        uint256 feeAmount
+    ) internal view {
+        // Calculate minimum allowed reserves (10% of initial per side)
+        uint256 minReservePerSide = (initialLiquidity / 2) * MIN_LIQUIDITY_BPS / BPS_DIVISOR;
+        
+        // Check which reserve would be affected by the trade
+        uint256 currentReserve = outcome == 1 ? reserveNO : reserveYES;
+        uint256 afterTradeReserve = currentReserve - (sharesOut + feeAmount);
+        
+        require(afterTradeReserve >= minReservePerSide, "Insufficient liquidity");
     }
 }
