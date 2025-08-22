@@ -17,6 +17,7 @@ const MARKET_FRAGMENT = gql`
     cutoffTime
     resolveTime
     createdAt
+    timeDecayBps
     creator {
       id
     }
@@ -55,6 +56,7 @@ const GET_MARKETS_SIMPLE = gql`
       cutoffTime
       resolveTime
       createdAt
+      timeDecayBps
       creator {
         id
       }
@@ -99,6 +101,7 @@ export interface Market {
   resolvedAtBlock?: string
   feeCollected?: string
   feeBps?: number
+  timeDecayBps?: number
   creator: {
     id: string
   }

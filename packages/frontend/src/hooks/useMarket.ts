@@ -28,6 +28,7 @@ const GET_MARKET = gql`
       resolvedAtBlock
       feeCollected
       feeBps
+      timeDecayBps
       creator {
         id
       }

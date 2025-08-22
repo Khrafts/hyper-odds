@@ -153,8 +153,8 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
     const cutoffTime = parseInt(market.cutoffTime || '0')
     const createdAt = parseInt(market.createdAt || '0')
     
-    // Assume timeDecayBps from contract - typical value might be 2000 (20%)
-    const timeDecayBps = 2000 // 20% time decay spread
+    // Use timeDecayBps from market data (fetched from indexer/contract)
+    const timeDecayBps = market.timeDecayBps || 2000 // Default 20% spread if not available
     
     if (timeDecayBps === 0) return 1.0 // No decay
     
@@ -165,9 +165,13 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
     
     const timeRatio = Math.min(timeRemaining / totalMarketTime, 1.0)
     
-    // Contract formula: multiplier = 1.0 - halfSpread + (timeRatio * timeDecayBps) / 10000
-    const halfSpread = timeDecayBps / 2 / 10000 // Convert to decimal
-    return 1.0 - halfSpread + (timeRatio * timeDecayBps) / 10000
+    // Contract formula from ParimutuelMarketImplementation.sol:
+    // multiplier = 10000 - halfSpread + (timeRatio * timeDecayBps) / 10000
+    const halfSpread = timeDecayBps / 2
+    const multiplierBps = 10000 - halfSpread + (timeRatio * timeDecayBps) / 10000
+    
+    // Convert from basis points to decimal
+    return multiplierBps / 10000
   }, [market.cutoffTime, market.createdAt])
 
   // Calculate effective shares (what you actually get)
@@ -310,7 +314,7 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
       
       const result = tradingFormSchema.safeParse(formData)
       if (!result.success) {
-        const firstError = result.error.errors[0]
+        const firstError = result.error.issues[0]
         return { 
           isValid: false, 
           message: firstError.message, 
