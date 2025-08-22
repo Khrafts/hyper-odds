@@ -30,6 +30,7 @@ contract CPMMMarketImplementation is IMarket, ReentrancyGuard, Pausable {
     uint256 public reserveYES;
     uint256 public reserveNO;
     uint256 public initialLiquidity;
+    uint256 public totalFeesCollected;
     
     // ============ Market Configuration ============
     IERC20 public stakeToken;
@@ -37,24 +38,24 @@ contract CPMMMarketImplementation is IMarket, ReentrancyGuard, Pausable {
     address public creator;
     address public oracle;
     address public factory;
+    bytes32 public resolutionDataHash;
     
-    uint64 public cutoffTime;
-    uint64 public resolveTime;
-    uint16 public creatorFeeShareBps; // Creator's share of fees (50% = 5000)
+    // ============ Packed Configuration ============ 
+    // Pack time values, fees, and state flags in single storage slot
+    struct PackedConfig {
+        uint64 cutoffTime;
+        uint64 resolveTime;
+        uint16 creatorFeeShareBps; // Creator's share of fees (50% = 5000)
+        uint8 winningOutcome; // 0 = NO, 1 = YES
+        bool initialized;
+        bool resolved;
+        bool feesDistributed;
+    }
+    PackedConfig public config;
     
     // ============ User Balances ============
     mapping(address => uint256) public sharesYES;
     mapping(address => uint256) public sharesNO;
-    
-    // ============ Market State ============
-    bool public initialized;
-    bool public resolved;
-    uint8 public winningOutcome; // 0 = NO, 1 = YES
-    bytes32 public resolutionDataHash;
-    
-    // ============ Fee Accounting ============
-    uint256 public totalFeesCollected;
-    bool public feesDistributed;
     
     // ============ Claim Tracking ============
     mapping(address => bool) public claimed;
@@ -106,17 +107,17 @@ contract CPMMMarketImplementation is IMarket, ReentrancyGuard, Pausable {
     }
     
     modifier beforeCutoff() {
-        require(block.timestamp < cutoffTime, "Trading closed");
+        require(block.timestamp < config.cutoffTime, "Trading closed");
         _;
     }
     
     modifier afterResolution() {
-        require(resolved, "Not resolved");
+        require(config.resolved, "Not resolved");
         _;
     }
     
     modifier notResolved() {
-        require(!resolved, "Already resolved");
+        require(!config.resolved, "Already resolved");
         _;
     }
 
@@ -129,7 +130,7 @@ contract CPMMMarketImplementation is IMarket, ReentrancyGuard, Pausable {
         address _factory,
         uint256 _liquidityAmount
     ) external {
-        require(!initialized, "Already initialized");
+        require(!config.initialized, "Already initialized");
         require(_liquidityAmount >= MIN_TOTAL_LIQUIDITY, "Insufficient liquidity");
         require(_params.window.tEnd > block.timestamp, "Invalid resolve time");
         require(_params.cutoffTime > block.timestamp, "Invalid cutoff time");
@@ -142,11 +143,19 @@ contract CPMMMarketImplementation is IMarket, ReentrancyGuard, Pausable {
         creator = _params.creator;
         oracle = _oracle;
         
-        // Set market parameters
+        // Set market parameters  
         params = _params;
-        cutoffTime = _params.cutoffTime;
-        resolveTime = _params.window.tEnd;
-        creatorFeeShareBps = _params.econ.creatorFeeShareBps;
+        
+        // Pack configuration in single storage write
+        config = PackedConfig({
+            cutoffTime: _params.cutoffTime,
+            resolveTime: _params.window.tEnd,
+            creatorFeeShareBps: _params.econ.creatorFeeShareBps,
+            winningOutcome: 0,
+            initialized: true,
+            resolved: false,
+            feesDistributed: false
+        });
         
         // Initialize liquidity
         initialLiquidity = _liquidityAmount;
@@ -156,17 +165,26 @@ contract CPMMMarketImplementation is IMarket, ReentrancyGuard, Pausable {
         // Pull liquidity from creator (factory should transfer to us)
         stakeToken.safeTransferFrom(_factory, address(this), _liquidityAmount);
         
-        initialized = true;
+        // Already marked as initialized in config struct
         
         emit MarketInitialized(
             creator,
             _liquidityAmount,
-            cutoffTime,
-            resolveTime
+            config.cutoffTime,
+            config.resolveTime
         );
     }
 
     // ============ View Functions ============
+    
+    // Getter functions for packed config (for backward compatibility)
+    function initialized() external view returns (bool) { return config.initialized; }
+    function resolved() external view returns (bool) { return config.resolved; }
+    function cutoffTime() external view returns (uint64) { return config.cutoffTime; }
+    function resolveTime() external view returns (uint64) { return config.resolveTime; }
+    function creatorFeeShareBps() external view returns (uint16) { return config.creatorFeeShareBps; }
+    function winningOutcome() external view returns (uint8) { return config.winningOutcome; }
+    function feesDistributed() external view returns (bool) { return config.feesDistributed; }
     
     /**
      * @notice Get current spot price for YES shares
@@ -411,12 +429,13 @@ contract CPMMMarketImplementation is IMarket, ReentrancyGuard, Pausable {
         uint8 outcome,
         bytes32 dataHash
     ) external override onlyOracle {
-        require(block.timestamp >= resolveTime, "Too early");
-        require(!resolved, "Already resolved");
+        require(block.timestamp >= config.resolveTime, "Too early");
+        require(!config.resolved, "Already resolved");
         require(outcome <= 1, "Invalid outcome");
         
-        resolved = true;
-        winningOutcome = outcome;
+        // Update config with resolution info
+        config.resolved = true;
+        config.winningOutcome = outcome;
         resolutionDataHash = dataHash;
         
         emit Resolved(outcome, dataHash);
@@ -430,7 +449,7 @@ contract CPMMMarketImplementation is IMarket, ReentrancyGuard, Pausable {
         
         uint256 winningShares;
         
-        if (winningOutcome == 1) {
+        if (config.winningOutcome == 1) {
             winningShares = sharesYES[msg.sender];
         } else {
             winningShares = sharesNO[msg.sender];
@@ -441,7 +460,7 @@ contract CPMMMarketImplementation is IMarket, ReentrancyGuard, Pausable {
         claimed[msg.sender] = true;
         
         // First claimer distributes fees
-        if (!feesDistributed && totalFeesCollected > 0) {
+        if (!config.feesDistributed && totalFeesCollected > 0) {
             _distributeFees();
         }
         
@@ -456,12 +475,12 @@ contract CPMMMarketImplementation is IMarket, ReentrancyGuard, Pausable {
      * @notice Distribute collected fees to treasury and creator
      */
     function _distributeFees() private {
-        if (feesDistributed || totalFeesCollected == 0) return;
+        if (config.feesDistributed || totalFeesCollected == 0) return;
         
-        uint256 creatorShare = (totalFeesCollected * creatorFeeShareBps) / BPS_DIVISOR;
+        uint256 creatorShare = (totalFeesCollected * config.creatorFeeShareBps) / BPS_DIVISOR;
         uint256 treasuryShare = totalFeesCollected - creatorShare;
         
-        feesDistributed = true;
+        config.feesDistributed = true;
         
         if (treasuryShare > 0) {
             stakeToken.safeTransfer(treasury, treasuryShare);
