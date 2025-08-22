@@ -42,22 +42,22 @@ export const wagmiConfig = createConfig({
 export const privyConfig = {
   appId: process.env.NEXT_PUBLIC_PRIVY_APP_ID || 'dummy-app-id',
   config: {
-    loginMethods: ['wallet'] as const, // Simplify to just wallet for now
+    loginMethods: ['email', 'wallet', 'google', 'twitter'] as const, // Enable multiple auth methods
     appearance: {
       theme: 'light' as const,
       accentColor: 'hsl(var(--primary))',
       borderRadius: 'medium' as const,
-      showWalletLoginFirst: true, // Prioritize wallet login
+      showWalletLoginFirst: false, // Show email first for easier onboarding
     },
     defaultChain: arbitrumSepolia,
     supportedChains: [arbitrumSepolia],
     embeddedWallets: {
-      createOnLogin: 'off' as const, // Disable embedded wallets to avoid conflicts
+      createOnLogin: 'users-without-wallets' as const, // Create wallets for email users
       requireUserPasswordOnCreate: false,
     },
-    // Disable smart wallets to simplify connection
+    // Enable smart wallets for better UX
     smartWallets: {
-      createOnLogin: 'off' as const,
+      createOnLogin: 'all-users' as const,
     },
     // External wallet configuration with better error handling
     externalWallets: {

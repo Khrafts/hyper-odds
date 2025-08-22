@@ -15,7 +15,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { ChevronDown, Copy, ExternalLink, LogOut, Wallet } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { arbitrumSepolia } from 'wagmi/chains'
-import { handleMetaMaskError, diagnoseMetaMaskConnection } from '@/lib/web3/metamaskUtils'
+import { handleMetaMaskError } from '@/lib/web3/metamaskUtils'
 
 interface ConnectWalletButtonProps {
   className?: string
@@ -56,17 +56,9 @@ export function ConnectWalletButton({
   const handleLogin = React.useCallback(async () => {
     try {
       setConnectionError(null)
-      
-      // Diagnose MetaMask connection before attempting login
-      const diagnosis = await diagnoseMetaMaskConnection()
-      if (diagnosis.error && !diagnosis.isInstalled) {
-        setConnectionError('Please install MetaMask or another Web3 wallet to continue')
-        return
-      }
-      
       await login()
     } catch (error) {
-      console.error('Wallet connection error:', error)
+      console.error('Authentication error:', error)
       const friendlyError = handleMetaMaskError(error)
       setConnectionError(friendlyError)
     }
@@ -283,17 +275,9 @@ export function SimpleConnectButton({
   const handleLogin = React.useCallback(async () => {
     try {
       setConnectionError(null)
-      
-      // Diagnose MetaMask connection before attempting login
-      const diagnosis = await diagnoseMetaMaskConnection()
-      if (diagnosis.error && !diagnosis.isInstalled) {
-        setConnectionError('Please install MetaMask or another Web3 wallet to continue')
-        return
-      }
-      
       await login()
     } catch (error) {
-      console.error('Wallet connection error:', error)
+      console.error('Authentication error:', error)
       const friendlyError = handleMetaMaskError(error)
       setConnectionError(friendlyError)
     }
