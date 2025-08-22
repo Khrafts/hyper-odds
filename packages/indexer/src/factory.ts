@@ -1,5 +1,5 @@
 import { MarketCreated, StakeReleased, MarketFactory } from "../generated/MarketFactory/MarketFactory"
-import { ParimutuelMarket } from "../generated/templates"
+import { ParimutuelMarket, CPMMMarket } from "../generated/templates"
 import { Market, User, MarketCreated as MarketCreatedEntity, Protocol } from "../generated/schema"
 import { BigInt, BigDecimal, Address } from "@graphprotocol/graph-ts"
 
@@ -62,6 +62,9 @@ export function handleMarketCreated(event: MarketCreated): void {
   market.title = event.params.params.title
   market.description = event.params.params.description
   
+  // Market type (0 = PARIMUTUEL, 1 = CPMM)
+  market.marketType = event.params.marketType == 0 ? "PARIMUTUEL" : "CPMM"
+  
   // Subject parameters - now actual values!
   market.subjectKind = event.params.params.subject.kind == 0 ? "HL_METRIC" : "TOKEN_PRICE"
   market.metricId = event.params.params.subject.metricId
@@ -111,16 +114,42 @@ export function handleMarketCreated(event: MarketCreated): void {
   market.resolved = false
   market.cancelled = false
   
-  // Pools
-  market.poolNo = BigDecimal.fromString("0")
-  market.poolYes = BigDecimal.fromString("0")
-  market.totalPool = BigDecimal.fromString("0")
-  market.feeCollected = BigDecimal.fromString("0")
-  
-  // Effective pools
-  market.effectivePoolNo = BigDecimal.fromString("0")
-  market.effectivePoolYes = BigDecimal.fromString("0")
-  market.totalEffectivePool = BigDecimal.fromString("0")
+  // Initialize fields based on market type
+  if (market.marketType == "PARIMUTUEL") {
+    // Parimutuel pools
+    market.poolNo = BigDecimal.fromString("0")
+    market.poolYes = BigDecimal.fromString("0")
+    market.totalPool = BigDecimal.fromString("0")
+    market.feeCollected = BigDecimal.fromString("0")
+    
+    // Effective pools (time decay)
+    market.effectivePoolNo = BigDecimal.fromString("0")
+    market.effectivePoolYes = BigDecimal.fromString("0")
+    market.totalEffectivePool = BigDecimal.fromString("0")
+    
+    // CPMM fields (unused for parimutuel)
+    market.reserveNo = BigDecimal.fromString("0")
+    market.reserveYes = BigDecimal.fromString("0")
+    market.initialLiquidity = BigDecimal.fromString("0")
+    market.totalFeesCollected = BigDecimal.fromString("0")
+    market.spotPrice = BigDecimal.fromString("0.5") // 50% default
+  } else {
+    // CPMM reserves (will be set by MarketInitialized event)
+    market.reserveNo = BigDecimal.fromString("0")
+    market.reserveYes = BigDecimal.fromString("0")
+    market.initialLiquidity = BigDecimal.fromString("0")
+    market.totalFeesCollected = BigDecimal.fromString("0")
+    market.spotPrice = BigDecimal.fromString("0.5") // 50% default
+    
+    // Parimutuel fields (unused for CPMM)
+    market.poolNo = BigDecimal.fromString("0")
+    market.poolYes = BigDecimal.fromString("0")
+    market.totalPool = BigDecimal.fromString("0")
+    market.feeCollected = BigDecimal.fromString("0")
+    market.effectivePoolNo = BigDecimal.fromString("0")
+    market.effectivePoolYes = BigDecimal.fromString("0")
+    market.totalEffectivePool = BigDecimal.fromString("0")
+  }
   
   // Metadata
   market.createdAt = event.block.timestamp
@@ -153,8 +182,12 @@ export function handleMarketCreated(event: MarketCreated): void {
   protocol.activeMarkets = protocol.activeMarkets.plus(BigInt.fromI32(1))
   protocol.save()
   
-  // Create data source for this market
-  ParimutuelMarket.create(event.params.market)
+  // Create data source for this market based on type
+  if (market.marketType == "PARIMUTUEL") {
+    ParimutuelMarket.create(event.params.market)
+  } else {
+    CPMMMarket.create(event.params.market)
+  }
 }
 
 export function handleStakeReleased(event: StakeReleased): void {

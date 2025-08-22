@@ -23,8 +23,10 @@ dataSources:
           file: ./abis/MarketFactory.json
         - name: ParimutuelMarketImplementation
           file: ./abis/ParimutuelMarketImplementation.json
+        - name: CPMMMarketImplementation
+          file: ./abis/CPMMMarketImplementation.json
       eventHandlers:
-        - event: MarketCreated(indexed address,indexed address,(string,string,(uint8,bytes32,address,uint8),(uint8,int256),(uint8,uint64,uint64),(bytes32,bytes32,uint8),uint64,address,(uint16,uint16,uint256,uint16),bool))
+        - event: MarketCreated(indexed address,indexed address,indexed uint8,(string,string,(uint8,bytes32,address,uint8),(uint8,int256),(uint8,uint64,uint64),(bytes32,bytes32,uint8),uint64,address,(uint16,uint16,uint256,uint16),bool))
           handler: handleMarketCreated
         - event: StakeReleased(indexed address,indexed address,uint256)
           handler: handleStakeReleased
@@ -83,3 +85,36 @@ templates:
         - event: Claimed(indexed address,uint256)
           handler: handleClaimed
       file: ./src/market.ts
+  - kind: ethereum
+    name: CPMMMarket
+    network: arbitrum-sepolia
+    source:
+      abi: CPMMMarketImplementation
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Market
+        - User
+        - Position
+        - SharesPurchased
+        - SharesSold
+        - Claim
+        - Resolution
+        - MarketInitialized
+      abis:
+        - name: CPMMMarketImplementation
+          file: ./abis/CPMMMarketImplementation.json
+      eventHandlers:
+        - event: MarketInitialized(indexed address,uint256,uint64,uint64)
+          handler: handleMarketInitialized
+        - event: SharesPurchased(indexed address,uint8,uint256,uint256,uint256,uint256)
+          handler: handleSharesPurchased
+        - event: SharesSold(indexed address,uint8,uint256,uint256,uint256,uint256)
+          handler: handleSharesSold
+        - event: Resolved(uint8,bytes32)
+          handler: handleResolved
+        - event: Claimed(indexed address,uint256)
+          handler: handleClaimed
+      file: ./src/cpmm-market.ts

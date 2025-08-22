@@ -17,6 +17,9 @@ type Market @entity {
   title: String!
   description: String!
   
+  # Market Type
+  marketType: String! # PARIMUTUEL, CPMM
+  
   # Subject
   subjectKind: String! # HL_METRIC, TOKEN_PRICE, GENERIC
   metricId: Bytes!
@@ -54,16 +57,25 @@ type Market @entity {
   winningOutcome: Int
   resolutionDataHash: Bytes
   
-  # Pools
+  # Parimutuel-specific: Pools
   poolNo: BigDecimal!
   poolYes: BigDecimal!
   totalPool: BigDecimal!
   feeCollected: BigDecimal!
   
-  # Effective Stakes (for time decay)
+  # Effective Stakes (for time decay - parimutuel only)
   effectivePoolNo: BigDecimal!
   effectivePoolYes: BigDecimal!
   totalEffectivePool: BigDecimal!
+  
+  # CPMM-specific: Reserves and liquidity
+  reserveNo: BigDecimal! # NO shares in AMM
+  reserveYes: BigDecimal! # YES shares in AMM
+  initialLiquidity: BigDecimal! # Initial liquidity provided by creator
+  totalFeesCollected: BigDecimal! # Total trading fees collected
+  
+  # Current spot price for CPMM (YES probability)
+  spotPrice: BigDecimal!
   
   # Metadata
   createdAt: BigInt!
@@ -108,15 +120,23 @@ type Position @entity {
   market: Market!
   user: User!
   
-  # Stakes
+  # Parimutuel: Stakes
   stakeNo: BigDecimal!
   stakeYes: BigDecimal!
   totalStake: BigDecimal!
   
-  # Effective Stakes (with time decay multipliers)
+  # Effective Stakes (with time decay multipliers - parimutuel only)
   effectiveStakeNo: BigDecimal!
   effectiveStakeYes: BigDecimal!
   totalEffectiveStake: BigDecimal!
+  
+  # CPMM: Shares owned
+  sharesNo: BigDecimal!
+  sharesYes: BigDecimal!
+  totalShares: BigDecimal!
+  
+  # CPMM: Total amount spent buying shares
+  totalSpent: BigDecimal!
   
   # Outcome
   claimed: Boolean!
@@ -175,6 +195,56 @@ type Resolution @entity {
   market: Market!
   outcome: Int!
   dataHash: Bytes!
+  
+  # Metadata
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  transactionHash: Bytes!
+  logIndex: BigInt!
+}
+
+# CPMM-specific entities
+type SharesPurchased @entity {
+  id: ID! # tx-logIndex
+  market: Market!
+  user: User!
+  outcome: Int! # 0 = NO, 1 = YES
+  amountIn: BigDecimal! # Amount paid
+  sharesOut: BigDecimal! # Shares received
+  feeAmount: BigDecimal! # Fee paid
+  spotPrice: BigDecimal! # Price after trade
+  
+  # Metadata
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  transactionHash: Bytes!
+  logIndex: BigInt!
+}
+
+type SharesSold @entity {
+  id: ID! # tx-logIndex
+  market: Market!
+  user: User!
+  outcome: Int! # 0 = NO, 1 = YES
+  sharesIn: BigDecimal! # Shares sold
+  amountOut: BigDecimal! # Amount received
+  feeAmount: BigDecimal! # Fee paid
+  spotPrice: BigDecimal! # Price after trade
+  
+  # Metadata
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  transactionHash: Bytes!
+  logIndex: BigInt!
+}
+
+type MarketInitialized @entity {
+  id: ID! # tx-logIndex
+  market: Market!
+  creator: User!
+  initialLiquidity: BigDecimal!
+  cutoffTime: BigInt!
+  resolveTime: BigInt!
   
   # Metadata
   timestamp: BigInt!
