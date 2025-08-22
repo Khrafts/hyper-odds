@@ -22,6 +22,7 @@ import {
   RefreshCw
 } from 'lucide-react'
 import { useWallet } from '@/hooks/useWallet'
+import { usePrivy } from '@privy-io/react-auth'
 import { formatUnits } from 'viem'
 import { Market } from '@/hooks/useMarkets'
 import { calculateMarketProbabilities } from '@/lib/probability'
@@ -54,6 +55,7 @@ interface TradingInterfaceProps {
 
 export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noProb, onTrade, onTransactionSuccess, disabled = false }: TradingInterfaceProps) {
   const { address, isConnected } = useWallet()
+  const { login } = usePrivy()
   
   // Use trading hooks for contract integration
   const {
@@ -333,6 +335,17 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
   }, [amount, usdcBalance, isConnected, market, selectedSide, slippage])
 
   const handleTrade = useCallback(async () => {
+    // If wallet is not connected, trigger login
+    if (!isConnected) {
+      try {
+        login()
+        return
+      } catch (error) {
+        setError('Failed to connect wallet. Please try again.')
+        return
+      }
+    }
+
     if (!validation.isValid) return
     
     setError(null)
@@ -356,6 +369,8 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
     
     showConfirmation(transactionDetails)
   }, [
+    isConnected,
+    login,
     validation.isValid, 
     needsApproval, 
     amount, 
@@ -773,7 +788,11 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
         {/* Trade Button */}
         <Button
           onClick={handleTrade}
-          disabled={!validation.isValid || tradingState.isLoading || disabled}
+          disabled={
+            (!validation.isValid && isConnected) || // Only disable for validation errors when connected
+            tradingState.isLoading || 
+            disabled
+          }
           className="w-full h-12 text-lg"
           variant={selectedSide === 'YES' ? 'default' : 'destructive'}
         >
