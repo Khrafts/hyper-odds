@@ -40,14 +40,13 @@ export function SearchBar({
   
   const markets = marketsData?.markets || []
 
-  // Keyboard shortcut to focus search (Cmd/Ctrl + K)
-  useKeyboardShortcut(['cmd', 'k'], () => {
-    inputRef.current?.focus()
-  })
-  
-  useKeyboardShortcut(['ctrl', 'k'], () => {
-    inputRef.current?.focus()
-  })
+  // Auto-focus when component mounts (for modal usage)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      inputRef.current?.focus()
+    }, 100)
+    return () => clearTimeout(timer)
+  }, [])
 
   // Handle click outside to close results
   useEffect(() => {

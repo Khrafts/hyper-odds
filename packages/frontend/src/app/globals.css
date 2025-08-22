@@ -207,6 +207,16 @@ body {
   }
 }
 
+/* Prevent horizontal scrolling */
+html, body {
+  overflow-x: hidden;
+}
+
+.container {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 /* GPU acceleration for smooth animations */
 .gpu-accelerated {
   transform: translateZ(0);

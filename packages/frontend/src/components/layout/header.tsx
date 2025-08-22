@@ -12,6 +12,12 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator
 } from '../ui/dropdown-menu'
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogTrigger
+} from '../ui/dialog'
 import { Badge } from '../ui/badge'
 import { 
   Menu, 
@@ -25,11 +31,13 @@ import {
   Trophy,
   Wallet,
   HelpCircle,
-  ChevronDown
+  ChevronDown,
+  Search
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { cn } from '@/lib/utils'
 import { SearchBar } from '@/components/common/search-bar'
+import { useKeyboardShortcut } from '@/hooks/use-keyboard-shortcut'
 
 // Navigation items configuration
 const navigationItems = [
@@ -57,12 +65,22 @@ export function Header() {
   const { theme, setTheme } = useTheme()
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
 
   // Check if a navigation item is active
   const isActiveRoute = (href: string) => {
     if (href === '/') return pathname === '/'
     return pathname.startsWith(href)
   }
+
+  // Keyboard shortcut to open search (Cmd/Ctrl + K)
+  useKeyboardShortcut(['cmd', 'k'], () => {
+    setSearchOpen(true)
+  })
+  
+  useKeyboardShortcut(['ctrl', 'k'], () => {
+    setSearchOpen(true)
+  })
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -95,20 +113,27 @@ export function Header() {
           ))}
         </nav>
 
-        {/* Search Bar - Desktop */}
-        <div className="hidden lg:block flex-1 max-w-md mx-8">
-          <SearchBar 
-            placeholder="Search markets..." 
-            className="w-full"
-            onSelect={() => setMobileMenuOpen(false)}
-          />
-        </div>
-
         {/* Spacer */}
-        <div className="flex-1 lg:flex-none" />
+        <div className="flex-1" />
 
         {/* Desktop Actions */}
         <div className="hidden md:flex items-center space-x-3">
+          {/* Search Button */}
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => setSearchOpen(true)}
+            className="text-muted-foreground hover:text-foreground flex items-center gap-2"
+          >
+            <Search className="h-4 w-4" />
+            <span className="hidden xl:flex items-center gap-1 text-xs text-muted-foreground">
+              <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                <span className="text-xs">⌘</span>K
+              </kbd>
+            </span>
+            <span className="sr-only">Search</span>
+          </Button>
+
           {/* Create Market Button */}
           <Button asChild size="sm" className="bg-primary hover:bg-primary/90">
             <Link href="/create">
@@ -192,15 +217,6 @@ export function Header() {
       {mobileMenuOpen && (
         <div className="md:hidden border-t bg-background/95 backdrop-blur">
           <div className="container mx-auto px-4 py-4 space-y-3 max-w-7xl">
-            {/* Mobile Search */}
-            <div className="lg:hidden">
-              <SearchBar 
-                placeholder="Search markets..." 
-                className="w-full"
-                onSelect={() => setMobileMenuOpen(false)}
-              />
-            </div>
-
             {/* Navigation Links */}
             <div className="space-y-1">
               {navigationItems.map((item) => (
@@ -226,6 +242,19 @@ export function Header() {
 
             {/* Mobile Actions */}
             <div className="space-y-2 pt-2 border-t">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => {
+                  setMobileMenuOpen(false)
+                  setSearchOpen(true)
+                }}
+                className="w-full justify-start"
+              >
+                <Search className="h-4 w-4 mr-2" />
+                Search Markets
+              </Button>
+
               <Button asChild size="sm" className="w-full justify-start">
                 <Link href="/create" onClick={() => setMobileMenuOpen(false)}>
                   <Plus className="h-4 w-4 mr-2" />
@@ -281,6 +310,20 @@ export function Header() {
           </div>
         </div>
       )}
+
+      {/* Search Modal */}
+      <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
+        <DialogContent className="sm:max-w-2xl p-0">
+          <DialogTitle className="sr-only">Search Markets</DialogTitle>
+          <div className="p-6">
+            <SearchBar 
+              placeholder="Search markets by title or description..."
+              className="w-full"
+              onSelect={() => setSearchOpen(false)}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </header>
   )
 }
