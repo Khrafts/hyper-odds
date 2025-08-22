@@ -67,7 +67,7 @@ This plan bridges the gap between the 3-day hackathon implementation (60 tasks) 
 - Save preference to localStorage
 - Add smooth transitions between themes
 **Test**: Theme switching works and persists across sessions
-**Files Created**: `src/components/common/theme-toggle.tsx`
+**Files Created**: `src/components/common/themeToggle.tsx`
 
 ### Task 65: Add Advanced Market Filters (2.5 hours)
 **Goal**: Enhance market filtering capabilities
@@ -78,7 +78,7 @@ This plan bridges the gap between the 3-day hackathon implementation (60 tasks) 
 - Include sort options (Volume, Created, Ending Soon)
 - Add filter persistence in URL params
 **Test**: Filters work correctly and persist on page reload
-**Files Modified**: `src/components/markets/market-filters.tsx`
+**Files Modified**: `src/components/markets/marketFilters.tsx`
 
 ### Task 66: Create Pagination Component (1.5 hours)
 **Goal**: Add pagination for large lists
@@ -100,7 +100,7 @@ This plan bridges the gap between the 3-day hackathon implementation (60 tasks) 
 - Make responsive with horizontal scroll
 - Add accessibility features
 **Test**: Table works with position data and market data
-**Files Created**: `src/components/common/data-table.tsx`
+**Files Created**: `src/components/common/dataTable.tsx`
 
 ### Task 68: Create Enhanced Search (2 hours)
 **Goal**: Add global search functionality
@@ -111,7 +111,7 @@ This plan bridges the gap between the 3-day hackathon implementation (60 tasks) 
 - Include keyboard shortcuts (Cmd/Ctrl + K)
 - Add recent searches
 **Test**: Search returns relevant results quickly
-**Files Modified**: `src/components/common/search-bar.tsx`
+**Files Modified**: `src/components/common/searchBar.tsx`
 
 ### Task 69: Add Advanced Error Boundaries (1.5 hours)
 **Goal**: Comprehensive error handling
@@ -122,7 +122,7 @@ This plan bridges the gap between the 3-day hackathon implementation (60 tasks) 
 - Include error reporting integration
 - Add retry mechanisms
 **Test**: Errors are handled gracefully without crashing app
-**Files Created**: `src/components/common/error-boundary.tsx`
+**Files Created**: `src/components/common/errorBoundary.tsx`
 
 ### Task 70: Create Positions Table (3 hours)
 **Goal**: Advanced positions management
@@ -133,7 +133,7 @@ This plan bridges the gap between the 3-day hackathon implementation (60 tasks) 
 - Include bulk actions (claim multiple)
 - Add position status indicators
 **Test**: Table displays all positions with proper sorting
-**Files Created**: `src/components/portfolio/positions-table.tsx`
+**Files Created**: `src/components/portfolio/positionsTable.tsx`
 
 ## Phase 2: Analytics & Advanced Features (Tasks 71-80)
 *Estimated Time: 25-30 hours*
@@ -158,7 +158,7 @@ This plan bridges the gap between the 3-day hackathon implementation (60 tasks) 
 - Win rate trends, volume charts
 - Multiple time period views (1D, 1W, 1M, 3M, 1Y)
 **Test**: Charts display accurate performance data
-**Files Created**: `src/components/charts/performance-chart.tsx`
+**Files Created**: `src/components/charts/performanceChart.tsx`
 
 ### Task 73: Create User Stats Component (2.5 hours)
 **Goal**: Comprehensive user statistics
@@ -169,7 +169,7 @@ This plan bridges the gap between the 3-day hackathon implementation (60 tasks) 
 - Active positions count, total volume traded
 - Ranking compared to other users
 **Test**: Stats accurately reflect user performance
-**Files Created**: `src/components/analytics/user-stats.tsx`
+**Files Created**: `src/components/analytics/userStats.tsx`
 
 ### Task 74: Create Protocol Metrics (2.5 hours)
 **Goal**: Protocol-wide analytics dashboard
@@ -180,7 +180,7 @@ This plan bridges the gap between the 3-day hackathon implementation (60 tasks) 
 - Daily/weekly growth charts
 - Top markets by volume
 **Test**: Metrics display current protocol statistics
-**Files Created**: `src/components/analytics/protocol-metrics.tsx`
+**Files Created**: `src/components/analytics/protocolMetrics.tsx`
 
 ### Task 75: Create Analytics Page (3 hours)
 **Goal**: Complete analytics dashboard
@@ -224,7 +224,7 @@ This plan bridges the gap between the 3-day hackathon implementation (60 tasks) 
 - Include YES/NO volume breakdown
 - Add volume trend indicators
 **Test**: Volume chart displays accurate market data
-**Files Created**: `src/components/charts/volume-chart.tsx`
+**Files Created**: `src/components/charts/volumeChart.tsx`
 
 ### Task 79: Create P&L Summary Component (2.5 hours)
 **Goal**: Advanced portfolio overview
@@ -235,7 +235,7 @@ This plan bridges the gap between the 3-day hackathon implementation (60 tasks) 
 - Best and worst performing positions
 - Unrealized vs realized gains
 **Test**: Summary accurately calculates and displays P&L
-**Files Created**: `src/components/portfolio/pnl-summary.tsx`
+**Files Created**: `src/components/portfolio/pnlSummary.tsx`
 
 ### Task 80: Add Order Book Component (3 hours)
 **Goal**: Market depth visualization
@@ -246,7 +246,7 @@ This plan bridges the gap between the 3-day hackathon implementation (60 tasks) 
 - Display recent large trades
 - Add depth chart visualization
 **Test**: Order book shows current market state
-**Files Created**: `src/components/markets/market-detail/order-book.tsx`
+**Files Created**: `src/components/markets/market-detail/orderBook.tsx`
 
 ## Phase 3: Multi-Step Market Creation (Tasks 81-85)
 *Estimated Time: 15-20 hours*
@@ -271,7 +271,7 @@ This plan bridges the gap between the 3-day hackathon implementation (60 tasks) 
 - Include step names and descriptions
 - Add visual completion checkmarks
 **Test**: Indicator updates correctly as user progresses
-**Files Created**: `src/components/markets/creation/step-indicator.tsx`
+**Files Created**: `src/components/markets/creation/stepIndicator.tsx`
 
 ### Task 83: Create Predicate Configuration Step (3 hours)
 **Goal**: Advanced predicate setup
@@ -321,7 +321,7 @@ This plan bridges the gap between the 3-day hackathon implementation (60 tasks) 
 - Show slippage warnings for large trades
 - Add slippage tolerance configuration
 **Test**: Slippage protection prevents bad trades
-**Files Modified**: `src/components/markets/market-detail/trading-interface.tsx`
+**Files Modified**: `src/components/markets/market-detail/tradingInterface.tsx`
 
 ### Task 87: Create Transaction Confirmation Modal (2.5 hours)
 **Goal**: Detailed transaction preview
@@ -332,7 +332,7 @@ This plan bridges the gap between the 3-day hackathon implementation (60 tasks) 
 - Include terms of service acceptance
 - Add transaction simulation preview
 **Test**: Confirmation shows accurate transaction details
-**Files Created**: `src/components/web3/transaction-confirmation.tsx`
+**Files Created**: `src/components/web3/transactionConfirmation.tsx`
 
 ### Task 88: Add Advanced Gas Estimation (2 hours)
 **Goal**: Optimize transaction costs
@@ -343,7 +343,7 @@ This plan bridges the gap between the 3-day hackathon implementation (60 tasks) 
 - Transaction timing recommendations
 - Gas usage history tracking
 **Test**: Gas estimates are accurate and optimized
-**Files Modified**: `src/hooks/use-trading.ts`
+**Files Modified**: `src/hooks/useTrading.ts`
 
 ### Task 89: Create Market Creation Store (2.5 hours)
 **Goal**: State management for multi-step creation
@@ -354,7 +354,7 @@ This plan bridges the gap between the 3-day hackathon implementation (60 tasks) 
 - Validation state management
 - Draft saving and resuming
 **Test**: Store maintains state across step navigation
-**Files Created**: `src/stores/use-creation-store.ts`
+**Files Created**: `src/stores/useCreationStore.ts`
 
 ### Task 90: Add Creation Validation (3 hours)
 **Goal**: Comprehensive market parameter validation
@@ -365,7 +365,7 @@ This plan bridges the gap between the 3-day hackathon implementation (60 tasks) 
 - Cross-field validation (timing conflicts, etc.)
 - Real-time validation feedback
 **Test**: Validation prevents creation of invalid markets
-**Files Created**: `src/lib/validations/market-creation.ts`
+**Files Created**: `src/lib/validations/marketCreation.ts`
 
 ## Phase 5: Final Polish & Optimization (Tasks 91-95)
 *Estimated Time: 15-20 hours*
