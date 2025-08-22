@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import React, { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useMarkets, MarketFilters } from '@/hooks/useMarkets'
 import { MarketGrid } from '@/components/markets/marketGrid'
 import { Button } from '@/components/ui/button'
@@ -10,20 +10,33 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { ClientOnly } from '@/components/clientOnly'
 import { PageErrorBoundary } from '@/components/error'
-import { Search, Filter, SortAsc } from 'lucide-react'
+import { useDebounce } from '@/hooks/use-debounce'
+import { Search, Filter, SortAsc, X } from 'lucide-react'
 
 function MarketsPageContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [filters, setFilters] = useState<MarketFilters>({
     status: 'all',
     sortBy: 'newest'
   })
   const [searchQuery, setSearchQuery] = useState('')
 
+  // Initialize search query from URL params
+  useEffect(() => {
+    const urlSearchQuery = searchParams?.get('search')
+    if (urlSearchQuery) {
+      setSearchQuery(urlSearchQuery)
+    }
+  }, [searchParams])
+  
+  // Debounce search query to avoid too many API calls
+  const debouncedSearchQuery = useDebounce(searchQuery, 300)
+
   // Apply search query to filters when it changes
   const effectiveFilters = {
     ...filters,
-    searchQuery: searchQuery.trim() || undefined
+    searchQuery: debouncedSearchQuery.trim() || undefined
   }
 
   const { data: marketsData, loading, error, refetch } = useMarkets(
@@ -86,11 +99,20 @@ function MarketsPageContent() {
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search markets..."
+              placeholder="Search markets by title or description..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
+              className="pl-10 pr-10"
             />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                title="Clear search"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
 
           {/* Status Filter */}

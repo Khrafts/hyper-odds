@@ -29,6 +29,7 @@ import {
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { cn } from '@/lib/utils'
+import { SearchBar } from '@/components/common/search-bar'
 
 // Navigation items configuration
 const navigationItems = [
@@ -94,8 +95,17 @@ export function Header() {
           ))}
         </nav>
 
+        {/* Search Bar - Desktop */}
+        <div className="hidden lg:block flex-1 max-w-md mx-8">
+          <SearchBar 
+            placeholder="Search markets..." 
+            className="w-full"
+            onSelect={() => setMobileMenuOpen(false)}
+          />
+        </div>
+
         {/* Spacer */}
-        <div className="flex-1" />
+        <div className="flex-1 lg:flex-none" />
 
         {/* Desktop Actions */}
         <div className="hidden md:flex items-center space-x-3">
@@ -182,6 +192,15 @@ export function Header() {
       {mobileMenuOpen && (
         <div className="md:hidden border-t bg-background/95 backdrop-blur">
           <div className="container mx-auto px-4 py-4 space-y-3 max-w-7xl">
+            {/* Mobile Search */}
+            <div className="lg:hidden">
+              <SearchBar 
+                placeholder="Search markets..." 
+                className="w-full"
+                onSelect={() => setMobileMenuOpen(false)}
+              />
+            </div>
+
             {/* Navigation Links */}
             <div className="space-y-1">
               {navigationItems.map((item) => (

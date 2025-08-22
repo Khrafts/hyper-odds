@@ -223,7 +223,11 @@ function buildWhereClause(filters: MarketFilters) {
   }
   
   if (filters.searchQuery) {
-    where.title_contains_nocase = filters.searchQuery
+    // Search in both title and description
+    where.or = [
+      { title_contains_nocase: filters.searchQuery },
+      { description_contains_nocase: filters.searchQuery }
+    ]
   }
   
   return where
