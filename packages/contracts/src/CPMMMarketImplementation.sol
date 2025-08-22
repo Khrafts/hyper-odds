@@ -299,12 +299,12 @@ contract CPMMMarketImplementation is IMarket, ReentrancyGuard, Pausable {
         
         // Update reserves using constant product formula
         if (outcome == 1) { // Buying YES
-            reserveNO += amountIn;
-            reserveYES -= sharesOut + feeAmount;
+            reserveYES += amountIn; // Add payment to YES reserves
+            reserveNO -= sharesOut + feeAmount; // Remove shares from NO reserves
             sharesYES[msg.sender] += sharesOut;
         } else { // Buying NO
-            reserveYES += amountIn;
-            reserveNO -= sharesOut + feeAmount;
+            reserveNO += amountIn; // Add payment to NO reserves
+            reserveYES -= sharesOut + feeAmount; // Remove shares from YES reserves
             sharesNO[msg.sender] += sharesOut;
         }
         
@@ -368,12 +368,12 @@ contract CPMMMarketImplementation is IMarket, ReentrancyGuard, Pausable {
         // Update user shares
         if (outcome == 1) {
             sharesYES[msg.sender] -= sharesIn;
-            reserveYES += sharesIn;
-            reserveNO -= amountOutGross;
+            reserveNO += sharesIn; // Add shares back to NO reserves
+            reserveYES -= amountOutGross; // Remove payout from YES reserves
         } else {
             sharesNO[msg.sender] -= sharesIn;
-            reserveNO += sharesIn;
-            reserveYES -= amountOutGross;
+            reserveYES += sharesIn; // Add shares back to YES reserves  
+            reserveNO -= amountOutGross; // Remove payout from NO reserves
         }
         
         // Track fees for distribution
