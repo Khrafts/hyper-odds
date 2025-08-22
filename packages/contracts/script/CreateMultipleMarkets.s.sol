@@ -82,7 +82,7 @@ contract CreateMultipleMarkets is Script {
         params.econ.maxTotalPool = 50000 * 1e6;
         params.econ.timeDecayBps = 2500;
         
-        address market = factory.createMarket(params);
+        address market = factory.createParimutuelMarket(params);
         console.log("BTC market created:", market);
     }
     
@@ -117,7 +117,7 @@ contract CreateMultipleMarkets is Script {
         params.econ.maxTotalPool = 40000 * 1e6;
         params.econ.timeDecayBps = 2500;
         
-        address market = factory.createMarket(params);
+        address market = factory.createParimutuelMarket(params);
         console.log("ETH market created:", market);
     }
     
@@ -152,7 +152,7 @@ contract CreateMultipleMarkets is Script {
         params.econ.maxTotalPool = 30000 * 1e6;
         params.econ.timeDecayBps = 3000;
         
-        address market = factory.createMarket(params);
+        address market = factory.createParimutuelMarket(params);
         console.log("HyperLiquid Volume market created:", market);
     }
     
@@ -187,7 +187,7 @@ contract CreateMultipleMarkets is Script {
         params.econ.maxTotalPool = 25000 * 1e6;
         params.econ.timeDecayBps = 2500;
         
-        address market = factory.createMarket(params);
+        address market = factory.createParimutuelMarket(params);
         console.log("HYPE token market created:", market);
     }
     
@@ -222,7 +222,7 @@ contract CreateMultipleMarkets is Script {
         params.econ.maxTotalPool = 20000 * 1e6;
         params.econ.timeDecayBps = 3000;
         
-        address market = factory.createMarket(params);
+        address market = factory.createParimutuelMarket(params);
         console.log("HyperLiquid Users market created:", market);
     }
     
@@ -257,7 +257,7 @@ contract CreateMultipleMarkets is Script {
         params.econ.maxTotalPool = 35000 * 1e6;
         params.econ.timeDecayBps = 2500;
         
-        address market = factory.createMarket(params);
+        address market = factory.createParimutuelMarket(params);
         console.log("SOL market created:", market);
     }
 }

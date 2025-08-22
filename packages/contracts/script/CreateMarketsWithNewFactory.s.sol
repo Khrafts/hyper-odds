@@ -63,7 +63,7 @@ contract CreateMarketsWithNewFactory is Script {
         btcParams.econ.maxTotalPool = 100000 * 1e6;
         btcParams.econ.timeDecayBps = 2000;
         
-        address btcMarket = factory.createMarket(btcParams);
+        address btcMarket = factory.createParimutuelMarket(btcParams);
         console.log("BTC market created:", btcMarket);
         
         // Market 2: HyperLiquid TVL Prediction
@@ -96,7 +96,7 @@ contract CreateMarketsWithNewFactory is Script {
         hlParams.econ.maxTotalPool = 50000 * 1e6;
         hlParams.econ.timeDecayBps = 3000;
         
-        address hlMarket = factory.createMarket(hlParams);
+        address hlMarket = factory.createParimutuelMarket(hlParams);
         console.log("HyperLiquid TVL market created:", hlMarket);
         
         vm.stopBroadcast();

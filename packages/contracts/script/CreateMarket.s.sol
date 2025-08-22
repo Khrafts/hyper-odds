@@ -62,9 +62,9 @@ contract CreateMarket is Script {
         console.log("Approving", stakeRequired / 1e18, "stHYPE...");
         IERC20(sthype).approve(factoryAddress, stakeRequired);
 
-        // Create market
+        // Create market (using backward-compatible parimutuel function)
         console.log("Creating market...");
-        address market = factory.createMarket(params);
+        address market = factory.createParimutuelMarket(params);
 
         console.log("Market created at:", market);
         console.log("Title:", params.title);

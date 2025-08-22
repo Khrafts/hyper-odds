@@ -47,7 +47,7 @@ contract DeployFactory is Script {
         vm.stopBroadcast();
 
         // Verify configuration
-        console.log("Implementation set:", factory.implementation());
+        console.log("Parimutuel Implementation set:", factory.parimutuelImplementation());
         console.log("Stake per market:", factory.STAKE_PER_MARKET());
     }
 }

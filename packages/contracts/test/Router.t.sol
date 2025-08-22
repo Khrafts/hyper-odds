@@ -74,14 +74,14 @@ contract RouterTest is Test {
             "Bitcoin price prediction",
             block.timestamp + 1 hours
         );
-        market1 = factory.createMarket(params1);
+        market1 = factory.createParimutuelMarket(params1);
         
         MarketTypes.MarketParams memory params2 = createMarketParams(
             "Will ETH hit $5k?",
             "Ethereum price prediction",
             block.timestamp + 2 hours
         );
-        market2 = factory.createMarket(params2);
+        market2 = factory.createParimutuelMarket(params2);
         vm.stopPrank();
     }
     

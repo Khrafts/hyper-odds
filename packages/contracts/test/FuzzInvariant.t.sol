@@ -346,7 +346,7 @@ contract MarketHandler is Test {
             isProtocolMarket: false
         });
 
-        address market = factory.createMarket(params);
+        address market = factory.createParimutuelMarket(params);
         vm.stopPrank();
 
         markets.push(market);
@@ -392,7 +392,7 @@ contract MarketHandler is Test {
             isProtocolMarket: true
         });
 
-        address market = factory.createProtocolMarket(params);
+        address market = factory.createProtocolMarket(params, MarketFactory.MarketType.PARIMUTUEL, 0);
         vm.stopPrank();
 
         markets.push(market);

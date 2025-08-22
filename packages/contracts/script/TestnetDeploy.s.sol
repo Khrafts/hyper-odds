@@ -138,7 +138,7 @@ contract TestnetDeploy is Script {
             isProtocolMarket: false
         });
         
-        address market = factory.createMarket(params);
+        address market = factory.createParimutuelMarket(params);
         console.log("  Test market created:", market);
         
         vm.stopBroadcast();

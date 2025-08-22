@@ -129,7 +129,11 @@ contract CreateProtocolMarket is Script {
 
         for (uint256 i = 0; i < markets.length; i++) {
             console.log("Creating market", i + 1, ":", markets[i].title);
-            address market = factory.createProtocolMarket(markets[i]);
+            address market = factory.createProtocolMarket(
+                markets[i], 
+                MarketFactory.MarketType.PARIMUTUEL,
+                0 // no liquidity needed for parimutuel
+            );
             console.log("Market created at:", market);
         }
 

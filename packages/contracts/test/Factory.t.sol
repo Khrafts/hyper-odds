@@ -114,7 +114,7 @@ contract FactoryTest is Test {
         params.creator = user;
 
         // Create market
-        address market = factory.createMarket(params);
+        address market = factory.createParimutuelMarket(params);
         vm.stopPrank();
 
         // Verify stHYPE was locked
@@ -137,7 +137,7 @@ contract FactoryTest is Test {
         params.creator = user;
 
         // Create market
-        address market = factory.createMarket(params);
+        address market = factory.createParimutuelMarket(params);
         vm.stopPrank();
 
         // Verify market was initialized with correct params
@@ -159,7 +159,7 @@ contract FactoryTest is Test {
 
         // Should revert due to insufficient balance
         vm.expectRevert();
-        factory.createMarket(params);
+        factory.createParimutuelMarket(params);
 
         vm.stopPrank();
     }
@@ -205,7 +205,7 @@ contract FactoryTest is Test {
 
         // Create market with permit (no prior approval needed!)
         vm.prank(signer);
-        address market = factory.createMarketWithPermit(params, deadline, v, r, s);
+        address market = factory.createMarketWithPermit(params, MarketFactory.MarketType.PARIMUTUEL, 0, deadline, v, r, s);
 
         // Verify market was created and stake locked
         assertEq(factory.marketCreator(market), signer);
@@ -219,7 +219,7 @@ contract FactoryTest is Test {
         params.isProtocolMarket = true;
 
         // Only owner can create protocol markets
-        address market = factory.createProtocolMarket(params);
+        address market = factory.createProtocolMarket(params, MarketFactory.MarketType.PARIMUTUEL, 0);
 
         // Verify no stHYPE was locked
         assertEq(factory.creatorLockedStake(owner), 0);
@@ -236,7 +236,7 @@ contract FactoryTest is Test {
 
         vm.prank(user);
         vm.expectRevert();
-        factory.createProtocolMarket(params);
+        factory.createProtocolMarket(params, MarketFactory.MarketType.PARIMUTUEL, 0);
     }
 
     // Task 6.5 tests - releaseStake
@@ -255,7 +255,7 @@ contract FactoryTest is Test {
         params.window.tEnd = uint64(block.timestamp + 1 hours);
         params.cutoffTime = uint64(block.timestamp + 30 minutes);
 
-        address market = factory.createMarket(params);
+        address market = factory.createParimutuelMarket(params);
         vm.stopPrank();
 
         // Simulate resolution
@@ -286,7 +286,7 @@ contract FactoryTest is Test {
         MarketTypes.MarketParams memory params = createDefaultMarketParams();
         params.creator = user;
 
-        address market = factory.createMarket(params);
+        address market = factory.createParimutuelMarket(params);
 
         // Try to release before resolution
         vm.expectRevert("Market not resolved");
@@ -302,7 +302,7 @@ contract FactoryTest is Test {
         params.window.tEnd = uint64(block.timestamp + 1 hours);
         params.cutoffTime = uint64(block.timestamp + 30 minutes);
 
-        address market = factory.createProtocolMarket(params);
+        address market = factory.createProtocolMarket(params, MarketFactory.MarketType.PARIMUTUEL, 0);
 
         // Get the actual resolveTime from the market
         ParimutuelMarketImplementation marketContract = ParimutuelMarketImplementation(market);

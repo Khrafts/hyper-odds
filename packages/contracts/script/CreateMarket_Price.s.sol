@@ -66,7 +66,7 @@ contract CreateMarket_Price is Script {
 
         // Create market
         console.log("Creating market...");
-        address market = factory.createMarket(params);
+        address market = factory.createParimutuelMarket(params);
 
         console.log("Market created at:", market);
         console.log("Title:", params.title);

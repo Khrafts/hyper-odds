@@ -69,7 +69,7 @@ contract CreateTestMarket is Script {
         });
         
         console.log("Creating market...");
-        address market = factory.createMarket(params);
+        address market = factory.createParimutuelMarket(params);
         console.log("Market created:", market);
         
         vm.stopBroadcast();

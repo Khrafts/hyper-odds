@@ -226,7 +226,7 @@ contract E2EHappyPath is Test {
         });
 
         // Create market
-        market = factory.createMarket(params);
+        market = factory.createParimutuelMarket(params);
         console.log("  Market created at:", market);
 
         // Verify stHYPE was locked
@@ -432,7 +432,7 @@ contract E2EHappyPath is Test {
             isProtocolMarket: true
         });
 
-        address protocolMarket = factory.createProtocolMarket(params);
+        address protocolMarket = factory.createProtocolMarket(params, MarketFactory.MarketType.PARIMUTUEL, 0);
         console.log("Protocol market created at:", protocolMarket);
 
         // Verify no stHYPE was locked
