@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import type { Metadata } from 'next'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useMarkets, MarketFilters } from '@/hooks/useMarkets'
 import { useMarketCounts } from '@/hooks/useProtocolStats'

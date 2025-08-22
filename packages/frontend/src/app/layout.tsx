@@ -7,6 +7,7 @@ import { Footer } from "@/components/layout/footer";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "next-themes";
 import { PerformanceMonitor, BundleSizeReporter } from "@/components/common/performance-monitor";
+import { constructMetadata, siteConfig, generateStructuredData } from "@/lib/seo";
 
 // Optimize font loading with preload and fallback
 const inter = Inter({
@@ -18,21 +19,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "HyperOdds - Prediction Markets",
-  description: "Decentralized prediction markets on Hyperliquid",
-  keywords: ["prediction markets", "betting", "DeFi", "Hyperliquid", "Arbitrum"],
+  ...constructMetadata(),
   authors: [{ name: "HyperOdds Team" }],
-  openGraph: {
-    title: "HyperOdds - Prediction Markets",
-    description: "Trade on the future with decentralized prediction markets",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "HyperOdds - Prediction Markets",
-    description: "Trade on the future with decentralized prediction markets",
-  },
-  // Performance optimizations
   robots: {
     index: true,
     follow: true,
@@ -47,6 +35,10 @@ export const metadata: Metadata = {
   verification: {
     google: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION,
   },
+  alternates: {
+    canonical: siteConfig.url,
+  },
+  manifest: '/manifest.json',
 };
 
 export const viewport = {
@@ -82,6 +74,14 @@ export default function RootLayout({
         
         {/* Preload important scripts */}
         <link rel="modulepreload" href="/_next/static/chunks/webpack.js" />
+        
+        {/* Structured Data for SEO */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(generateStructuredData('website')),
+          }}
+        />
       </head>
       <body className={`${inter.variable} font-sans antialiased`}>
         <ThemeProvider

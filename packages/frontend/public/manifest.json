@@ -1,0 +1,46 @@
+{
+  "name": "HyperOdds - Prediction Markets",
+  "short_name": "HyperOdds",
+  "description": "Trade on the future with decentralized prediction markets",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": [
+    "finance",
+    "games",
+    "sports"
+  ],
+  "shortcuts": [
+    {
+      "name": "Browse Markets",
+      "url": "/markets",
+      "description": "View all prediction markets"
+    },
+    {
+      "name": "My Portfolio",
+      "url": "/portfolio",
+      "description": "View your positions and earnings"
+    },
+    {
+      "name": "Create Market",
+      "url": "/create",
+      "description": "Create a new prediction market"
+    }
+  ]
+}
