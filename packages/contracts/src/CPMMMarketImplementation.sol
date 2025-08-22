@@ -23,6 +23,7 @@ contract CPMMMarketImplementation is IMarket, ReentrancyGuard, Pausable {
     uint256 public constant BPS_DIVISOR = 10000;
     uint256 public constant PRECISION = 1e18;
     uint256 public constant MIN_TRADE_AMOUNT = 1e15; // 0.001 tokens minimum
+    uint256 public constant MAX_POSITION_BPS = 2500; // 25% max position
 
     // ============ Core State ============
     uint256 public reserveYES;
@@ -294,6 +295,9 @@ contract CPMMMarketImplementation is IMarket, ReentrancyGuard, Pausable {
         (uint256 sharesOut, uint256 feeAmount) = getAmountOut(outcome, amountIn);
         require(sharesOut >= minSharesOut, "Slippage exceeded");
         
+        // Check position limits to prevent whale manipulation
+        _checkPositionLimit(msg.sender, outcome, sharesOut);
+        
         // Transfer payment from user
         stakeToken.safeTransferFrom(msg.sender, address(this), amountIn);
         
@@ -478,5 +482,29 @@ contract CPMMMarketImplementation is IMarket, ReentrancyGuard, Pausable {
         } else {
             _unpause();
         }
+    }
+    
+    // ============ Internal Security Functions ============
+    
+    /**
+     * @notice Check if buying these shares would exceed position limits
+     * @param user Address attempting to buy
+     * @param outcome 0 for NO, 1 for YES  
+     * @param additionalShares Amount of shares they want to buy
+     */
+    function _checkPositionLimit(
+        address user, 
+        uint8 outcome, 
+        uint256 additionalShares
+    ) internal view {
+        // Calculate current shares user owns for this outcome
+        uint256 currentShares = outcome == 1 ? sharesYES[user] : sharesNO[user];
+        uint256 newUserShares = currentShares + additionalShares;
+        
+        // Check if user would own > MAX_POSITION_BPS% of initial outcome liquidity
+        // Use initial liquidity as baseline to prevent manipulation of the limit
+        uint256 maxAllowedShares = (initialLiquidity / 2) * MAX_POSITION_BPS / BPS_DIVISOR;
+        
+        require(newUserShares <= maxAllowedShares, "Position limit exceeded");
     }
 }

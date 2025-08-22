@@ -134,15 +134,15 @@ contract CPMMTest is Test {
         market = _createMarket();
         CPMMMarketImplementation cpmmMarket = CPMMMarketImplementation(market);
         
-        // Two traders buy opposite sides
+        // Two traders buy opposite sides (smaller amounts to respect position limits)
         vm.startPrank(trader1);
-        stakeToken.approve(market, 500e18);
-        cpmmMarket.buyShares(1, 500e18, 0); // Buy YES
+        stakeToken.approve(market, 200e18);
+        cpmmMarket.buyShares(1, 200e18, 0); // Buy YES
         vm.stopPrank();
         
         vm.startPrank(trader2);
-        stakeToken.approve(market, 300e18);
-        cpmmMarket.buyShares(0, 300e18, 0); // Buy NO
+        stakeToken.approve(market, 150e18);
+        cpmmMarket.buyShares(0, 150e18, 0); // Buy NO
         vm.stopPrank();
         
         uint256 yesShares = cpmmMarket.sharesYES(trader1);
@@ -181,11 +181,15 @@ contract CPMMTest is Test {
         market = _createMarket();
         CPMMMarketImplementation cpmmMarket = CPMMMarketImplementation(market);
         
-        // Make some trades to generate fees
+        // Make some trades to generate fees (smaller amounts to respect position limits)
         vm.startPrank(trader1);
-        stakeToken.approve(market, 1000e18);
-        cpmmMarket.buyShares(1, 500e18, 0);
-        cpmmMarket.buyShares(0, 500e18, 0);
+        stakeToken.approve(market, 400e18);
+        cpmmMarket.buyShares(1, 200e18, 0);
+        vm.stopPrank();
+        
+        vm.startPrank(trader2);
+        stakeToken.approve(market, 400e18);
+        cpmmMarket.buyShares(0, 200e18, 0);
         vm.stopPrank();
         
         uint256 totalFees = cpmmMarket.totalFeesCollected();
@@ -219,19 +223,19 @@ contract CPMMTest is Test {
         // Initial price should be 50%
         assertEq(cpmmMarket.getSpotPrice(), 5e17);
         
-        // Buy YES shares - price should increase
+        // Buy YES shares - price should increase (smaller amount to respect position limits)
         vm.startPrank(trader1);
-        stakeToken.approve(market, 500e18);
-        cpmmMarket.buyShares(1, 500e18, 0);
+        stakeToken.approve(market, 200e18);
+        cpmmMarket.buyShares(1, 200e18, 0);
         vm.stopPrank();
         
         uint256 priceAfterYes = cpmmMarket.getSpotPrice();
         assertGt(priceAfterYes, 5e17); // Price increased above 50%
         
-        // Buy NO shares - price should move back towards 50%
+        // Buy NO shares - price should move back towards 50% (smaller amount to respect position limits)
         vm.startPrank(trader2);
-        stakeToken.approve(market, 600e18);
-        cpmmMarket.buyShares(0, 600e18, 0);
+        stakeToken.approve(market, 200e18);
+        cpmmMarket.buyShares(0, 200e18, 0);
         vm.stopPrank();
         
         uint256 priceAfterNo = cpmmMarket.getSpotPrice();
@@ -284,5 +288,85 @@ contract CPMMTest is Test {
             }),
             isProtocolMarket: false
         });
+    }
+    
+    function testPositionLimits() public {
+        // Create market first
+        MarketTypes.MarketParams memory params = _createDefaultMarketParams();
+        
+        vm.startPrank(creator);
+        stakeToken.approve(address(factory), INITIAL_LIQUIDITY);
+        market = factory.createCPMMMarket(params, INITIAL_LIQUIDITY);
+        vm.stopPrank();
+        
+        CPMMMarketImplementation cpmmMarket = CPMMMarketImplementation(market);
+        
+        // Initial liquidity is 2000e18, so each side has 1000e18
+        // 25% of 1000e18 = 250e18 maximum shares per user
+        uint256 maxSharesPerUser = 250e18;
+        
+        // Trader1 buys up to the limit (should succeed)
+        vm.startPrank(trader1);
+        uint256 largeAmount = 300e18; // Try to buy shares worth ~300 tokens
+        stakeToken.approve(market, largeAmount);
+        
+        // This should work - buying some shares first
+        cpmmMarket.buyShares(1, 100e18, 0);
+        uint256 sharesAfterFirst = cpmmMarket.sharesYES(trader1);
+        
+        // Calculate how much more we can buy to reach the limit
+        uint256 remainingShares = maxSharesPerUser - sharesAfterFirst;
+        
+        // Try to buy exactly up to the limit (should work)
+        if (remainingShares > 0) {
+            // Calculate input needed for remaining shares (approximation)
+            uint256 approxInput = remainingShares + 50e18; // Add buffer for fees/slippage
+            stakeToken.approve(market, approxInput);
+            
+            // This might revert due to slippage, but let's try a smaller amount
+            try cpmmMarket.buyShares(1, 50e18, 0) {
+                // Purchase succeeded
+            } catch {
+                // Expected if we're close to the limit
+            }
+        }
+        
+        vm.stopPrank();
+        
+        // Now try to exceed the limit with a new large purchase
+        vm.startPrank(trader2);
+        stakeToken.approve(market, 1000e18);
+        
+        // This should fail - trying to buy way more than the limit
+        vm.expectRevert("Position limit exceeded");
+        cpmmMarket.buyShares(1, 800e18, 0);
+        
+        vm.stopPrank();
+    }
+    
+    function testPositionLimitsPreventWhaleManipulation() public {
+        // Create market first  
+        MarketTypes.MarketParams memory params = _createDefaultMarketParams();
+        
+        vm.startPrank(creator);
+        stakeToken.approve(address(factory), INITIAL_LIQUIDITY);
+        market = factory.createCPMMMarket(params, INITIAL_LIQUIDITY);
+        vm.stopPrank();
+        
+        CPMMMarketImplementation cpmmMarket = CPMMMarketImplementation(market);
+        
+        // Create a whale with lots of tokens
+        address whale = address(0x999);
+        stakeToken.mint(whale, 10000e18);
+        
+        vm.startPrank(whale);
+        stakeToken.approve(market, 10000e18);
+        
+        // Whale tries to buy massive position to manipulate price
+        // Should be stopped by position limits
+        vm.expectRevert("Position limit exceeded");
+        cpmmMarket.buyShares(1, 1000e18, 0);
+        
+        vm.stopPrank();
     }
 }
