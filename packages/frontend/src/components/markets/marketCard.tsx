@@ -22,50 +22,57 @@ interface MarketCardProps {
 export function MarketCard({ market, onClick, onTrade }: MarketCardProps) {
   const [tradeError, setTradeError] = useState<string | null>(null)
 
-  // Get market type and calculate probabilities
-  const marketType = getMarketType(market)
-  const yesProb = getMarketProbability(market)
-  const noProb = 100 - yesProb
-  const yesDisplay = `${yesProb.toFixed(1)}%`
-  const noDisplay = `${noProb.toFixed(1)}%`
-
-  // Format volume - different fields based on market type
-  let volume = 0
-  if (marketType === 'CPMM') {
-    // For CPMM, use total reserves as volume proxy
-    const reserveYes = parseFloat(market.reserveYes || '0')
-    const reserveNo = parseFloat(market.reserveNo || '0')
-    volume = reserveYes + reserveNo
-  } else {
-    // For Parimutuel, use totalPool
-    volume = parseFloat(market.totalPool || '0')
+  // Defensive null checks - log for debugging
+  if (!market) {
+    console.error('MarketCard: market is null/undefined')
+    return null
   }
-  
-  const formattedVolume = volume >= 1000000 
-    ? `$${(volume / 1000000).toFixed(1)}M`
-    : volume >= 1000 
-    ? `$${(volume / 1000).toFixed(1)}K`
-    : `$${volume.toFixed(0)}`
 
-  // Check if expired - using cutoffTime from GraphQL schema
-  const isExpired = market.cutoffTime && new Date(parseInt(market.cutoffTime) * 1000) < new Date()
-  const isResolved = market.resolved
+  try {
+    // Get market type and calculate probabilities
+    const marketType = getMarketType(market)
+    const yesProb = getMarketProbability(market)
+    const noProb = 100 - yesProb
+    const yesDisplay = `${yesProb.toFixed(1)}%`
+    const noDisplay = `${noProb.toFixed(1)}%`
 
-  const handleTrade = async (outcome: 'YES' | 'NO') => {
-    try {
-      setTradeError(null)
-      await onTrade?.(market, outcome)
-    } catch (error) {
-      setTradeError(error instanceof Error ? error.message : 'Failed to process trade')
+    // Format volume - different fields based on market type
+    let volume = 0
+    if (marketType === 'CPMM') {
+      // For CPMM, use total reserves as volume proxy
+      const reserveYes = parseFloat(market.reserveYes || '0')
+      const reserveNo = parseFloat(market.reserveNo || '0')
+      volume = reserveYes + reserveNo
+    } else {
+      // For Parimutuel, use totalPool
+      volume = parseFloat(market.totalPool || '0')
     }
-  }
+    
+    const formattedVolume = volume >= 1000000 
+      ? `$${(volume / 1000000).toFixed(1)}M`
+      : volume >= 1000 
+      ? `$${(volume / 1000).toFixed(1)}K`
+      : `$${volume.toFixed(0)}`
 
-  return (
-    <ComponentErrorBoundary componentName="MarketCard">
-      <Card 
-        className="hover:shadow-lg transition-smooth hover-lift cursor-pointer group"
-        onClick={onClick}
-      >
+    // Check if expired - using cutoffTime from GraphQL schema
+    const isExpired = market.cutoffTime && new Date(parseInt(market.cutoffTime) * 1000) < new Date()
+    const isResolved = market.resolved
+
+    const handleTrade = async (outcome: 'YES' | 'NO') => {
+      try {
+        setTradeError(null)
+        await onTrade?.(market, outcome)
+      } catch (error) {
+        setTradeError(error instanceof Error ? error.message : 'Failed to process trade')
+      }
+    }
+
+    return (
+      <ComponentErrorBoundary componentName="MarketCard">
+        <Card 
+          className="hover:shadow-lg transition-smooth hover-lift cursor-pointer group"
+          onClick={onClick}
+        >
         <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1">
@@ -181,10 +188,25 @@ export function MarketCard({ market, onClick, onTrade }: MarketCardProps) {
         )}
       </CardContent>
 
-      {/* Categories not yet available in GraphQL schema */}
+        {/* Categories not yet available in GraphQL schema */}
+        </Card>
+      </ComponentErrorBoundary>
+    )
+  } catch (error) {
+    console.error('MarketCard error:', error, 'Market data:', market)
+    return (
+      <Card className="border-red-200 bg-red-50 dark:bg-red-950/20">
+        <CardContent className="p-4">
+          <div className="text-sm text-red-900 dark:text-red-100">
+            Error loading market card
+          </div>
+          <div className="text-xs text-red-700 dark:text-red-300 mt-1">
+            {error instanceof Error ? error.message : 'Unknown error'}
+          </div>
+        </CardContent>
       </Card>
-    </ComponentErrorBoundary>
-  )
+    )
+  }
 }
 
 function getTimeRemaining(cutoffTime: string): string {
