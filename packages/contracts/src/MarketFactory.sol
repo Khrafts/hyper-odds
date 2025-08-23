@@ -25,6 +25,7 @@ contract MarketFactory is Ownable {
     address public parimutuelImplementation;
     address public cpmmImplementation;
     uint256 public constant STAKE_PER_MARKET = 1000e18; // 1000 stHYPE per market
+    uint256 public minCPMMLiquidity = 1000e6; // Default: 1000 USDC (6 decimals), configurable by owner
 
     mapping(address => address) public marketCreator; // market → creator
     mapping(address => uint256) public creatorLockedStake; // creator → locked stHYPE
@@ -40,6 +41,7 @@ contract MarketFactory is Ownable {
     );
     event StakeLocked(address indexed creator, address indexed market, uint256 amount);
     event StakeReleased(address indexed creator, address indexed market, uint256 amount);
+    event MinCPMMLiquidityUpdated(uint256 newMinLiquidity);
 
     constructor(address _stakeToken, address _stHYPE, address _treasury, address _oracle)
         Ownable(msg.sender)
@@ -59,7 +61,7 @@ contract MarketFactory is Ownable {
             require(parimutuelImplementation != address(0), "Parimutuel implementation not set");
         } else {
             require(cpmmImplementation != address(0), "CPMM implementation not set");
-            require(liquidityAmount >= 1000e18, "Insufficient liquidity"); // MIN_TOTAL_LIQUIDITY
+            require(liquidityAmount >= minCPMMLiquidity, "Insufficient liquidity");
         }
         address market;
         
@@ -190,6 +192,12 @@ contract MarketFactory is Ownable {
         parimutuelImplementation = _implementation;
     }
     
+    function setMinCPMMLiquidity(uint256 _minLiquidity) external onlyOwner {
+        require(_minLiquidity > 0, "Min liquidity must be greater than zero");
+        minCPMMLiquidity = _minLiquidity;
+        emit MinCPMMLiquidityUpdated(_minLiquidity);
+    }
+    
     // Internal helper functions to avoid stack too deep
     function _createParimutuelMarket(MarketTypes.MarketParams memory p) private returns (address market) {
         // Parimutuel markets require stHYPE staking
@@ -255,7 +263,8 @@ contract MarketFactory is Ownable {
             treasury,
             oracle,
             address(this), // factory address
-            liquidityAmount
+            liquidityAmount,
+            minCPMMLiquidity
         );
     }
     
@@ -283,7 +292,7 @@ contract MarketFactory is Ownable {
     
     function _createProtocolCPMMMarket(MarketTypes.MarketParams memory p, uint256 liquidityAmount) private returns (address market) {
         require(cpmmImplementation != address(0), "CPMM implementation not set");
-        require(liquidityAmount >= 1000e18, "Insufficient liquidity");
+        require(liquidityAmount >= minCPMMLiquidity, "Insufficient liquidity");
 
         // Protocol provides the liquidity for CPMM
         require(
@@ -307,7 +316,8 @@ contract MarketFactory is Ownable {
             treasury,
             oracle,
             address(this), // factory address
-            liquidityAmount
+            liquidityAmount,
+            minCPMMLiquidity
         );
     }
 }

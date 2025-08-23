@@ -18,11 +18,10 @@ contract CPMMMarketImplementation is IMarket, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
 
     // ============ Constants ============
-    uint256 public constant MIN_TOTAL_LIQUIDITY = 1000e18; // $1000 minimum
     uint256 public constant FEE_BPS = 300; // 3% fee
     uint256 public constant BPS_DIVISOR = 10000;
     uint256 public constant PRECISION = 1e18;
-    uint256 public constant MIN_TRADE_AMOUNT = 1e15; // 0.001 tokens minimum
+    uint256 public constant MIN_TRADE_AMOUNT = 1e6; // $1 minimum (USDC 6 decimals)
     uint256 public constant MAX_POSITION_BPS = 2500; // 25% max position
     uint256 public constant MIN_LIQUIDITY_BPS = 1000; // 10% minimum liquidity protection
 
@@ -128,10 +127,11 @@ contract CPMMMarketImplementation is IMarket, ReentrancyGuard, Pausable {
         address _treasury,
         address _oracle,
         address _factory,
-        uint256 _liquidityAmount
+        uint256 _liquidityAmount,
+        uint256 _minLiquidity
     ) external {
         require(!config.initialized, "Already initialized");
-        require(_liquidityAmount >= MIN_TOTAL_LIQUIDITY, "Insufficient liquidity");
+        require(_liquidityAmount >= _minLiquidity, "Insufficient liquidity");
         require(_params.window.tEnd > block.timestamp, "Invalid resolve time");
         require(_params.cutoffTime > block.timestamp, "Invalid cutoff time");
         require(_params.cutoffTime <= _params.window.tEnd, "Cutoff after resolve");
