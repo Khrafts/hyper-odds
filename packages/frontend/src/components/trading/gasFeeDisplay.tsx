@@ -21,7 +21,7 @@ import { formatGasPrice, formatEthAmount, type GasEstimates, type GasSpeed } fro
 interface GasFeeDisplayProps {
   gasEstimates?: GasEstimates
   selectedSpeed: GasSpeed
-  onSpeedChange: (speed: GasSpeed) => void
+  onSpeedChange?: (speed: GasSpeed) => void
   isLoading?: boolean
   error?: string | null
   onRefresh?: () => void
@@ -167,18 +167,35 @@ export function GasFeeDisplay({
                     key={speed}
                     variant={isSelected ? 'default' : 'outline'}
                     size="sm"
-                    onClick={() => onSpeedChange(speed)}
+                    onClick={() => {
+                      console.log('Gas speed button clicked:', speed)
+                      onSpeedChange?.(speed)
+                    }}
+                    disabled={!onSpeedChange}
                     className={cn(
-                      "h-auto p-3 flex flex-col items-start gap-1",
-                      isSelected && speedConf.bgColor,
-                      isSelected && speedConf.borderColor
+                      "h-auto p-3 flex flex-col items-start gap-1 relative cursor-pointer",
+                      "hover:scale-[1.02] transition-transform duration-200",
+                      !isSelected && "hover:border-2",
+                      !isSelected && `hover:${speedConf.borderColor}`,
+                      !onSpeedChange && "opacity-50 cursor-not-allowed"
                     )}
                   >
                     <div className="flex items-center gap-2 w-full">
-                      <SpeedIcon className={cn("h-4 w-4", speedConf.color)} />
-                      <span className="font-medium">{speedConf.label}</span>
+                      <SpeedIcon className={cn(
+                        "h-4 w-4", 
+                        isSelected ? "text-primary-foreground" : speedConf.color
+                      )} />
+                      <span className={cn(
+                        "font-medium",
+                        isSelected ? "text-primary-foreground" : "text-foreground"
+                      )}>
+                        {speedConf.label}
+                      </span>
                     </div>
-                    <div className="text-xs text-left">
+                    <div className={cn(
+                      "text-xs text-left",
+                      isSelected ? "text-primary-foreground/80" : "text-muted-foreground"
+                    )}>
                       {estimate ? estimate.totalCostFormatted : 'Estimating...'}
                     </div>
                   </Button>

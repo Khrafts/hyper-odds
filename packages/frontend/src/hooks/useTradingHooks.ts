@@ -348,14 +348,46 @@ export function useTradingHooks(marketAddress?: Address) {
       
       // Note: GraphQL data refetch is handled by the parent component's onTransactionSuccess callback
     } else if (writeError || txError) {
+      // Handle different types of errors
+      const error = writeError || txError
+      const isUserRejection = error?.message?.toLowerCase().includes('user rejected') || 
+                              error?.message?.toLowerCase().includes('user denied') ||
+                              error?.message?.toLowerCase().includes('user cancelled') ||
+                              error?.name === 'UserRejectedRequestError'
+      
+      // Clean up error message - remove technical details
+      let cleanErrorMessage = 'Transaction failed'
+      if (isUserRejection) {
+        cleanErrorMessage = 'Transaction cancelled by user'
+      } else if (error?.message) {
+        // Extract only the main error message, remove technical details
+        const message = error.message
+        if (message.includes('insufficient funds')) {
+          cleanErrorMessage = 'Insufficient funds for transaction'
+        } else if (message.includes('gas')) {
+          cleanErrorMessage = 'Gas estimation failed. Please try again.'
+        } else if (message.includes('network')) {
+          cleanErrorMessage = 'Network error. Please check your connection.'
+        } else {
+          // Take only the first sentence/line before technical details
+          const firstLine = message.split('\n')[0].split('.')[0]
+          cleanErrorMessage = firstLine.length > 100 ? 'Transaction failed' : firstLine
+        }
+      }
+      
       setTradingState(prev => ({
         ...prev,
         isLoading: false,
         isSuccess: false,
         isError: true,
-        error: writeError || txError || new Error('Transaction failed'),
+        error: new Error(cleanErrorMessage),
         txHash: txHash,
       }))
+      
+      // Clear the error from the store with clean message
+      if (error) {
+        failTransaction(cleanErrorMessage)
+      }
     } else if (isWritePending || isTxLoading) {
       setTradingState(prev => ({
         ...prev,
@@ -366,7 +398,7 @@ export function useTradingHooks(marketAddress?: Address) {
         txHash: txHash,
       }))
     }
-  }, [isTxSuccess, isTxLoading, isWritePending, writeError, txError, txHash, completeTransaction, refetchContractData])
+  }, [isTxSuccess, isTxLoading, isWritePending, writeError, txError, txHash, completeTransaction, refetchContractData, failTransaction])
 
   // Helper to check if amount needs approval
   const needsApproval = useCallback((amount: string) => {
@@ -443,12 +475,24 @@ export function useTradingHooks(marketAddress?: Address) {
     return baseState
   }, [tradingState, storeState, marketAddress])
 
+  // Reset function to clear stuck states
+  const resetTradingState = useCallback(() => {
+    setTradingState({
+      isLoading: false,
+      isSuccess: false,
+      isError: false,
+      error: null,
+    })
+    clearOptimisticUpdates()
+  }, [clearOptimisticUpdates])
+
   return {
     // Actions
     deposit,
     approveUSDC,
     approveAndDeposit,
     claimWinnings,
+    resetTradingState,
     
     // Gas estimation actions
     updateApprovalGasEstimate,

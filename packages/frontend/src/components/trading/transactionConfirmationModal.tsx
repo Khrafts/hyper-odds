@@ -26,7 +26,7 @@ import {
   Wallet
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { GasFeeInline } from './gasFeeDisplay'
+import { GasFeeDisplay, GasFeeInline } from './gasFeeDisplay'
 import { type GasEstimates, type GasSpeed } from '@/lib/gas'
 
 export interface TransactionDetails {
@@ -45,6 +45,12 @@ export interface TransactionDetails {
   selectedGasSpeed?: GasSpeed
   needsApproval?: boolean
   userBalance?: string
+  // Gas estimation functions
+  isGasLoading?: boolean
+  gasError?: string | null
+  onGasSpeedChange?: (speed: GasSpeed) => void
+  onGasRefresh?: () => void
+  clearGasError?: () => void
 }
 
 interface TransactionConfirmationModalProps {
@@ -79,6 +85,11 @@ export function TransactionConfirmationModal({
     selectedGasSpeed = 'standard',
     needsApproval,
     userBalance,
+    isGasLoading = false,
+    gasError,
+    onGasSpeedChange,
+    onGasRefresh,
+    clearGasError,
   } = details
 
   const getTransactionIcon = () => {
@@ -208,14 +219,22 @@ export function TransactionConfirmationModal({
             )}
 
             {/* Gas Fee */}
-            {gasEstimates && selectedGasSpeed && (
+            {gasEstimates && (
               <>
                 <Separator />
-                <GasFeeInline
-                  gasEstimates={gasEstimates}
-                  selectedSpeed={selectedGasSpeed}
-                  transactionType={type}
-                />
+                <div className="space-y-3">
+                  <div className="text-sm font-medium">Transaction Fee</div>
+                  <GasFeeDisplay
+                    gasEstimates={gasEstimates}
+                    selectedSpeed={selectedGasSpeed}
+                    onSpeedChange={onGasSpeedChange}
+                    isLoading={isGasLoading}
+                    error={gasError}
+                    onRefresh={onGasRefresh}
+                    transactionType={type}
+                    compact={true}
+                  />
+                </div>
               </>
             )}
           </div>

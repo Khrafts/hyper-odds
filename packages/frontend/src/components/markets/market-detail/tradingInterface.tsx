@@ -35,7 +35,6 @@ import {
   type TradingFormData 
 } from '@/lib/validations/trading'
 import { useTradingHooks } from '@/hooks/useTradingHooks'
-import { GasFeeDisplay, GasFeeInline } from '@/components/trading/gasFeeDisplay'
 import { 
   TransactionConfirmationModal, 
   useTransactionConfirmation,
@@ -66,6 +65,7 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
     tradingState,
     usdcBalance,
     formattedBalance,
+    resetTradingState,
     // Gas estimation
     gasEstimates,
     selectedGasSpeed,
@@ -87,6 +87,64 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [slippage, setSlippage] = useState(1) // 1% default slippage
   const [showTooltip, setShowTooltip] = useState(false)
+  const [isTransactionAttempting, setIsTransactionAttempting] = useState(false)
+
+  // Helper to clear errors on user interaction
+  const clearErrorsOnInteraction = useCallback(() => {
+    console.log('Clearing errors on interaction:', { error, tradingStateError: tradingState.error?.message })
+    
+    // Always clear local error on interaction
+    if (error) {
+      console.log('Clearing local error:', error)
+      setError(null)
+    }
+    
+    // Clear trading state error if it's a user cancellation or any error state
+    if (tradingState.error || tradingState.isError) {
+      console.log('Clearing trading state error')
+      resetTradingState()
+    }
+    
+    // Reset transaction attempting flag
+    setIsTransactionAttempting(false)
+  }, [error, tradingState.error?.message, tradingState.isError]) // Remove resetTradingState from dependencies
+
+  // Helper function to clean up error messages
+  const cleanErrorMessage = useCallback((errorMessage: string) => {
+    if (!errorMessage) return 'Unknown error'
+    
+    // Check for user rejection patterns
+    if (errorMessage.toLowerCase().includes('user rejected') || 
+        errorMessage.toLowerCase().includes('user denied') ||
+        errorMessage.toLowerCase().includes('user cancelled')) {
+      return 'Transaction cancelled'
+    }
+    
+    // Handle common error patterns
+    if (errorMessage.includes('insufficient funds')) {
+      return 'Insufficient funds'
+    }
+    if (errorMessage.includes('gas')) {
+      return 'Gas estimation failed'
+    }
+    if (errorMessage.includes('network')) {
+      return 'Network error'
+    }
+    
+    // Remove technical details
+    const cleanMessage = errorMessage
+      .split('Request Arguments:')[0]
+      .split('Contract Call:')[0]
+      .split('Docs:')[0]
+      .split('Details:')[0]
+      .split('Version:')[0]
+      .replace(/\n.*$/s, '') // Remove everything after first newline
+      .replace(/\s+/g, ' ') // Normalize whitespace
+      .trim()
+    
+    // Return clean message or fallback
+    return cleanMessage && cleanMessage.length <= 50 ? cleanMessage : 'Transaction failed'
+  }, [])
 
   // Transaction confirmation modal
   const {
@@ -100,23 +158,7 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
     setConfirmationError,
   } = useTransactionConfirmation()
 
-  // DISABLED: Gas estimation was causing excessive RPC calls (74+ in 5 seconds)
-  // TODO: Implement lazy gas estimation only when user clicks trade button
-  // useEffect(() => {
-  //   if (amount && parseFloat(amount) > 0 && isConnected) {
-  //     // Debounce gas estimation calls to prevent excessive requests
-  //     const timeoutId = setTimeout(() => {
-  //       // Estimate gas for approval if needed
-  //       if (needsApproval(amount)) {
-  //         updateApprovalGasEstimate(amount)
-  //       }
-  //       // Estimate gas for deposit
-  //       updateDepositGasEstimate(selectedSide, amount)
-  //     }, 500) // 500ms debounce
-
-  //     return () => clearTimeout(timeoutId)
-  //   }
-  // }, [amount, selectedSide, isConnected, needsApproval, updateApprovalGasEstimate, updateDepositGasEstimate])
+  // Gas estimation is now done lazily when user clicks trade button to prevent excessive RPC calls
 
   // Call success callback when transaction completes
   useEffect(() => {
@@ -124,6 +166,32 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
       onTransactionSuccess()
     }
   }, [tradingState.isSuccess, tradingState.stage, onTransactionSuccess])
+
+  // Auto-clear user cancellation errors after a short delay
+  useEffect(() => {
+    if (tradingState.error?.message && 
+        (tradingState.error.message.toLowerCase().includes('cancelled') ||
+         tradingState.error.message.toLowerCase().includes('rejected'))) {
+      const timer = setTimeout(() => {
+        resetTradingState()
+        setError(null)
+        hideConfirmation()
+      }, 3000) // Clear after 3 seconds
+      
+      return () => clearTimeout(timer)
+    }
+  }, [tradingState.error?.message]) // Only depend on the error message, not the functions
+
+  // Clear errors when component mounts (e.g., when sidebar reopens)
+  useEffect(() => {
+    // Clear any lingering cancellation errors when component mounts
+    if (tradingState.error?.message && 
+        (tradingState.error.message.toLowerCase().includes('cancelled') ||
+         tradingState.error.message.toLowerCase().includes('rejected'))) {
+      resetTradingState()
+      setError(null)
+    }
+  }, []) // Only run on mount - no dependencies to avoid infinite loop
 
   // Periodic balance refresh to prevent stale data
   useEffect(() => {
@@ -349,8 +417,9 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
     if (!validation.isValid) return
     
     setError(null)
+    clearGasError()
     
-    // Determine transaction type and show confirmation modal
+    // Show confirmation modal immediately with gas estimation in progress
     const transactionType = needsApproval(amount) ? 'approval' : 'deposit'
     const transactionDetails: TransactionDetails = {
       type: transactionType,
@@ -365,9 +434,31 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
       selectedGasSpeed,
       needsApproval: needsApproval(amount),
       userBalance: formattedBalance,
+      // Gas estimation functions
+      isGasLoading,
+      gasError,
+      onGasSpeedChange: setSelectedGasSpeed,
+      onGasRefresh: () => {
+        clearGasError()
+        if (needsApproval(amount)) {
+          updateApprovalGasEstimate(amount)
+        } else {
+          updateDepositGasEstimate(selectedSide, amount)
+        }
+      },
+      clearGasError,
     }
     
     showConfirmation(transactionDetails)
+    
+    // Trigger gas estimation after showing modal (will update the displayed estimates)
+    if (amount && parseFloat(amount) > 0) {
+      if (needsApproval(amount)) {
+        updateApprovalGasEstimate(amount)
+      } else {
+        updateDepositGasEstimate(selectedSide, amount)
+      }
+    }
   }, [
     isConnected,
     login,
@@ -384,14 +475,29 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
     gasEstimates,
     selectedGasSpeed,
     formattedBalance,
-    showConfirmation
+    showConfirmation,
+    clearGasError,
+    updateApprovalGasEstimate,
+    updateDepositGasEstimate,
+    isGasLoading,
+    gasError,
+    clearErrorsOnInteraction
   ])
 
   const handleConfirmTransaction = useCallback(async () => {
-    if (!validation.isValid || !confirmationDetails) return
+    if (!validation.isValid || !confirmationDetails || isTransactionAttempting) return
     
+    setIsTransactionAttempting(true)
     setConfirmationLoading(true)
     setConfirmationError(null)
+    
+    // Create a timeout to prevent getting stuck
+    const timeoutId = setTimeout(() => {
+      setConfirmationLoading(false)
+      setConfirmationError('Transaction timed out. Please try again.')
+      setIsTransactionAttempting(false)
+      resetTradingState()
+    }, 60000) // 60 second timeout
     
     try {
       // Use real contract integration
@@ -410,13 +516,73 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
         await onTrade(selectedSide, amount)
       }
       
+      clearTimeout(timeoutId)
       hideConfirmation()
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Transaction failed'
-      setConfirmationError(errorMessage)
-      setError(errorMessage)
+      clearTimeout(timeoutId)
+      
+      // Handle different types of errors
+      const error = err as Error
+      const isUserRejection = error?.message?.toLowerCase().includes('user rejected') || 
+                              error?.message?.toLowerCase().includes('user denied') ||
+                              error?.message?.toLowerCase().includes('user cancelled') ||
+                              error?.name === 'UserRejectedRequestError'
+      
+      // Clean up error message - remove technical details
+      let cleanErrorMessage = 'Transaction failed'
+      if (isUserRejection) {
+        cleanErrorMessage = 'Transaction cancelled'
+        console.log('User rejected transaction, cleaning up immediately')
+        
+        // Immediately reset state and close modal on user rejection to prevent retries
+        resetTradingState()
+        hideConfirmation()
+        setError('Transaction cancelled')
+        
+        // Force cleanup of any pending states
+        clearTimeout(timeoutId)
+        setConfirmationLoading(false)
+        setConfirmationError(null)
+        setIsTransactionAttempting(false)
+        
+        return // Exit early to prevent further processing
+      } else if (error?.message) {
+        // Extract only the main error message, remove technical details
+        const message = error.message
+        if (message.includes('insufficient funds')) {
+          cleanErrorMessage = 'Insufficient funds'
+        } else if (message.includes('gas')) {
+          cleanErrorMessage = 'Gas estimation failed'
+        } else if (message.includes('network')) {
+          cleanErrorMessage = 'Network error'
+        } else {
+          // Take only the first part before technical details
+          const firstPart = message.split('Request Arguments:')[0]
+                                  .split('Contract Call:')[0]
+                                  .split('Docs:')[0]
+                                  .split('Details:')[0]
+                                  .split('Version:')[0]
+                                  .trim()
+          
+          // Clean up common patterns
+          cleanErrorMessage = firstPart
+            .replace(/\n.*$/s, '') // Remove everything after first newline
+            .replace(/\s+/g, ' ') // Normalize whitespace
+            .trim()
+          
+          // Fallback if still too long or empty
+          if (!cleanErrorMessage || cleanErrorMessage.length > 50) {
+            cleanErrorMessage = 'Transaction failed'
+          }
+        }
+      }
+      
+      setConfirmationError(cleanErrorMessage)
+      setError(cleanErrorMessage)
     } finally {
+      clearTimeout(timeoutId)
       setConfirmationLoading(false)
+      setIsTransactionAttempting(false)
     }
   }, [
     validation.isValid,
@@ -429,7 +595,10 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
     onTrade,
     hideConfirmation,
     setConfirmationLoading,
-    setConfirmationError
+    setConfirmationError,
+    resetTradingState,
+    cleanErrorMessage,
+    isTransactionAttempting
   ])
 
   // Quick amount buttons
@@ -474,7 +643,10 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
                 ? "border-green-500 bg-green-50 dark:bg-green-950/30 scale-[1.02]" 
                 : "border-border hover:border-green-500/50 hover:scale-[1.01] active:scale-[0.99]"
             )}
-            onClick={() => setSelectedSide('YES')}
+            onClick={() => {
+              setSelectedSide('YES')
+              clearErrorsOnInteraction()
+            }}
           >
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium">YES</span>
@@ -498,7 +670,10 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
                 ? "border-red-500 bg-red-50 dark:bg-red-950/30 scale-[1.02]" 
                 : "border-border hover:border-red-500/50 hover:scale-[1.01] active:scale-[0.99]"
             )}
-            onClick={() => setSelectedSide('NO')}
+            onClick={() => {
+              setSelectedSide('NO')
+              clearErrorsOnInteraction()
+            }}
           >
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium">NO</span>
@@ -532,7 +707,10 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
               type="number"
               placeholder="0.00"
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={(e) => {
+                setAmount(e.target.value)
+                clearErrorsOnInteraction()
+              }}
               disabled={disabled || tradingState.isLoading || !isConnected}
               className="text-lg"
               step="1"
@@ -547,7 +725,10 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
                 key={quickAmount}
                 variant="outline"
                 size="sm"
-                onClick={() => setAmount(quickAmount.toString())}
+                onClick={() => {
+                  setAmount(quickAmount.toString())
+                  clearErrorsOnInteraction()
+                }}
                 disabled={disabled || tradingState.isLoading || !isConnected || quickAmount > balanceInUSDC}
                 className="text-xs"
               >
@@ -557,7 +738,10 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setAmount(balanceInUSDC.toString())}
+              onClick={() => {
+                setAmount(balanceInUSDC.toString())
+                clearErrorsOnInteraction()
+              }}
               disabled={disabled || tradingState.isLoading || !isConnected || balanceInUSDC === 0}
               className="text-xs"
             >
@@ -666,34 +850,14 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
           </>
         )}
 
-        {/* Gas Fee Display */}
-        {amount && parseFloat(amount) > 0 && isConnected && (
-          <>
-            <Separator />
-            <GasFeeDisplay
-              gasEstimates={needsApproval(amount) ? gasEstimates.approval : gasEstimates.deposit}
-              selectedSpeed={selectedGasSpeed}
-              onSpeedChange={setSelectedGasSpeed}
-              isLoading={isGasLoading}
-              error={gasError}
-              onRefresh={() => {
-                clearGasError()
-                if (needsApproval(amount)) {
-                  updateApprovalGasEstimate(amount)
-                } else {
-                  updateDepositGasEstimate(selectedSide, amount)
-                }
-              }}
-              transactionType={needsApproval(amount) ? 'approval' : 'deposit'}
-              compact={true}
-            />
-          </>
-        )}
 
         {/* Advanced Settings */}
         <div className="space-y-4">
           <button
-            onClick={() => setShowAdvanced(!showAdvanced)}
+            onClick={() => {
+              setShowAdvanced(!showAdvanced)
+              clearErrorsOnInteraction()
+            }}
             className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
           >
             <Info className="h-3 w-3" />
@@ -708,7 +872,10 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
                 </Label>
                 <Slider
                   value={[slippage]}
-                  onValueChange={([value]) => setSlippage(value)}
+                  onValueChange={([value]) => {
+                    setSlippage(value)
+                    clearErrorsOnInteraction()
+                  }}
                   min={0.1}
                   max={5}
                   step={0.1}
@@ -744,12 +911,42 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
           </Alert>
         )}
 
+        {/* Loading State with Cancel Option */}
+        {tradingState.isLoading && (
+          <Alert>
+            <RefreshCw className="h-4 w-4 animate-spin" />
+            <AlertDescription>
+              <div className="flex items-center justify-between">
+                <span>
+                  {tradingState.stage === 'approval' ? 'Approving USDC...' : 'Processing transaction...'}
+                  <br />
+                  <span className="text-xs text-muted-foreground mt-1">
+                    Please confirm in your wallet. If stuck, try cancelling below.
+                  </span>
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    resetTradingState()
+                    hideConfirmation()
+                    setError(null)
+                  }}
+                  className="ml-4 text-xs"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Error/Warning Messages */}
         {(error || tradingState.error) && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              {error || tradingState.error?.message}
+              {cleanErrorMessage(error || tradingState.error?.message || '')}
             </AlertDescription>
           </Alert>
         )}
@@ -775,15 +972,6 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
           </Alert>
         )}
 
-        {/* Gas Fee Inline Display */}
-        {amount && parseFloat(amount) > 0 && isConnected && validation.isValid && (
-          <GasFeeInline
-            gasEstimates={needsApproval(amount) ? gasEstimates.approval : gasEstimates.deposit}
-            selectedSpeed={selectedGasSpeed}
-            transactionType={needsApproval(amount) ? 'approval' : 'deposit'}
-            className="justify-center"
-          />
-        )}
 
         {/* Trade Button */}
         <Button
@@ -826,7 +1014,13 @@ export function TradingInterface({ market, yesDisplay, noDisplay, yesProb, noPro
           onOpenChange={hideConfirmation}
           onConfirm={handleConfirmTransaction}
           onCancel={hideConfirmation}
-          details={confirmationDetails}
+          details={{
+            ...confirmationDetails,
+            // Update with current gas estimates and loading state
+            gasEstimates: confirmationDetails.type === 'approval' ? gasEstimates.approval : gasEstimates.deposit,
+            isGasLoading,
+            gasError,
+          }}
           isLoading={isConfirmationLoading}
           error={confirmationError}
         />
