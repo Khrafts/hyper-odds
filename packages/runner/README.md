@@ -24,7 +24,32 @@ See [docs/architecture.md](./docs/architecture.md) for detailed system architect
 - PostgreSQL or SQLite (for data storage)
 - Access to Arbitrum Sepolia RPC
 
-### Setup
+### Quick Start with Docker (Recommended)
+
+1. **Configure environment**:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your blockchain credentials
+   ```
+
+2. **Start all services**:
+   ```bash
+   pnpm docker:dev
+   ```
+
+3. **View logs**:
+   ```bash
+   pnpm docker:dev:logs
+   ```
+
+4. **Access development tools** (optional):
+   ```bash
+   pnpm docker:tools
+   # PostgreSQL GUI: http://localhost:8081 (admin@runner.local / admin)
+   # Redis GUI: http://localhost:8082 (admin / admin)
+   ```
+
+### Manual Setup (Alternative)
 
 1. **Install dependencies**:
    ```bash
@@ -58,13 +83,22 @@ See [docs/architecture.md](./docs/architecture.md) for detailed system architect
 
 ### Scripts
 
-- `pnpm build` - Build TypeScript to JavaScript
+**Development:**
 - `pnpm dev` - Start development server with hot reload
+- `pnpm build` - Build TypeScript to JavaScript
 - `pnpm start` - Start production server
 - `pnpm test` - Run test suite
 - `pnpm test:watch` - Run tests in watch mode
 - `pnpm lint` - Run ESLint
 - `pnpm typecheck` - Run TypeScript type checking
+
+**Docker:**
+- `pnpm docker:dev` - Start all development services
+- `pnpm docker:dev:logs` - Follow runner service logs
+- `pnpm docker:dev:stop` - Stop all services
+- `pnpm docker:dev:restart` - Restart runner service
+- `pnpm docker:tools` - Start with GUI tools (pgAdmin, Redis Commander)
+- `pnpm docker:clean` - Clean up containers and volumes
 
 ## Configuration
 

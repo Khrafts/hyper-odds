@@ -12,7 +12,16 @@
     "test:watch": "jest --watch",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "docker:dev": "docker-compose up -d",
+    "docker:dev:logs": "docker-compose logs -f runner",
+    "docker:dev:stop": "docker-compose down",
+    "docker:dev:restart": "docker-compose restart runner",
+    "docker:tools": "docker-compose --profile tools up -d",
+    "docker:tools:stop": "docker-compose --profile tools down",
+    "docker:build": "docker build -f Dockerfile -t market-runner ../../",
+    "docker:prod": "docker-compose -f docker-compose.prod.yml up -d",
+    "docker:clean": "docker-compose down -v && docker system prune -f"
   },
   "dependencies": {
     "@hyper-odds/shared": "workspace:*",
