@@ -266,11 +266,15 @@ export function Header() {
                 </Link>
               </Button>
 
-              <SSRSafeSimpleConnectButton className="w-full justify-start" />
-
-              <div className="px-3 py-2">
-                <div className="text-xs text-muted-foreground mb-2">Network</div>
-                <NetworkSwitcher variant="compact" showUnsupportedWarning={false} />
+              <div className="space-y-3">
+                <SSRSafeSimpleConnectButton className="w-full justify-start" />
+                
+                <div>
+                  <div className="text-xs text-muted-foreground mb-2 px-3">Network</div>
+                  <div className="px-3">
+                    <NetworkSwitcher variant="compact" showUnsupportedWarning={false} />
+                  </div>
+                </div>
               </div>
 
               <Button

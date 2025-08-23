@@ -24,7 +24,9 @@ export interface MarketFormData {
   // Subject
   subjectKind: SubjectKind;
   metricId: string; // for HL_METRIC
-  token: string; // for TOKEN_PRICE
+  token: string; // CMC ID as string for TOKEN_PRICE (changed from address)
+  tokenSymbol: string; // Token symbol for display
+  tokenName: string; // Token name for display
   valueDecimals: number;
   
   // Predicate
