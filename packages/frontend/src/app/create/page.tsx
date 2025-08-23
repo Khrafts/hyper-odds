@@ -21,6 +21,7 @@ import { Progress } from '@/components/ui/progress';
 
 import { getContractAddress, PARIMUTUEL_MARKET_FACTORY_ABI, ERC20_ABI, isSupportedChain } from '@/lib/web3/contracts';
 import { useChainId } from '@/hooks/useWallet';
+import { NetworkSwitcher } from '@/components/web3/networkSwitcher';
 
 import {
   MarketFormData,
@@ -49,7 +50,50 @@ function CreateMarketContent() {
   const { address, isConnected } = useWallet();
   const chainId = useChainId();
   const queryClient = useQueryClient();
-  const { writeContract, data: hash, isPending, error } = useWriteContract();
+  const { writeContract, data: hash, isPending, error } = useWriteContract({
+    mutation: {
+      onError: (error) => {
+        // Handle writeContract errors immediately
+        console.error('WriteContract error:', error);
+        
+        // Dismiss loading toasts
+        toast.dismiss('approval-tx');
+        toast.dismiss('creation-tx');
+        
+        // Check if it's a user rejection
+        const isUserRejection = error.message?.includes('User rejected') || 
+                               error.message?.includes('rejected') ||
+                               error.message?.includes('cancelled') ||
+                               error.message?.includes('denied') ||
+                               error.name === 'UserRejectedRequestError';
+        
+        if (isUserRejection) {
+          if (lastTxType === 'approval') {
+            toast.error('Approval cancelled by user');
+            setApproving(false);
+          } else if (lastTxType === 'creation') {
+            toast.error('Market creation cancelled by user');
+          }
+        } else {
+          // Other errors
+          if (error.message?.includes('insufficient funds')) {
+            toast.error('Insufficient ETH for gas fees');
+          } else if (error.message?.includes('revert') && lastTxType === 'creation') {
+            toast.error('Market creation reverted. Please check your parameters.');
+          } else {
+            const errorMessage = lastTxType === 'approval' ? 'Approval failed' : 'Market creation failed';
+            toast.error(`${errorMessage}: ${error.shortMessage || error.message || 'Unknown error'}`);
+          }
+          
+          if (lastTxType === 'approval') {
+            setApproving(false);
+          }
+        }
+        
+        setLastTxType(null);
+      }
+    }
+  });
   const { 
     isLoading: isConfirming, 
     isSuccess: txSuccess, 
@@ -154,16 +198,24 @@ function CreateMarketContent() {
     }
   }, [txSuccess, hash, lastTxType, refetchAllowance, refetchBalance]);
 
-  // Handle transaction errors
+  // Handle transaction receipt errors (only for confirmation failures, not user rejections)
   useEffect(() => {
     if (txError && txReceiptError) {
-      // Dismiss loading toasts
-      toast.dismiss('approval-tx');
-      toast.dismiss('creation-tx');
-      toast.error(`Transaction failed: ${txReceiptError.message || 'Unknown error'}`);
-      setLastTxType(null);
+      console.error('Transaction receipt error:', txReceiptError);
+      // Only show receipt errors if the transaction was actually submitted
+      // User rejections are handled in the writeContract onError callback
+      if (!error) {
+        toast.dismiss('approval-tx');
+        toast.dismiss('creation-tx');
+        toast.error(`Transaction failed: ${txReceiptError.message || 'Unknown error'}`);
+        
+        if (lastTxType === 'approval') {
+          setApproving(false);
+        }
+        setLastTxType(null);
+      }
     }
-  }, [txError, txReceiptError]);
+  }, [txError, txReceiptError, error, lastTxType]);
 
   const handleApprove = async () => {
     if (!isConnected || !address || !chainId) {
@@ -195,20 +247,8 @@ function CreateMarketContent() {
       });
       
     } catch (error: any) {
-      console.error('Approval failed:', error);
-      setLastTxType(null);
-      toast.dismiss('approval-tx');
-      
-      // More detailed error messages
-      if (error.message?.includes('User rejected')) {
-        toast.error('Approval cancelled by user');
-      } else if (error.message?.includes('insufficient funds')) {
-        toast.error('Insufficient ETH for gas fees');
-      } else {
-        toast.error(`Approval failed: ${error.shortMessage || error.message || 'Unknown error'}`);
-      }
-    } finally {
-      setApproving(false);
+      // Error handling is now done in the onError callback above
+      console.error('Approval catch block:', error);
     }
   };
 
@@ -299,20 +339,8 @@ function CreateMarketContent() {
       });
       
     } catch (error: any) {
-      console.error('Market creation failed:', error);
-      setLastTxType(null);
-      toast.dismiss('creation-tx');
-      
-      // More detailed error messages
-      if (error.message?.includes('User rejected')) {
-        toast.error('Market creation cancelled by user');
-      } else if (error.message?.includes('insufficient funds')) {
-        toast.error('Insufficient ETH for gas fees');
-      } else if (error.message?.includes('revert')) {
-        toast.error('Market creation reverted. Please check your parameters.');
-      } else {
-        toast.error(`Market creation failed: ${error.shortMessage || error.message || 'Unknown error'}`);
-      }
+      // Error handling is now done in the onError callback above
+      console.error('Market creation catch block:', error);
     }
   };
 
@@ -391,6 +419,25 @@ function CreateMarketContent() {
   // Show wallet required if not connected
   if (!isConnected) {
     return renderWalletRequired();
+  }
+
+  // Show network switcher if on unsupported network
+  if (!isSupportedChain(chainId)) {
+    return (
+      <div className="container mx-auto py-8 px-4">
+        <Card className="max-w-4xl mx-auto">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl">Network Not Supported</CardTitle>
+            <CardDescription className="text-lg">
+              Please switch to a supported network to create markets
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="py-6">
+            <NetworkSwitcher />
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (

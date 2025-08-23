@@ -430,7 +430,8 @@ export function getContractAddress(
   
   const address = addresses[contractName]
   if (!address || address === '0x0000000000000000000000000000000000000000') {
-    throw new Error(`Contract ${contractName} not deployed on chain ${chainId}`)
+    const chainName = chainId === 42161 ? 'Arbitrum One' : chainId === 421614 ? 'Arbitrum Sepolia' : `Chain ${chainId}`;
+    throw new Error(`Contract ${contractName} not yet deployed on ${chainName}. Currently only available on Arbitrum Sepolia.`)
   }
   
   return address
