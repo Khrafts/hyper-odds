@@ -68,7 +68,8 @@ export function handleMarketCreated(event: MarketCreated): void {
   // Subject parameters - now actual values!
   market.subjectKind = event.params.params.subject.kind == 0 ? "HL_METRIC" : "TOKEN_PRICE"
   market.metricId = event.params.params.subject.metricId
-  market.token = event.params.params.subject.token.equals(Address.zero()) ? null : event.params.params.subject.token
+  market.token = event.params.params.subject.tokenIdentifier.length > 0 ? 
+    Address.fromString(event.params.params.subject.tokenIdentifier) : null
   market.valueDecimals = event.params.params.subject.valueDecimals
   
   // Predicate parameters - actual values!
