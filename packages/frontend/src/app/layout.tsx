@@ -8,6 +8,7 @@ import { Toaster } from "sonner";
 import { ThemeProvider } from "next-themes";
 import { PerformanceMonitor, BundleSizeReporter } from "@/components/common/performance-monitor";
 import { constructMetadata, siteConfig, generateStructuredData } from "@/lib/seo";
+import { StructuredData } from "@/components/seo/structuredData";
 
 // Optimize font loading with preload and fallback
 const inter = Inter({
@@ -74,14 +75,6 @@ export default function RootLayout({
         
         {/* Preload important scripts */}
         <link rel="modulepreload" href="/_next/static/chunks/webpack.js" />
-        
-        {/* Structured Data for SEO */}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(generateStructuredData('website')),
-          }}
-        />
       </head>
       <body className={`${inter.variable} font-sans antialiased`}>
         <ThemeProvider
@@ -92,6 +85,7 @@ export default function RootLayout({
         >
           <PerformanceMonitor>
             <AppProviders>
+              <StructuredData data={generateStructuredData('website')} />
               <LayoutContent>{children}</LayoutContent>
               <Toaster 
                 position="top-right"
