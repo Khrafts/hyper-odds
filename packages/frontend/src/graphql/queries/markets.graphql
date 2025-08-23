@@ -15,8 +15,25 @@ query GetMarkets(
     id
     title
     description
+    marketType
+    
+    # Parimutuel fields
     poolYes
     poolNo
+    totalPool
+    effectivePoolYes
+    effectivePoolNo
+    totalEffectivePool
+    feeCollected
+    
+    # CPMM fields
+    reserveYes
+    reserveNo
+    initialLiquidity
+    totalFeesCollected
+    spotPrice
+    
+    # Common fields
     resolved
     cancelled
     winningOutcome
@@ -31,9 +48,6 @@ query GetMarkets(
     resolveTime
     createdAt
     resolvedAt
-    totalPool
-    effectivePoolYes
-    effectivePoolNo
   }
 }
 
@@ -42,8 +56,25 @@ query GetMarket($id: ID!) {
     id
     title
     description
+    marketType
+    
+    # Parimutuel fields
     poolYes
     poolNo
+    totalPool
+    effectivePoolYes
+    effectivePoolNo
+    totalEffectivePool
+    feeCollected
+    
+    # CPMM fields
+    reserveYes
+    reserveNo
+    initialLiquidity
+    totalFeesCollected
+    spotPrice
+    
+    # Common fields
     resolved
     cancelled
     winningOutcome
@@ -58,9 +89,7 @@ query GetMarket($id: ID!) {
     resolveTime
     createdAt
     resolvedAt
-    totalPool
-    effectivePoolYes
-    effectivePoolNo
+    
     deposits {
       id
       user {
@@ -77,11 +106,16 @@ query GetMarket($id: ID!) {
       user {
         id
       }
+      # Parimutuel position fields
       stakeYes
       stakeNo
       totalStake
       effectiveStakeYes
       effectiveStakeNo
+      # CPMM position fields
+      sharesYes
+      sharesNo
+      # Common position fields
       claimed
       payout
     }
@@ -99,13 +133,20 @@ query GetActiveMarkets($first: Int = 20, $skip: Int = 0) {
     id
     title
     description
+    marketType
+    # Parimutuel fields
     poolYes
     poolNo
-    cutoffTime
-    resolveTime
     totalPool
     effectivePoolYes
     effectivePoolNo
+    # CPMM fields
+    reserveYes
+    reserveNo
+    spotPrice
+    # Common fields
+    cutoffTime
+    resolveTime
     creator {
       id
     }
@@ -123,11 +164,17 @@ query GetResolvedMarkets($first: Int = 20, $skip: Int = 0) {
     id
     title
     description
+    marketType
     winningOutcome
+    # Parimutuel fields
     poolYes
     poolNo
-    resolvedAt
     totalPool
+    # CPMM fields
+    reserveYes
+    reserveNo
+    # Common fields
+    resolvedAt
     creator {
       id
     }

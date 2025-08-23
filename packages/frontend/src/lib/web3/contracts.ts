@@ -28,6 +28,122 @@ export const CONTRACT_ADDRESSES = {
 } as const
 
 /**
+ * CPMMMarket contract ABI
+ * Core functions for CPMM market interactions
+ */
+export const CPMM_MARKET_ABI = [
+  // Initialize function
+  {
+    inputs: [
+      { internalType: 'uint256', name: '_liquidityAmount', type: 'uint256' },
+      { internalType: 'uint256', name: '_initialProbBps', type: 'uint256' },
+    ],
+    name: 'initialize',
+    outputs: [],
+    stateMutability: 'payable',
+    type: 'function',
+  },
+  // Buy shares
+  {
+    inputs: [
+      { internalType: 'uint8', name: '_outcome', type: 'uint8' },
+      { internalType: 'uint256', name: '_amountIn', type: 'uint256' },
+      { internalType: 'uint256', name: '_minSharesOut', type: 'uint256' },
+    ],
+    name: 'buyShares',
+    outputs: [{ internalType: 'uint256', name: 'sharesOut', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  // Sell shares
+  {
+    inputs: [
+      { internalType: 'uint8', name: '_outcome', type: 'uint8' },
+      { internalType: 'uint256', name: '_sharesIn', type: 'uint256' },
+      { internalType: 'uint256', name: '_minAmountOut', type: 'uint256' },
+    ],
+    name: 'sellShares',
+    outputs: [{ internalType: 'uint256', name: 'amountOut', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  // Get price
+  {
+    inputs: [],
+    name: 'getSpotPrice',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  // Get reserves
+  {
+    inputs: [],
+    name: 'reserveYES',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'reserveNO',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  // Get user shares
+  {
+    inputs: [{ internalType: 'address', name: '', type: 'address' }],
+    name: 'sharesYES',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'address', name: '', type: 'address' }],
+    name: 'sharesNO',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  // Claim winnings
+  {
+    inputs: [],
+    name: 'claimWinnings',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  // Calculate buy amount
+  {
+    inputs: [
+      { internalType: 'uint8', name: '_outcome', type: 'uint8' },
+      { internalType: 'uint256', name: '_amountIn', type: 'uint256' },
+    ],
+    name: 'calculateBuyAmount',
+    outputs: [
+      { internalType: 'uint256', name: 'sharesOut', type: 'uint256' },
+      { internalType: 'uint256', name: 'feeAmount', type: 'uint256' },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  // Calculate sell amount
+  {
+    inputs: [
+      { internalType: 'uint8', name: '_outcome', type: 'uint8' },
+      { internalType: 'uint256', name: '_sharesIn', type: 'uint256' },
+    ],
+    name: 'calculateSellAmount',
+    outputs: [
+      { internalType: 'uint256', name: 'amountOut', type: 'uint256' },
+      { internalType: 'uint256', name: 'feeAmount', type: 'uint256' },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+] as const
+
+/**
  * ParimutuelMarket contract ABI
  * Based on the actual deployed contract implementation
  */
@@ -482,3 +598,27 @@ export const OUTCOME = {
 } as const
 
 export type Outcome = typeof OUTCOME[keyof typeof OUTCOME]
+
+/**
+ * Helper to detect market type from market data
+ */
+export function getMarketType(market: { marketType?: string; reserveYes?: string; poolYes?: string }): 'PARIMUTUEL' | 'CPMM' {
+  // Explicit type field (from GraphQL)
+  if (market.marketType) {
+    return market.marketType as 'PARIMUTUEL' | 'CPMM'
+  }
+  
+  // Fallback: detect by field presence
+  if (market.reserveYes && market.reserveYes !== '0') {
+    return 'CPMM'
+  }
+  
+  return 'PARIMUTUEL'
+}
+
+/**
+ * Get appropriate ABI for market type
+ */
+export function getMarketABI(marketType: 'PARIMUTUEL' | 'CPMM') {
+  return marketType === 'CPMM' ? CPMM_MARKET_ABI : PARIMUTUEL_MARKET_ABI
+}

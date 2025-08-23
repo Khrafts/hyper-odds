@@ -6,6 +6,7 @@
 export type MarketOutcome = 'YES' | 'NO' | 'INVALID'
 export type MarketStatus = 'active' | 'resolved' | 'expired'
 export type OrderType = 'market' | 'limit'
+export type MarketType = 'PARIMUTUEL' | 'CPMM'
 
 /**
  * Core market data structure
@@ -14,8 +15,9 @@ export interface Market {
   id: string // market address
   title: string
   description: string
+  marketType: MarketType
   
-  // Pool state
+  // Parimutuel Pool state
   poolYes: string
   poolNo: string
   totalPool: string
@@ -23,6 +25,13 @@ export interface Market {
   effectivePoolNo: string
   totalEffectivePool: string
   feeCollected: string
+  
+  // CPMM Reserve state
+  reserveYes: string
+  reserveNo: string
+  initialLiquidity: string
+  totalFeesCollected: string
+  spotPrice: string
   
   // Status
   resolved: boolean
@@ -59,9 +68,9 @@ export interface Market {
 }
 
 /**
- * Position in a market
+ * Position in a Parimutuel market
  */
-export interface Position {
+export interface ParimutuelPosition {
   id: string // market-user
   market?: Market
   user: User
@@ -86,6 +95,39 @@ export interface Position {
   updatedAt: string
   claimedAt?: string
 }
+
+/**
+ * Position in a CPMM market
+ */
+export interface CPMMPosition {
+  id: string // market-user
+  market?: Market
+  user: User
+  
+  // Shares
+  sharesYes: string
+  sharesNo: string
+  totalShares: string
+  
+  // Value
+  currentValue: string // Current market value of shares
+  averageCost: string // Average cost basis
+  profit: string // Unrealized P&L
+  
+  // Outcome (if resolved)
+  claimed: boolean
+  payout: string
+  
+  // Metadata
+  createdAt: string
+  updatedAt: string
+  claimedAt?: string
+}
+
+/**
+ * Combined position type
+ */
+export type Position = ParimutuelPosition | CPMMPosition
 
 /**
  * Deposit in a market
@@ -145,16 +187,43 @@ export interface CreateMarketParams {
 }
 
 /**
- * Trade execution parameters
+ * Trade execution parameters for Parimutuel markets
  */
-export interface TradeParams {
+export interface ParimutuelTradeParams {
+  marketId: string
+  outcome: 'YES' | 'NO'
+  amount: string // Deposit amount
+}
+
+/**
+ * Trade execution parameters for CPMM markets
+ */
+export interface CPMMTradeParams {
   marketId: string
   outcome: 'YES' | 'NO'
   type: 'buy' | 'sell'
-  amount?: string // For market orders
-  shares?: string // For limit orders
+  amount?: string // For buying with exact input
+  shares?: string // For selling or buying exact output
   slippage?: number // Max slippage tolerance (0-100)
   deadline?: number // Transaction deadline timestamp
+  minSharesOut?: string // Minimum shares to receive (for buys)
+  minAmountOut?: string // Minimum amount to receive (for sells)
+}
+
+/**
+ * Combined trade parameters
+ */
+export type TradeParams = ParimutuelTradeParams | CPMMTradeParams
+
+/**
+ * Liquidity provision parameters for CPMM
+ */
+export interface LiquidityParams {
+  marketId: string
+  amountYes: string
+  amountNo: string
+  slippage?: number
+  deadline?: number
 }
 
 /**
