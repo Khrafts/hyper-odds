@@ -59,13 +59,32 @@ function MarketDetailContent({ marketId }: { marketId: string }) {
     return () => document.removeEventListener('keydown', handleEscape)
   }, [])
   
-  // Calculate current probabilities using shared utility for consistency (use GraphQL data only)
-  const { yesProb, noProb, yesDisplay, noDisplay } = market ? 
-    calculateMarketProbabilities(market.poolYes || '0', market.poolNo || '0', 1) :
-    { yesProb: 50, noProb: 50, yesDisplay: '50.0%', noDisplay: '50.0%' }
+  // Calculate current probabilities using shared utility for consistency
+  // Use appropriate fields based on market type (CPMM uses reserves, Parimutuel uses pools)
+  const { yesProb, noProb, yesDisplay, noDisplay } = market ? (() => {
+    if (market.marketType === 'CPMM' && market.spotPrice) {
+      // For CPMM markets, use the spot price directly
+      const spotPrice = parseFloat(market.spotPrice)
+      return {
+        yesProb: spotPrice * 100,
+        noProb: (1 - spotPrice) * 100,
+        yesDisplay: `${(spotPrice * 100).toFixed(1)}%`,
+        noDisplay: `${((1 - spotPrice) * 100).toFixed(1)}%`
+      }
+    } else {
+      // For Parimutuel markets, use pool calculation
+      return calculateMarketProbabilities(market.poolYes || '0', market.poolNo || '0', 1)
+    }
+  })() : { yesProb: 50, noProb: 50, yesDisplay: '50.0%', noDisplay: '50.0%' }
   
-  // Calculate total pool for display purposes
-  const totalPool = market ? parseFloat(market.poolYes || '0') + parseFloat(market.poolNo || '0') : 0
+  // Calculate total pool/reserves for display purposes
+  const totalPool = market ? (() => {
+    if (market.marketType === 'CPMM') {
+      return parseFloat(market.reserveYes || '0') + parseFloat(market.reserveNo || '0')
+    } else {
+      return parseFloat(market.poolYes || '0') + parseFloat(market.poolNo || '0')
+    }
+  })() : 0
 
   return (
     <AsyncBoundary
@@ -262,13 +281,27 @@ function MarketDetailContent({ marketId }: { marketId: string }) {
                     <Separator />
                     
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">YES Pool</span>
-                      <span className="font-medium">{parseFloat(market.poolYes || '0').toFixed(2)} USDC</span>
+                      <span className="text-muted-foreground">
+                        YES {market.marketType === 'CPMM' ? 'Reserve' : 'Pool'}
+                      </span>
+                      <span className="font-medium">
+                        {market.marketType === 'CPMM' 
+                          ? parseFloat(market.reserveYes || '0').toFixed(2) 
+                          : parseFloat(market.poolYes || '0').toFixed(2)
+                        } USDC
+                      </span>
                     </div>
                     
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">NO Pool</span>
-                      <span className="font-medium">{parseFloat(market.poolNo || '0').toFixed(2)} USDC</span>
+                      <span className="text-muted-foreground">
+                        NO {market.marketType === 'CPMM' ? 'Reserve' : 'Pool'}
+                      </span>
+                      <span className="font-medium">
+                        {market.marketType === 'CPMM' 
+                          ? parseFloat(market.reserveNo || '0').toFixed(2) 
+                          : parseFloat(market.poolNo || '0').toFixed(2)
+                        } USDC
+                      </span>
                     </div>
                     
                     <div className="flex justify-between text-sm font-medium">
