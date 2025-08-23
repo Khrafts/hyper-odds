@@ -4,15 +4,16 @@ import { Address } from 'viem'
  * Contract addresses for different networks
  */
 export const CONTRACT_ADDRESSES = {
-  // Arbitrum Sepolia testnet - Updated to match fe package
   421614: {
-    ParimutuelMarketFactory: '0x3d2519A17eAe6323CaA36fB07ecEcDc96457aFf1' as Address,
-    ParimutuelMarket: '0x89b371a0a56713C3E660C9eFCe659853c755dDF9' as Address, // Test market
-    MarketImplementation: '0xC6364ccdbd7c26130ce63001Ed874b1F91669462' as Address,
-    StakeToken: '0x019a0cD76A076DDd0D105101d77bD1833321BF5A' as Address, // MockUSDC from fe
-    MarketRouter: '0x52dE5EEcD112E57a13Bc41633B30336846b897cc' as Address, // Router contract
-    Oracle: '0x964c2247112Bbf53619b78deD036Fe1b285efaE7' as Address,
-    StHYPE: '0xa027E10C1808eE077989DfD560D5Ac00870d7963' as Address, // Updated from fe
+    ParimutuelMarketFactory: '0xab2632A369366Fc5b0EAb208c5e5AebfAD8F8920' as Address,
+    ParimutuelMarket: '0x89b371a0a56713C3E660C9eFCe659853c755dDF9' as Address, // Test market (will be updated after creation)
+    MarketImplementation: '0xD91f3504ACEad6c98e7f27F2DFE821Ee4d50326A' as Address, // ParimutuelMarketImplementation
+    CPMMImplementation: '0x96AE7cAF393793D430BF738eEEe2b70CDE2a0F98' as Address, // CPMMMarketImplementation
+    StakeToken: '0x6F3647734a84ABbAd1B5D7A610aFF6eCbA113F7d' as Address, // MockUSDC
+    MarketRouter: '0x57C8Cf1db2dd83D221656A791AF3D0112A8798b4' as Address, // Router contract
+    Oracle: '0x741c8a67ECc595252776B9CE9474bC7dbDFd9f4F' as Address,
+    StHYPE: '0xAc33aF010196250dc2041Da4227e58D5a98897F3' as Address,
+    WHYPE: '0x689A1e548181A843e8E72c0217cf4d47f63f8e87' as Address, // MockWHYPE
   },
   // Arbitrum One mainnet (placeholder)
   42161: {
