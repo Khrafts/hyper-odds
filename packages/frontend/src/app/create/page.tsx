@@ -345,12 +345,36 @@ function CreateMarketContent() {
         isProtocolMarket: false,
       };
 
-      writeContract({
-        address: factoryAddress,
-        abi: PARIMUTUEL_MARKET_FACTORY_ABI,
-        functionName: 'createMarket',
-        args: [marketParams],
-      });
+      // Determine liquidity amount based on market type
+      const liquidityAmount = formData.marketType === MarketType.CPMM 
+        ? parseUnits(formData.initialLiquidity || '1000', 6) // USDC has 6 decimals
+        : parseEther('0'); // No liquidity needed for Parimutuel
+
+      // Choose the appropriate function based on market type
+      if (formData.marketType === MarketType.PARIMUTUEL) {
+        writeContract({
+          address: factoryAddress,
+          abi: PARIMUTUEL_MARKET_FACTORY_ABI,
+          functionName: 'createParimutuelMarket',
+          args: [marketParams],
+        });
+      } else if (formData.marketType === MarketType.CPMM) {
+        writeContract({
+          address: factoryAddress,
+          abi: PARIMUTUEL_MARKET_FACTORY_ABI,
+          functionName: 'createCPMMMarket',
+          args: [marketParams, liquidityAmount],
+        });
+      } else {
+        // Fallback to generic createMarket with marketType parameter
+        const marketTypeValue = formData.marketType === MarketType.CPMM ? 1 : 0;
+        writeContract({
+          address: factoryAddress,
+          abi: PARIMUTUEL_MARKET_FACTORY_ABI,
+          functionName: 'createMarket',
+          args: [marketParams, marketTypeValue, liquidityAmount],
+        });
+      }
       
       toast.loading('🚀 Creating your market... Please wait for confirmation.', {
         id: 'creation-tx',

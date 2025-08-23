@@ -5,15 +5,15 @@ import { Address } from 'viem'
  */
 export const CONTRACT_ADDRESSES = {
   421614: {
-    ParimutuelMarketFactory: '0xab2632A369366Fc5b0EAb208c5e5AebfAD8F8920' as Address,
+    ParimutuelMarketFactory: '0x0737429B71cc5E0aceA43C6Ef60F72AC38Dd8A81' as Address,
     ParimutuelMarket: '0x89b371a0a56713C3E660C9eFCe659853c755dDF9' as Address, // Test market (will be updated after creation)
-    MarketImplementation: '0xD91f3504ACEad6c98e7f27F2DFE821Ee4d50326A' as Address, // ParimutuelMarketImplementation
-    CPMMImplementation: '0x96AE7cAF393793D430BF738eEEe2b70CDE2a0F98' as Address, // CPMMMarketImplementation
-    StakeToken: '0x6F3647734a84ABbAd1B5D7A610aFF6eCbA113F7d' as Address, // MockUSDC
-    MarketRouter: '0x57C8Cf1db2dd83D221656A791AF3D0112A8798b4' as Address, // Router contract
-    Oracle: '0x741c8a67ECc595252776B9CE9474bC7dbDFd9f4F' as Address,
-    StHYPE: '0xAc33aF010196250dc2041Da4227e58D5a98897F3' as Address,
-    WHYPE: '0x689A1e548181A843e8E72c0217cf4d47f63f8e87' as Address, // MockWHYPE
+    MarketImplementation: '0x55A80Ce7837D251BC482CC0c8d383B7F45978288' as Address, // ParimutuelMarketImplementation
+    CPMMImplementation: '0xaaefC86b452755cf83bE0BA994D7afB9aE4f3932' as Address, // CPMMMarketImplementation
+    StakeToken: '0x380e784a7262d9c8b0deda2AB7436659E9514A39' as Address, // MockUSDC
+    MarketRouter: '0xe049685cC6aDe34918c719982D7e0337b10B951A' as Address, // Router contract
+    Oracle: '0xf462a61C6a48303e281486bDD309C06cC64a56A3' as Address,
+    StHYPE: '0x7efF83564686F013a8A1e270240281B99cB7559D' as Address,
+    WHYPE: '0xcd751fd7fE968Bb59D6Aa22f5F2de5C18bC9232e' as Address, // MockWHYPE
   },
   // Arbitrum One mainnet (placeholder)
   42161: {
@@ -362,27 +362,96 @@ export const PARIMUTUEL_MARKET_FACTORY_ABI = [
   // Read functions
   {
     inputs: [],
-    name: 'marketCount',
-    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    name: 'stakeToken',
+    outputs: [{ internalType: 'contract IERC20', name: '', type: 'address' }],
     stateMutability: 'view',
     type: 'function',
   },
   {
-    inputs: [{ internalType: 'uint256', name: 'index', type: 'uint256' }],
-    name: 'markets',
+    inputs: [],
+    name: 'parimutuelImplementation',
     outputs: [{ internalType: 'address', name: '', type: 'address' }],
     stateMutability: 'view',
     type: 'function',
   },
   {
     inputs: [],
-    name: 'getAllMarkets',
-    outputs: [{ internalType: 'address[]', name: '', type: 'address[]' }],
+    name: 'cpmmImplementation',
+    outputs: [{ internalType: 'address', name: '', type: 'address' }],
     stateMutability: 'view',
     type: 'function',
   },
 
-  // Write functions - Complex market creation
+  // Write functions - Market creation with updated structure
+  {
+    inputs: [
+      {
+        components: [
+          { name: 'title', type: 'string' },
+          { name: 'description', type: 'string' },
+          {
+            components: [
+              { name: 'kind', type: 'uint8' },
+              { name: 'metricId', type: 'bytes32' },
+              { name: 'tokenIdentifier', type: 'string' },
+              { name: 'valueDecimals', type: 'uint8' }
+            ],
+            name: 'subject',
+            type: 'tuple'
+          },
+          {
+            components: [
+              { name: 'op', type: 'uint8' },
+              { name: 'threshold', type: 'int256' }
+            ],
+            name: 'predicate',
+            type: 'tuple'
+          },
+          {
+            components: [
+              { name: 'kind', type: 'uint8' },
+              { name: 'tStart', type: 'uint64' },
+              { name: 'tEnd', type: 'uint64' }
+            ],
+            name: 'window',
+            type: 'tuple'
+          },
+          {
+            components: [
+              { name: 'primarySourceId', type: 'bytes32' },
+              { name: 'fallbackSourceId', type: 'bytes32' },
+              { name: 'roundingDecimals', type: 'uint8' }
+            ],
+            name: 'oracle',
+            type: 'tuple'
+          },
+          { name: 'cutoffTime', type: 'uint64' },
+          { name: 'creator', type: 'address' },
+          {
+            components: [
+              { name: 'feeBps', type: 'uint16' },
+              { name: 'creatorFeeShareBps', type: 'uint16' },
+              { name: 'maxTotalPool', type: 'uint256' },
+              { name: 'timeDecayBps', type: 'uint16' }
+            ],
+            name: 'econ',
+            type: 'tuple'
+          },
+          { name: 'isProtocolMarket', type: 'bool' }
+        ],
+        name: 'p',
+        type: 'tuple'
+      },
+      { name: '_marketType', type: 'uint8' },
+      { name: 'liquidityAmount', type: 'uint256' }
+    ],
+    name: 'createMarket',
+    outputs: [{ name: '', type: 'address' }],
+    stateMutability: 'nonpayable',
+    type: 'function'
+  },
+  
+  // Specific market type creation functions
   {
     inputs: [
       {
@@ -443,21 +512,143 @@ export const PARIMUTUEL_MARKET_FACTORY_ABI = [
         type: 'tuple'
       }
     ],
-    name: 'createMarket',
+    name: 'createParimutuelMarket',
+    outputs: [{ name: '', type: 'address' }],
+    stateMutability: 'nonpayable',
+    type: 'function'
+  },
+  
+  {
+    inputs: [
+      {
+        components: [
+          { name: 'title', type: 'string' },
+          { name: 'description', type: 'string' },
+          {
+            components: [
+              { name: 'kind', type: 'uint8' },
+              { name: 'metricId', type: 'bytes32' },
+              { name: 'tokenIdentifier', type: 'string' },
+              { name: 'valueDecimals', type: 'uint8' }
+            ],
+            name: 'subject',
+            type: 'tuple'
+          },
+          {
+            components: [
+              { name: 'op', type: 'uint8' },
+              { name: 'threshold', type: 'int256' }
+            ],
+            name: 'predicate',
+            type: 'tuple'
+          },
+          {
+            components: [
+              { name: 'kind', type: 'uint8' },
+              { name: 'tStart', type: 'uint64' },
+              { name: 'tEnd', type: 'uint64' }
+            ],
+            name: 'window',
+            type: 'tuple'
+          },
+          {
+            components: [
+              { name: 'primarySourceId', type: 'bytes32' },
+              { name: 'fallbackSourceId', type: 'bytes32' },
+              { name: 'roundingDecimals', type: 'uint8' }
+            ],
+            name: 'oracle',
+            type: 'tuple'
+          },
+          { name: 'cutoffTime', type: 'uint64' },
+          { name: 'creator', type: 'address' },
+          {
+            components: [
+              { name: 'feeBps', type: 'uint16' },
+              { name: 'creatorFeeShareBps', type: 'uint16' },
+              { name: 'maxTotalPool', type: 'uint256' },
+              { name: 'timeDecayBps', type: 'uint16' }
+            ],
+            name: 'econ',
+            type: 'tuple'
+          },
+          { name: 'isProtocolMarket', type: 'bool' }
+        ],
+        name: 'p',
+        type: 'tuple'
+      },
+      { name: 'liquidityAmount', type: 'uint256' }
+    ],
+    name: 'createCPMMMarket',
     outputs: [{ name: '', type: 'address' }],
     stateMutability: 'nonpayable',
     type: 'function'
   },
 
-  // Events
+  // Events - Updated event signature
   {
     anonymous: false,
     inputs: [
       { indexed: true, internalType: 'address', name: 'market', type: 'address' },
       { indexed: true, internalType: 'address', name: 'creator', type: 'address' },
-      { indexed: false, internalType: 'string', name: 'question', type: 'string' },
-      { indexed: false, internalType: 'uint256', name: 'cutoffTime', type: 'uint256' },
-      { indexed: false, internalType: 'uint256', name: 'resolveTime', type: 'uint256' },
+      { indexed: true, internalType: 'uint8', name: 'marketType', type: 'uint8' },
+      {
+        components: [
+          { name: 'title', type: 'string' },
+          { name: 'description', type: 'string' },
+          {
+            components: [
+              { name: 'kind', type: 'uint8' },
+              { name: 'metricId', type: 'bytes32' },
+              { name: 'tokenIdentifier', type: 'string' },
+              { name: 'valueDecimals', type: 'uint8' }
+            ],
+            name: 'subject',
+            type: 'tuple'
+          },
+          {
+            components: [
+              { name: 'op', type: 'uint8' },
+              { name: 'threshold', type: 'int256' }
+            ],
+            name: 'predicate',
+            type: 'tuple'
+          },
+          {
+            components: [
+              { name: 'kind', type: 'uint8' },
+              { name: 'tStart', type: 'uint64' },
+              { name: 'tEnd', type: 'uint64' }
+            ],
+            name: 'window',
+            type: 'tuple'
+          },
+          {
+            components: [
+              { name: 'primarySourceId', type: 'bytes32' },
+              { name: 'fallbackSourceId', type: 'bytes32' },
+              { name: 'roundingDecimals', type: 'uint8' }
+            ],
+            name: 'oracle',
+            type: 'tuple'
+          },
+          { name: 'cutoffTime', type: 'uint64' },
+          { name: 'creator', type: 'address' },
+          {
+            components: [
+              { name: 'feeBps', type: 'uint16' },
+              { name: 'creatorFeeShareBps', type: 'uint16' },
+              { name: 'maxTotalPool', type: 'uint256' },
+              { name: 'timeDecayBps', type: 'uint16' }
+            ],
+            name: 'econ',
+            type: 'tuple'
+          },
+          { name: 'isProtocolMarket', type: 'bool' }
+        ],
+        name: 'params',
+        type: 'tuple'
+      },
     ],
     name: 'MarketCreated',
     type: 'event',
