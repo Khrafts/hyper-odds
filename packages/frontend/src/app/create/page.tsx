@@ -28,9 +28,11 @@ import {
   SubjectKind,
   PredicateOp,
   WindowKind,
+  MarketType,
   SUBJECT_KIND_OPTIONS,
   PREDICATE_OP_OPTIONS,
   WINDOW_KIND_OPTIONS,
+  MARKET_TYPE_OPTIONS,
   COMMON_METRICS,
   COMMON_TOKENS,
   COMMON_ORACLE_SOURCES,
@@ -360,6 +362,22 @@ function CreateMarketContent() {
       errors.push('Please select a token for price data');
     }
 
+    // CPMM-specific validations
+    if (data.marketType === MarketType.CPMM) {
+      if (!data.initialLiquidity || parseFloat(data.initialLiquidity) < 100) {
+        errors.push('Initial liquidity must be at least $100 USDC for CPMM markets');
+      }
+      
+      if (data.initialProbability < 1 || data.initialProbability > 99) {
+        errors.push('Initial probability must be between 1% and 99%');
+      }
+      
+      // Check if user has enough balance for CPMM liquidity
+      if (effectiveBalance && parseFloat(data.initialLiquidity) > parseFloat(formatEther(effectiveBalance))) {
+        errors.push(`Insufficient balance. You need $${data.initialLiquidity} USDC for initial liquidity`);
+      }
+    }
+
     // Timing validation
     const now = Math.floor(Date.now() / 1000);
     const cutoffTimestamp = Math.floor(new Date(data.cutoffTime).getTime() / 1000);
@@ -530,6 +548,97 @@ function CreateMarketContent() {
                   </div>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Market Type Selection */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-xl">Market Type</CardTitle>
+              <CardDescription>
+                Choose how your market will operate
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {MARKET_TYPE_OPTIONS.map((option) => (
+                  <div
+                    key={option.value}
+                    className={`border rounded-lg p-4 cursor-pointer transition-all ${
+                      formData.marketType === option.value
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                    onClick={() => handleChange('marketType', option.value)}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        id={`marketType-${option.value}`}
+                        name="marketType"
+                        value={option.value}
+                        checked={formData.marketType === option.value}
+                        onChange={() => handleChange('marketType', option.value)}
+                        className="text-primary focus:ring-primary"
+                      />
+                      <Label 
+                        htmlFor={`marketType-${option.value}`} 
+                        className="font-medium cursor-pointer"
+                      >
+                        {option.label}
+                      </Label>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      {option.description}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              
+              {/* CPMM-specific fields */}
+              {formData.marketType === MarketType.CPMM && (
+                <div className="mt-6 p-4 border rounded-lg bg-blue-50/50 dark:bg-blue-950/20">
+                  <h4 className="font-medium mb-4 text-blue-900 dark:text-blue-100">
+                    CPMM Configuration
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="initialLiquidity">Initial Liquidity (USDC)</Label>
+                      <Input
+                        id="initialLiquidity"
+                        type="number"
+                        min="100"
+                        step="1"
+                        value={formData.initialLiquidity}
+                        onChange={(e) => handleChange('initialLiquidity', e.target.value)}
+                        placeholder="1000"
+                        required={formData.marketType === MarketType.CPMM}
+                      />
+                      <div className="text-xs text-muted-foreground">
+                        Minimum: $100 USDC. You'll provide this liquidity to start the market.
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="initialProbability">Initial Probability (%)</Label>
+                      <Input
+                        id="initialProbability"
+                        type="number"
+                        min="1"
+                        max="99"
+                        step="1"
+                        value={formData.initialProbability}
+                        onChange={(e) => handleChange('initialProbability', parseInt(e.target.value) || 50)}
+                        placeholder="50"
+                        required={formData.marketType === MarketType.CPMM}
+                      />
+                      <div className="text-xs text-muted-foreground">
+                        Starting probability for YES outcome (1-99%).
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
