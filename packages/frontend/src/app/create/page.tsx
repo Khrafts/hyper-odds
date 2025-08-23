@@ -111,12 +111,13 @@ function CreateMarketContent() {
   const [currentStep, setCurrentStep] = useState(1);
   const [lastTxType, setLastTxType] = useState<'approval' | 'creation' | null>(null);
 
-  // Check stHYPE allowance and balance
+  // Check approvals and balances based on market type
   const factoryAddress = chainId && isSupportedChain(chainId) ? getContractAddress(chainId, 'ParimutuelMarketFactory') : undefined;
   const stHypeAddress = chainId && isSupportedChain(chainId) ? getContractAddress(chainId, 'StHYPE') : undefined;
+  const usdcAddress = chainId && isSupportedChain(chainId) ? getContractAddress(chainId, 'StakeToken') : undefined; // StakeToken is USDC
   
-  // Only fetch data when wallet is connected
-  const { data: allowance, isLoading: allowanceLoading, refetch: refetchAllowance } = useReadContract({
+  // stHYPE allowance and balance (for Parimutuel markets - 1000 stHYPE required)
+  const { data: stHypeAllowance, isLoading: stHypeAllowanceLoading, refetch: refetchStHypeAllowance } = useReadContract({
     address: stHypeAddress,
     abi: ERC20_ABI,
     functionName: 'allowance',
@@ -127,7 +128,7 @@ function CreateMarketContent() {
     },
   });
 
-  const { data: stHypeBalance, isLoading: balanceLoading, refetch: refetchBalance } = useReadContract({
+  const { data: stHypeBalance, isLoading: stHypeBalanceLoading, refetch: refetchStHypeBalance } = useReadContract({
     address: stHypeAddress,
     abi: ERC20_ABI,
     functionName: 'balanceOf',
@@ -138,12 +139,51 @@ function CreateMarketContent() {
     },
   });
 
-  // Only use data when wallet is connected
-  const effectiveAllowance = isConnected ? allowance : undefined;
-  const effectiveBalance = isConnected ? stHypeBalance : undefined;
+  // USDC allowance and balance (for CPMM markets - liquidity requirement)
+  const { data: usdcAllowance, isLoading: usdcAllowanceLoading, refetch: refetchUsdcAllowance } = useReadContract({
+    address: usdcAddress,
+    abi: ERC20_ABI,
+    functionName: 'allowance',
+    args: address && factoryAddress ? [address as `0x${string}`, factoryAddress] : undefined,
+    query: {
+      enabled: Boolean(address && factoryAddress && usdcAddress && isConnected),
+      refetchInterval: isConnected ? 5000 : false,
+    },
+  });
+
+  const { data: usdcBalance, isLoading: usdcBalanceLoading, refetch: refetchUsdcBalance } = useReadContract({
+    address: usdcAddress,
+    abi: ERC20_ABI,
+    functionName: 'balanceOf',
+    args: address ? [address as `0x${string}`] : undefined,
+    query: {
+      enabled: Boolean(address && usdcAddress && isConnected),
+      refetchInterval: isConnected ? 10000 : false,
+    },
+  });
+
+  // Determine what token and amounts are needed based on market type
+  const isLoadingAny = stHypeAllowanceLoading || stHypeBalanceLoading || usdcAllowanceLoading || usdcBalanceLoading;
   
-  // Only check approval when wallet is connected and data is available  
-  const needsApproval = isConnected && effectiveAllowance !== undefined && effectiveAllowance < parseEther('1000');
+  // For Parimutuel markets: Need 1000 stHYPE approval and balance
+  const needsStHypeApproval = isConnected && 
+    stHypeAllowance !== undefined && 
+    stHypeAllowance < parseEther('1000');
+  
+  const hasStHypeBalance = stHypeBalance !== undefined && stHypeBalance >= parseEther('1000');
+  
+  // For CPMM markets: Need USDC approval and balance for liquidity amount
+  const requiredUSDC = parseUnits(formData.initialLiquidity || '1000', 6);
+  const needsUSDCApproval = isConnected && 
+    formData.marketType === MarketType.CPMM &&
+    usdcAllowance !== undefined && 
+    usdcAllowance < requiredUSDC;
+  
+  const hasUSDCBalance = usdcBalance !== undefined && usdcBalance >= requiredUSDC;
+  
+  // Overall approval and balance checks
+  const needsApproval = formData.marketType === MarketType.CPMM ? needsUSDCApproval : needsStHypeApproval;
+  const hasRequiredBalance = formData.marketType === MarketType.CPMM ? hasUSDCBalance : hasStHypeBalance;
 
   // Reset state when wallet changes
   useEffect(() => {
@@ -168,12 +208,12 @@ function CreateMarketContent() {
   useEffect(() => {
     if (!isConnected) {
       setCurrentStep(0);
-    } else if (needsApproval && !allowanceLoading) {
+    } else if (needsApproval && !isLoadingAny) {
       setCurrentStep(1);
-    } else if (!needsApproval && !allowanceLoading) {
+    } else if (!needsApproval && !isLoadingAny) {
       setCurrentStep(2);
     }
-  }, [isConnected, needsApproval, allowanceLoading]);
+  }, [isConnected, needsApproval, isLoadingAny]);
 
   // Handle transaction confirmation
   useEffect(() => {
@@ -184,9 +224,13 @@ function CreateMarketContent() {
       
       if (lastTxType === 'approval') {
         toast.success('✅ Approval confirmed! You can now create your market.');
-        // Force refetch allowance
+        // Force refetch the correct allowance
         setTimeout(() => {
-          refetchAllowance();
+          if (formData.marketType === MarketType.CPMM) {
+            refetchUsdcAllowance();
+          } else {
+            refetchStHypeAllowance();
+          }
         }, 1000);
       } else if (lastTxType === 'creation') {
         toast.success('🎉 Market created successfully! Your market is now live.');
@@ -196,9 +240,10 @@ function CreateMarketContent() {
       
       // Clear transaction state
       setLastTxType(null);
-      refetchBalance();
+      refetchStHypeBalance();
+      refetchUsdcBalance();
     }
-  }, [txSuccess, hash, lastTxType, refetchAllowance, refetchBalance]);
+  }, [txSuccess, hash, lastTxType, formData.marketType, refetchUsdcAllowance, refetchStHypeAllowance, refetchStHypeBalance, refetchUsdcBalance]);
 
   // Handle transaction receipt errors (only for confirmation failures, not user rejections)
   useEffect(() => {
@@ -234,19 +279,39 @@ function CreateMarketContent() {
       setApproving(true);
       setLastTxType('approval');
       const factoryAddress = getContractAddress(chainId, 'ParimutuelMarketFactory');
-      const stHypeAddress = getContractAddress(chainId, 'StHYPE');
       
-      writeContract({
-        address: stHypeAddress,
-        abi: ERC20_ABI,
-        functionName: 'approve',
-        args: [factoryAddress, parseEther('1000')], // 1000 stHYPE
-      });
-      
-      toast.loading('Approval transaction submitted. Waiting for confirmation...', {
-        id: 'approval-tx',
-        duration: 30000, // 30 second timeout
-      });
+      if (formData.marketType === MarketType.CPMM) {
+        // CPMM markets need USDC approval for liquidity
+        const usdcAddress = getContractAddress(chainId, 'StakeToken'); // StakeToken is USDC
+        const requiredAmount = parseUnits(formData.initialLiquidity || '1000', 6);
+        
+        writeContract({
+          address: usdcAddress,
+          abi: ERC20_ABI,
+          functionName: 'approve',
+          args: [factoryAddress, requiredAmount],
+        });
+        
+        toast.loading(`Approving ${formData.initialLiquidity || '1000'} USDC for market creation...`, {
+          id: 'approval-tx',
+          duration: 30000,
+        });
+      } else {
+        // Parimutuel markets need stHYPE approval
+        const stHypeAddress = getContractAddress(chainId, 'StHYPE');
+        
+        writeContract({
+          address: stHypeAddress,
+          abi: ERC20_ABI,
+          functionName: 'approve',
+          args: [factoryAddress, parseEther('1000')], // 1000 stHYPE
+        });
+        
+        toast.loading('Approving 1000 stHYPE for market creation...', {
+          id: 'approval-tx',
+          duration: 30000,
+        });
+      }
       
     } catch (error: any) {
       // Error handling is now done in the onError callback above
@@ -272,9 +337,14 @@ function CreateMarketContent() {
       return;
     }
 
-    // Check balance
-    if (effectiveBalance !== undefined && effectiveBalance < parseEther('1000')) {
-      toast.error('Insufficient stHYPE balance. You need at least 1,000 stHYPE to create a market.');
+    // Check balance based on market type
+    if (!hasRequiredBalance) {
+      if (formData.marketType === MarketType.CPMM) {
+        const required = formData.initialLiquidity || '1000';
+        toast.error(`Insufficient USDC balance. You need at least $${required} USDC for initial liquidity.`);
+      } else {
+        toast.error('Insufficient stHYPE balance. You need at least 1,000 stHYPE to create a market.');
+      }
       return;
     }
 
@@ -294,47 +364,62 @@ function CreateMarketContent() {
       const factoryAddress = getContractAddress(chainId, 'ParimutuelMarketFactory');
       const stakeTokenAddress = getContractAddress(chainId, 'StakeToken');
       
-      // Ensure all required fields have valid values
+      // Ensure all required fields have valid values with proper fallbacks
       const metricId = formData.metricId || 'BTC_PRICE';
       const primarySourceId = formData.primarySourceId || 'HYPERLIQUID';
       const fallbackSourceId = formData.fallbackSourceId || 'COINBASE';
-      const token = formData.token || stakeTokenAddress;
-      const threshold = formData.threshold || '0';
+      const tokenIdentifier = formData.token || 'BTC'; // Use token symbol as string identifier
+      const threshold = formData.threshold || '100000';
       const maxTotalPool = formData.maxTotalPool || '10000';
+      const title = formData.title?.trim() || 'Market Question';
+      const description = formData.description?.trim() || 'Market Description';
+      
+      // Ensure timing values are valid
+      const validCutoffTime = cutoffTimestamp > 0 ? cutoffTimestamp : Math.floor(Date.now() / 1000) + 3600;
+      const validTStart = tStart > validCutoffTime ? tStart : validCutoffTime + 3600;
+      const validTEnd = tEnd > validTStart ? tEnd : validTStart + 3600;
       
       console.log('Market creation params:', {
+        title,
+        description,
+        tokenIdentifier,
         metricId,
         primarySourceId, 
         fallbackSourceId,
-        token,
         threshold,
         maxTotalPool
       });
+      
+      // Debug ABI functions
+      console.log('Available functions in ABI:', PARIMUTUEL_MARKET_FACTORY_ABI
+        .filter((item: any) => item.type === 'function')
+        .map((item: any) => `${item.name}(${item.inputs.length} params)`)
+      );
 
       const marketParams = {
-        title: formData.title || '',
-        description: formData.description || '',
+        title: title,
+        description: description,
         subject: {
-          kind: formData.subjectKind,
+          kind: formData.subjectKind || 0, // Default to TOKEN_PRICE
           metricId: stringToHex(metricId, { size: 32 }),
-          tokenIdentifier: token,
+          tokenIdentifier: tokenIdentifier,
           valueDecimals: formData.valueDecimals || 8,
         },
         predicate: {
-          op: formData.predicateOp,
-          threshold: BigInt(parseFloat(threshold) * Math.pow(10, formData.valueDecimals || 8)),
+          op: formData.predicateOp || 0, // Default to GREATER_THAN
+          threshold: BigInt(Math.floor(parseFloat(threshold) * Math.pow(10, formData.valueDecimals || 8))),
         },
         window: {
-          kind: formData.windowKind,
-          tStart: BigInt(tStart),
-          tEnd: BigInt(tEnd),
+          kind: formData.windowKind || 0, // Default to FIXED
+          tStart: BigInt(validTStart),
+          tEnd: BigInt(validTEnd),
         },
         oracle: {
           primarySourceId: stringToHex(primarySourceId, { size: 32 }),
           fallbackSourceId: stringToHex(fallbackSourceId, { size: 32 }),
           roundingDecimals: formData.roundingDecimals || 2,
         },
-        cutoffTime: BigInt(cutoffTimestamp),
+        cutoffTime: BigInt(validCutoffTime),
         creator: address as `0x${string}`,
         econ: {
           feeBps: formData.feeBps || 500,
@@ -350,31 +435,21 @@ function CreateMarketContent() {
         ? parseUnits(formData.initialLiquidity || '1000', 6) // USDC has 6 decimals
         : parseEther('0'); // No liquidity needed for Parimutuel
 
-      // Choose the appropriate function based on market type
-      if (formData.marketType === MarketType.PARIMUTUEL) {
-        writeContract({
-          address: factoryAddress,
-          abi: PARIMUTUEL_MARKET_FACTORY_ABI,
-          functionName: 'createParimutuelMarket',
-          args: [marketParams],
-        });
-      } else if (formData.marketType === MarketType.CPMM) {
-        writeContract({
-          address: factoryAddress,
-          abi: PARIMUTUEL_MARKET_FACTORY_ABI,
-          functionName: 'createCPMMMarket',
-          args: [marketParams, liquidityAmount],
-        });
-      } else {
-        // Fallback to generic createMarket with marketType parameter
-        const marketTypeValue = formData.marketType === MarketType.CPMM ? 1 : 0;
-        writeContract({
-          address: factoryAddress,
-          abi: PARIMUTUEL_MARKET_FACTORY_ABI,
-          functionName: 'createMarket',
-          args: [marketParams, marketTypeValue, liquidityAmount],
-        });
-      }
+      // Always use the generic createMarket function for now to debug
+      const marketTypeValue = formData.marketType === MarketType.CPMM ? 1 : 0;
+      console.log('Calling createMarket with args:', {
+        marketParams: typeof marketParams,
+        marketTypeValue: typeof marketTypeValue, 
+        liquidityAmount: typeof liquidityAmount,
+        values: [marketParams, marketTypeValue, liquidityAmount]
+      });
+      
+      writeContract({
+        address: factoryAddress,
+        abi: PARIMUTUEL_MARKET_FACTORY_ABI,
+        functionName: 'createMarket',
+        args: [marketParams, marketTypeValue, liquidityAmount],
+      });
       
       toast.loading('🚀 Creating your market... Please wait for confirmation.', {
         id: 'creation-tx',
@@ -405,17 +480,21 @@ function CreateMarketContent() {
 
     // CPMM-specific validations
     if (data.marketType === MarketType.CPMM) {
-      if (!data.initialLiquidity || parseFloat(data.initialLiquidity) < 100) {
-        errors.push('Initial liquidity must be at least $100 USDC for CPMM markets');
+      if (!data.initialLiquidity || parseFloat(data.initialLiquidity) < 1000) {
+        errors.push('Initial liquidity must be at least $1,000 USDC for CPMM markets (contract requirement)');
       }
       
       if (data.initialProbability < 1 || data.initialProbability > 99) {
         errors.push('Initial probability must be between 1% and 99%');
       }
       
-      // Check if user has enough balance for CPMM liquidity
-      if (effectiveBalance && parseFloat(data.initialLiquidity) > parseFloat(formatEther(effectiveBalance))) {
-        errors.push(`Insufficient balance. You need $${data.initialLiquidity} USDC for initial liquidity`);
+      // Check if user has enough USDC balance for CPMM liquidity
+      if (usdcBalance && data.initialLiquidity) {
+        const requiredAmount = parseUnits(data.initialLiquidity, 6);
+        if (usdcBalance < requiredAmount) {
+          const currentBalance = parseFloat((Number(usdcBalance) / 1e6).toFixed(2));
+          errors.push(`Insufficient USDC balance. You have $${currentBalance} but need $${data.initialLiquidity} USDC for initial liquidity`);
+        }
       }
     }
 
@@ -447,7 +526,7 @@ function CreateMarketContent() {
   // Progress calculation
   const getProgress = () => {
     if (!isConnected) return 0;
-    if (allowanceLoading) return 25; // Loading allowance
+    if (isLoadingAny) return 25; // Loading balance/allowance data
     if (needsApproval) return 33; // Need approval
     if (isPending || isConfirming) return 66; // Transaction in progress
     return 100; // Ready to create
@@ -648,7 +727,7 @@ function CreateMarketContent() {
                       <Input
                         id="initialLiquidity"
                         type="number"
-                        min="100"
+                        min="1000"
                         step="1"
                         value={formData.initialLiquidity}
                         onChange={(e) => handleChange('initialLiquidity', e.target.value)}
@@ -656,7 +735,7 @@ function CreateMarketContent() {
                         required={formData.marketType === MarketType.CPMM}
                       />
                       <div className="text-xs text-muted-foreground">
-                        Minimum: $100 USDC. You'll provide this liquidity to start the market.
+                        Minimum: $1,000 USDC (contract requirement). You'll provide this liquidity to start the market.
                       </div>
                     </div>
                     
@@ -899,43 +978,79 @@ function CreateMarketContent() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* stHYPE Balance Display - Only show when wallet connected */}
+              {/* Balance Display - Show relevant balance based on market type */}
               {isConnected && (
-                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <div className="text-sm font-medium">stHYPE Balance:</div>
-                    {balanceLoading && isConnected ? (
-                      <div className="text-sm text-muted-foreground">Loading...</div>
-                    ) : effectiveBalance !== undefined ? (
-                      <div className="text-sm font-mono">
-                        {parseFloat(formatEther(effectiveBalance)).toLocaleString(undefined, {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })} stHYPE
+                <div className="space-y-3">
+                  {formData.marketType === MarketType.CPMM ? (
+                    /* USDC Balance for CPMM Markets */
+                    <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <div className="text-sm font-medium">USDC Balance:</div>
+                        {usdcBalanceLoading && isConnected ? (
+                          <div className="text-sm text-muted-foreground">Loading...</div>
+                        ) : usdcBalance !== undefined ? (
+                          <div className="text-sm font-mono">
+                            ${(Number(usdcBalance) / 1e6).toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })} USDC
+                          </div>
+                        ) : (
+                          <div className="text-sm text-muted-foreground">Unable to load</div>
+                        )}
                       </div>
-                    ) : (
-                      <div className="text-sm text-muted-foreground">Unable to load</div>
-                    )}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    Required: 1,000 stHYPE
-                  </div>
+                      <div className="text-xs text-muted-foreground">
+                        Required: ${formData.initialLiquidity || '1,000'} USDC
+                      </div>
+                    </div>
+                  ) : (
+                    /* stHYPE Balance for Parimutuel Markets */
+                    <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <div className="text-sm font-medium">stHYPE Balance:</div>
+                        {stHypeBalanceLoading && isConnected ? (
+                          <div className="text-sm text-muted-foreground">Loading...</div>
+                        ) : stHypeBalance !== undefined ? (
+                          <div className="text-sm font-mono">
+                            {parseFloat(formatEther(stHypeBalance)).toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })} stHYPE
+                          </div>
+                        ) : (
+                          <div className="text-sm text-muted-foreground">Unable to load</div>
+                        )}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Required: 1,000 stHYPE
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Insufficient Balance Warning - Only show when wallet connected */}
-              {isConnected && effectiveBalance !== undefined && effectiveBalance < parseEther('1000') && (
+              {isConnected && !hasRequiredBalance && (
                 <Card className="border-red-200 bg-red-50 dark:bg-red-950/20">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
                       <div className="text-red-600">⚠️</div>
                       <div className="flex-1">
                         <div className="text-sm font-medium text-red-900 dark:text-red-100">
-                          Insufficient stHYPE Balance
+                          Insufficient {formData.marketType === MarketType.CPMM ? 'USDC' : 'stHYPE'} Balance
                         </div>
                         <div className="text-xs text-red-700 dark:text-red-300">
-                          You need at least 1,000 stHYPE to create a market. 
-                          Current balance: {parseFloat(formatEther(effectiveBalance)).toLocaleString()} stHYPE
+                          {formData.marketType === MarketType.CPMM ? (
+                            <>
+                              You need at least ${formData.initialLiquidity || '1,000'} USDC for initial liquidity. 
+                              Current balance: ${usdcBalance ? (Number(usdcBalance) / 1e6).toLocaleString() : '0'} USDC
+                            </>
+                          ) : (
+                            <>
+                              You need at least 1,000 stHYPE to create a market. 
+                              Current balance: {stHypeBalance ? parseFloat(formatEther(stHypeBalance)).toLocaleString() : '0'} stHYPE
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -950,27 +1065,30 @@ function CreateMarketContent() {
                       <ClockIcon className="h-5 w-5 text-blue-600" />
                       <div className="flex-1">
                         <div className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                          Approval Required
+                          {formData.marketType === MarketType.CPMM ? 'USDC' : 'stHYPE'} Approval Required
                         </div>
                         <div className="text-xs text-blue-700 dark:text-blue-300">
-                          Grant permission to spend stHYPE tokens for market creation
+                          {formData.marketType === MarketType.CPMM 
+                            ? `Grant permission to spend ${formData.initialLiquidity || '1,000'} USDC for initial liquidity`
+                            : 'Grant permission to spend 1,000 stHYPE for market creation'
+                          }
                         </div>
                       </div>
                     </div>
                     <Button
                       type="button"
                       onClick={handleApprove}
-                      disabled={approving || allowanceLoading}
+                      disabled={approving || isLoadingAny}
                       className="w-full mt-3"
                       variant="outline"
                     >
-                      {approving ? 'Approving...' : 'Approve stHYPE Spending'}
+                      {approving ? 'Approving...' : `Approve ${formData.marketType === MarketType.CPMM ? 'USDC' : 'stHYPE'} Spending`}
                     </Button>
                   </CardContent>
                 </Card>
               )}
 
-              {isConnected && !needsApproval && !allowanceLoading && (
+              {isConnected && !needsApproval && !isLoadingAny && (
                 <Card className="border-green-200 bg-green-50 dark:bg-green-950/20">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
@@ -989,22 +1107,26 @@ function CreateMarketContent() {
                   isPending || 
                   isConfirming || 
                   needsApproval || 
-                  (effectiveBalance !== undefined && effectiveBalance < parseEther('1000'))
+                  !hasRequiredBalance ||
+                  isLoadingAny
                 }
                 className="w-full"
                 size="lg"
               >
                 {isPending || isConfirming ? (
                   <>Creating Market...</>
-                ) : effectiveBalance !== undefined && effectiveBalance < parseEther('1000') ? (
-                  <>Insufficient stHYPE Balance</>
+                ) : !hasRequiredBalance ? (
+                  <>Insufficient {formData.marketType === MarketType.CPMM ? 'USDC' : 'stHYPE'} Balance</>
                 ) : (
                   <>🚀 Create Market</>
                 )}
               </Button>
 
               <div className="text-xs text-muted-foreground text-center mt-4">
-                Market creation cost: ~1000 stHYPE • Oracle: HyperLiquid + Coinbase
+                {formData.marketType === MarketType.CPMM 
+                  ? `Market creation cost: ${formData.initialLiquidity || '1,000'} USDC liquidity • Oracle: HyperLiquid + Coinbase`
+                  : 'Market creation cost: ~1000 stHYPE • Oracle: HyperLiquid + Coinbase'
+                }
               </div>
             </CardContent>
           </Card>
