@@ -23,7 +23,7 @@ contract CreateMarket_Price is Script {
             subject: MarketTypes.SubjectParams({
                 kind: MarketTypes.SubjectKind.TOKEN_PRICE,
                 metricId: bytes32(0),
-                token: whypeToken,
+                tokenIdentifier: "hyperliquid",
                 valueDecimals: 18
             }),
             predicate: MarketTypes.PredicateParams({

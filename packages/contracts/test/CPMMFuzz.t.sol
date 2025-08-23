@@ -347,7 +347,7 @@ contract CPMMFuzzTest is Test {
             subject: MarketTypes.SubjectParams({
                 kind: MarketTypes.SubjectKind.TOKEN_PRICE,
                 metricId: bytes32(0),
-                token: address(stakeToken),
+                tokenIdentifier: "test-token",
                 valueDecimals: 18
             }),
             predicate: MarketTypes.PredicateParams({

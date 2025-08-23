@@ -110,7 +110,7 @@ contract TestnetDeploy is Script {
             subject: MarketTypes.SubjectParams({
                 kind: MarketTypes.SubjectKind.TOKEN_PRICE,
                 metricId: bytes32(0),
-                token: address(0), // ETH
+                tokenIdentifier: "", // ETH
                 valueDecimals: 8
             }),
             predicate: MarketTypes.PredicateParams({

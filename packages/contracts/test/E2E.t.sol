@@ -197,7 +197,7 @@ contract E2EHappyPath is Test {
             subject: MarketTypes.SubjectParams({
                 kind: MarketTypes.SubjectKind.HL_METRIC,
                 metricId: keccak256("daily_volume"),
-                token: address(0),
+                tokenIdentifier: "",
                 valueDecimals: 18
             }),
             predicate: MarketTypes.PredicateParams({
@@ -404,7 +404,7 @@ contract E2EHappyPath is Test {
             subject: MarketTypes.SubjectParams({
                 kind: MarketTypes.SubjectKind.HL_METRIC,
                 metricId: keccak256("tvl"),
-                token: address(0),
+                tokenIdentifier: "",
                 valueDecimals: 18
             }),
             predicate: MarketTypes.PredicateParams({

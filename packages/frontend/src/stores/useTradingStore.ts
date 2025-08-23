@@ -56,9 +56,9 @@ interface TradingStore {
   clearOptimisticUpdates: (marketId: string) => void
   
   // Transaction management
-  startApproval: (marketId: string, amount: string) => void
-  startDeposit: (marketId: string, side: 'YES' | 'NO', amount: string) => void
-  startClaim: (marketId: string) => void
+  startApproval: (marketId: string, amount: string) => string
+  startDeposit: (marketId: string, side: 'YES' | 'NO', amount: string) => string
+  startClaim: (marketId: string) => string
   completeTransaction: (txHash: string, blockNumber?: number, gasUsed?: string) => void
   failTransaction: (error: string) => void
   

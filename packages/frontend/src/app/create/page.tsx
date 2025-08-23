@@ -67,7 +67,7 @@ function CreateMarketContent() {
                                error.message?.includes('rejected') ||
                                error.message?.includes('cancelled') ||
                                error.message?.includes('denied') ||
-                               error.name === 'UserRejectedRequestError';
+                               (error as any)?.name === 'UserRejectedRequestError';
         
         if (isUserRejection) {
           if (lastTxType === 'approval') {
@@ -84,7 +84,7 @@ function CreateMarketContent() {
             toast.error('Market creation reverted. Please check your parameters.');
           } else {
             const errorMessage = lastTxType === 'approval' ? 'Approval failed' : 'Market creation failed';
-            toast.error(`${errorMessage}: ${error.shortMessage || error.message || 'Unknown error'}`);
+            toast.error(`${errorMessage}: ${(error as any)?.shortMessage || error.message || 'Unknown error'}`);
           }
           
           if (lastTxType === 'approval') {
@@ -120,7 +120,7 @@ function CreateMarketContent() {
     address: stHypeAddress,
     abi: ERC20_ABI,
     functionName: 'allowance',
-    args: address && factoryAddress ? [address, factoryAddress] : undefined,
+    args: address && factoryAddress ? [address as `0x${string}`, factoryAddress] : undefined,
     query: {
       enabled: Boolean(address && factoryAddress && stHypeAddress && isConnected),
       refetchInterval: isConnected ? 5000 : false,
@@ -131,7 +131,7 @@ function CreateMarketContent() {
     address: stHypeAddress,
     abi: ERC20_ABI,
     functionName: 'balanceOf',
-    args: address ? [address] : undefined,
+    args: address ? [address as `0x${string}`] : undefined,
     query: {
       enabled: Boolean(address && stHypeAddress && isConnected),
       refetchInterval: isConnected ? 10000 : false,
@@ -294,18 +294,35 @@ function CreateMarketContent() {
       const factoryAddress = getContractAddress(chainId, 'ParimutuelMarketFactory');
       const stakeTokenAddress = getContractAddress(chainId, 'StakeToken');
       
+      // Ensure all required fields have valid values
+      const metricId = formData.metricId || 'BTC_PRICE';
+      const primarySourceId = formData.primarySourceId || 'HYPERLIQUID';
+      const fallbackSourceId = formData.fallbackSourceId || 'COINBASE';
+      const token = formData.token || stakeTokenAddress;
+      const threshold = formData.threshold || '0';
+      const maxTotalPool = formData.maxTotalPool || '10000';
+      
+      console.log('Market creation params:', {
+        metricId,
+        primarySourceId, 
+        fallbackSourceId,
+        token,
+        threshold,
+        maxTotalPool
+      });
+
       const marketParams = {
-        title: formData.title,
-        description: formData.description,
+        title: formData.title || '',
+        description: formData.description || '',
         subject: {
           kind: formData.subjectKind,
-          metricId: stringToHex(formData.metricId || 'BTC_PRICE', { size: 32 }),
-          token: (formData.token || stakeTokenAddress) as `0x${string}`,
-          valueDecimals: formData.valueDecimals,
+          metricId: stringToHex(metricId, { size: 32 }),
+          tokenIdentifier: token,
+          valueDecimals: formData.valueDecimals || 8,
         },
         predicate: {
           op: formData.predicateOp,
-          threshold: BigInt(parseFloat(formData.threshold) * Math.pow(10, formData.valueDecimals)),
+          threshold: BigInt(parseFloat(threshold) * Math.pow(10, formData.valueDecimals || 8)),
         },
         window: {
           kind: formData.windowKind,
@@ -313,17 +330,17 @@ function CreateMarketContent() {
           tEnd: BigInt(tEnd),
         },
         oracle: {
-          primarySourceId: stringToHex(formData.primarySourceId, { size: 32 }),
-          fallbackSourceId: stringToHex(formData.fallbackSourceId, { size: 32 }),
-          roundingDecimals: formData.roundingDecimals,
+          primarySourceId: stringToHex(primarySourceId, { size: 32 }),
+          fallbackSourceId: stringToHex(fallbackSourceId, { size: 32 }),
+          roundingDecimals: formData.roundingDecimals || 2,
         },
         cutoffTime: BigInt(cutoffTimestamp),
         creator: address as `0x${string}`,
         econ: {
-          feeBps: formData.feeBps,
-          creatorFeeShareBps: formData.creatorFeeShareBps,
-          maxTotalPool: parseEther(formData.maxTotalPool),
-          timeDecayBps: formData.timeDecayBps,
+          feeBps: formData.feeBps || 500,
+          creatorFeeShareBps: formData.creatorFeeShareBps || 1000,
+          maxTotalPool: parseEther(maxTotalPool),
+          timeDecayBps: formData.timeDecayBps || 1000,
         },
         isProtocolMarket: false,
       };

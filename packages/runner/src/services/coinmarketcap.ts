@@ -144,8 +144,8 @@ export class CoinMarketCapService {
           name: tokenData.name,
           price: tokenData.quote.USD.price,
           timestamp: tokenData.quote.USD.last_updated,
-          marketCap: tokenData.quote.USD.market_cap,
-          volume24h: tokenData.quote.USD.volume_24h,
+          marketCap: tokenData.quote.USD.market_cap || 0,
+          volume24h: tokenData.quote.USD.volume_24h || 0,
         };
       });
 
@@ -285,10 +285,9 @@ export class CoinMarketCapService {
     try {
       // Try to get Bitcoin price as a health check
       const btcQuote = await this.getQuoteById(1); // Bitcoin CMC ID is 1
-      return { 
-        status: btcQuote ? 'healthy' : 'unhealthy',
-        error: btcQuote ? undefined : 'Failed to fetch Bitcoin price'
-      };
+      return btcQuote 
+        ? { status: 'healthy' as const }
+        : { status: 'unhealthy' as const, error: 'Failed to fetch Bitcoin price' };
     } catch (error) {
       return {
         status: 'unhealthy',

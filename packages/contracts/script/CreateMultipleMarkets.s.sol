@@ -63,7 +63,7 @@ contract CreateMultipleMarkets is Script {
         
         params.subject.kind = MarketTypes.SubjectKind.TOKEN_PRICE;
         params.subject.metricId = bytes32("BTC_USD");
-        params.subject.token = address(0);
+        params.subject.tokenIdentifier = "bitcoin";
         params.subject.valueDecimals = 8;
         
         params.predicate.op = MarketTypes.PredicateOp.GT;
@@ -98,7 +98,7 @@ contract CreateMultipleMarkets is Script {
         
         params.subject.kind = MarketTypes.SubjectKind.TOKEN_PRICE;
         params.subject.metricId = bytes32("ETH_USD");
-        params.subject.token = address(0);
+        params.subject.tokenIdentifier = "ethereum";
         params.subject.valueDecimals = 8;
         
         params.predicate.op = MarketTypes.PredicateOp.GT;
@@ -133,7 +133,7 @@ contract CreateMultipleMarkets is Script {
         
         params.subject.kind = MarketTypes.SubjectKind.HL_METRIC;
         params.subject.metricId = bytes32("DAILY_VOLUME_USD");
-        params.subject.token = address(0);
+        params.subject.tokenIdentifier = "";
         params.subject.valueDecimals = 6;
         
         params.predicate.op = MarketTypes.PredicateOp.GT;
@@ -168,7 +168,7 @@ contract CreateMultipleMarkets is Script {
         
         params.subject.kind = MarketTypes.SubjectKind.TOKEN_PRICE;
         params.subject.metricId = bytes32("HYPE_USD");
-        params.subject.token = address(0);
+        params.subject.tokenIdentifier = "hyperliquid";
         params.subject.valueDecimals = 8;
         
         params.predicate.op = MarketTypes.PredicateOp.GT;
@@ -203,7 +203,7 @@ contract CreateMultipleMarkets is Script {
         
         params.subject.kind = MarketTypes.SubjectKind.HL_METRIC;
         params.subject.metricId = bytes32("DAILY_ACTIVE_USERS");
-        params.subject.token = address(0);
+        params.subject.tokenIdentifier = "";
         params.subject.valueDecimals = 0;
         
         params.predicate.op = MarketTypes.PredicateOp.GT;
@@ -238,7 +238,7 @@ contract CreateMultipleMarkets is Script {
         
         params.subject.kind = MarketTypes.SubjectKind.TOKEN_PRICE;
         params.subject.metricId = bytes32("SOL_USD");
-        params.subject.token = address(0);
+        params.subject.tokenIdentifier = "solana";
         params.subject.valueDecimals = 8;
         
         params.predicate.op = MarketTypes.PredicateOp.GT;

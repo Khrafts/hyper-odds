@@ -96,7 +96,7 @@ contract RouterTest is Test {
             subject: MarketTypes.SubjectParams({
                 kind: MarketTypes.SubjectKind.TOKEN_PRICE,
                 metricId: bytes32(0),
-                token: address(0),
+                tokenIdentifier: "",
                 valueDecimals: 8
             }),
             predicate: MarketTypes.PredicateParams({

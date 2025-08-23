@@ -40,7 +40,7 @@ contract CreateTestMarket is Script {
             subject: MarketTypes.SubjectParams({
                 kind: MarketTypes.SubjectKind.TOKEN_PRICE,
                 metricId: bytes32(0),
-                token: address(0), // BTC
+                tokenIdentifier: "", // BTC
                 valueDecimals: 8
             }),
             predicate: MarketTypes.PredicateParams({

@@ -44,7 +44,7 @@ contract CreateMarketsWithNewFactory is Script {
         
         btcParams.subject.kind = MarketTypes.SubjectKind.TOKEN_PRICE;
         btcParams.subject.metricId = bytes32("BTC_USD");
-        btcParams.subject.token = address(0);
+        btcParams.subject.tokenIdentifier = "bitcoin";
         btcParams.subject.valueDecimals = 8;
         
         btcParams.predicate.op = MarketTypes.PredicateOp.GT;
@@ -77,7 +77,7 @@ contract CreateMarketsWithNewFactory is Script {
         
         hlParams.subject.kind = MarketTypes.SubjectKind.HL_METRIC;
         hlParams.subject.metricId = bytes32("TOTAL_VALUE_LOCKED");
-        hlParams.subject.token = address(0);
+        hlParams.subject.tokenIdentifier = "";
         hlParams.subject.valueDecimals = 6;
         
         hlParams.predicate.op = MarketTypes.PredicateOp.GT;

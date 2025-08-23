@@ -393,7 +393,7 @@ export const PARIMUTUEL_MARKET_FACTORY_ABI = [
             components: [
               { name: 'kind', type: 'uint8' },
               { name: 'metricId', type: 'bytes32' },
-              { name: 'tokenIdentifier', type: 'bytes32' },
+              { name: 'tokenIdentifier', type: 'string' },
               { name: 'valueDecimals', type: 'uint8' }
             ],
             name: 'subject',

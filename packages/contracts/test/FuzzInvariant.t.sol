@@ -318,7 +318,7 @@ contract MarketHandler is Test {
             subject: MarketTypes.SubjectParams({
                 kind: MarketTypes.SubjectKind.HL_METRIC,
                 metricId: keccak256(abi.encode(seed)),
-                token: address(0),
+                tokenIdentifier: "",
                 valueDecimals: 18
             }),
             predicate: MarketTypes.PredicateParams({
@@ -364,7 +364,7 @@ contract MarketHandler is Test {
             subject: MarketTypes.SubjectParams({
                 kind: MarketTypes.SubjectKind.HL_METRIC,
                 metricId: keccak256(abi.encode(seed)),
-                token: address(0),
+                tokenIdentifier: "",
                 valueDecimals: 18
             }),
             predicate: MarketTypes.PredicateParams({

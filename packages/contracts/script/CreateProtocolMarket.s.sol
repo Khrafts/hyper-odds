@@ -23,7 +23,7 @@ contract CreateProtocolMarket is Script {
             subject: MarketTypes.SubjectParams({
                 kind: MarketTypes.SubjectKind.HL_METRIC,
                 metricId: keccak256("volume_24h"),
-                token: address(0),
+                tokenIdentifier: "",
                 valueDecimals: 18
             }),
             predicate: MarketTypes.PredicateParams({
@@ -58,7 +58,7 @@ contract CreateProtocolMarket is Script {
             subject: MarketTypes.SubjectParams({
                 kind: MarketTypes.SubjectKind.TOKEN_PRICE,
                 metricId: bytes32(0),
-                token: vm.envAddress("WHYPE_TOKEN"),
+                tokenIdentifier: "hyperliquid",
                 valueDecimals: 18
             }),
             predicate: MarketTypes.PredicateParams({
@@ -93,7 +93,7 @@ contract CreateProtocolMarket is Script {
             subject: MarketTypes.SubjectParams({
                 kind: MarketTypes.SubjectKind.HL_METRIC,
                 metricId: keccak256("tvl"),
-                token: address(0),
+                tokenIdentifier: "",
                 valueDecimals: 18
             }),
             predicate: MarketTypes.PredicateParams({

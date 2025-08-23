@@ -22,7 +22,7 @@ contract CreateMarket is Script {
             subject: MarketTypes.SubjectParams({
                 kind: MarketTypes.SubjectKind.HL_METRIC,
                 metricId: keccak256("volume_24h"),
-                token: address(0),
+                tokenIdentifier: "",
                 valueDecimals: 18
             }),
             predicate: MarketTypes.PredicateParams({
