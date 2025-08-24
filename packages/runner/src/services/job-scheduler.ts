@@ -21,9 +21,16 @@ export interface JobResult {
   timestamp: number;
 }
 
+// Forward declaration to avoid circular dependency
+interface IMarketProcessor {
+  processMarketResolution(marketId: string): Promise<void>;
+  processMarketFinalization(marketId: string): Promise<void>;
+}
+
 export class JobSchedulerService {
   private redis: RedisService;
   private repositories: RepositoryFactory;
+  private marketProcessor?: IMarketProcessor;
   private queue: Queue<JobData>;
   private worker: Worker<JobData, JobResult>;
   private isRunning = false;
@@ -35,6 +42,13 @@ export class JobSchedulerService {
     // Initialize placeholders - will be set up during start()
     this.queue = null as any;
     this.worker = null as any;
+  }
+
+  /**
+   * Set market processor (called after initialization to avoid circular dependency)
+   */
+  setMarketProcessor(marketProcessor: IMarketProcessor): void {
+    this.marketProcessor = marketProcessor;
   }
 
   private setupEventHandlers(): void {
@@ -172,6 +186,9 @@ export class JobSchedulerService {
         case 'resolve':
           result = await this.processMarketResolution(job.data);
           break;
+        case 'finalize':
+          result = await this.processMarketFinalization(job.data);
+          break;
         case 'fetch-metric':
           result = await this.processFetchMetric(job.data);
           break;
@@ -239,15 +256,37 @@ export class JobSchedulerService {
       throw new Error('Market ID required for resolution job');
     }
 
-    // This would integrate with the MarketProcessorService
-    // For now, just log the action
+    if (!this.marketProcessor) {
+      throw new Error('MarketProcessor not set - cannot process resolution jobs');
+    }
+
     logger.info('Processing market resolution', {
       marketId: data.marketId,
       timestamp: data.timestamp,
     });
 
-    // TODO: Integrate with actual market resolution logic
+    await this.marketProcessor.processMarketResolution(data.marketId);
+
     return { action: 'resolve', marketId: data.marketId, status: 'completed' };
+  }
+
+  private async processMarketFinalization(data: JobData): Promise<any> {
+    if (!data.marketId) {
+      throw new Error('Market ID required for finalization job');
+    }
+
+    if (!this.marketProcessor) {
+      throw new Error('MarketProcessor not set - cannot process finalization jobs');
+    }
+
+    logger.info('Processing market finalization', {
+      marketId: data.marketId,
+      timestamp: data.timestamp,
+    });
+
+    await this.marketProcessor.processMarketFinalization(data.marketId);
+
+    return { action: 'finalize', marketId: data.marketId, status: 'completed' };
   }
 
   private async processFetchMetric(data: JobData): Promise<any> {

@@ -6,6 +6,8 @@ import { BlockchainService } from './blockchain';
 import { EventListenerService } from './event-listener';
 import { JobSchedulerService } from './job-scheduler';
 import { MarketProcessorService } from './market-processor';
+import { OracleService } from './oracle';
+import { TransactionMonitorService } from './transaction-monitor';
 import { RepositoryFactory } from '../repositories';
 import { config } from '../config/config';
 import { 
@@ -27,6 +29,10 @@ export class ServiceContainer {
   public jobScheduler: JobSchedulerService;
   public marketProcessor: MarketProcessorService;
   
+  // Oracle and transaction services
+  public oracle: OracleService;
+  public transactionMonitor: TransactionMonitorService;
+  
   // Data source services
   public readonly coinMarketCap: CoinMarketCapService;
   public fetcherRegistry: MetricFetcherRegistry;
@@ -45,6 +51,8 @@ export class ServiceContainer {
     // Initialize placeholders - will be set after core services are connected
     this.repositories = null as any;
     this.fetcherRegistry = null as any;
+    this.oracle = null as any;
+    this.transactionMonitor = null as any;
     this.eventListener = null as any;
     this.jobScheduler = null as any;
     this.marketProcessor = null as any;
@@ -108,14 +116,31 @@ export class ServiceContainer {
         });
         throw error;
       }
+
+      // Initialize Oracle and transaction services
+      logger.debug('Initializing Oracle service...');
+      this.oracle = new OracleService();
+      await this.oracle.initialize();
+
+      logger.debug('Initializing transaction monitor...');
+      this.transactionMonitor = new TransactionMonitorService();
+      this.transactionMonitor.start();
       
       // Initialize processing services
       logger.debug('Initializing market processor...');
-      this.marketProcessor = new MarketProcessorService(this.repositories, this.fetcherRegistry);
+      this.marketProcessor = new MarketProcessorService(
+        this.repositories, 
+        this.fetcherRegistry, 
+        this.oracle, 
+        this.transactionMonitor
+      );
       
       logger.debug('Initializing job scheduler...');
       this.jobScheduler = new JobSchedulerService(this.redis, this.repositories);
       await this.jobScheduler.start();
+      
+      // Connect job scheduler to market processor
+      this.jobScheduler.setMarketProcessor(this.marketProcessor);
       
       logger.debug('Initializing event listener...');
       this.eventListener = new EventListenerService(this.blockchain);
@@ -164,6 +189,17 @@ export class ServiceContainer {
         await this.jobScheduler.stop();
       }
 
+      // Stop Oracle and transaction services
+      if (this.transactionMonitor) {
+        logger.debug('Stopping transaction monitor...');
+        this.transactionMonitor.stop();
+      }
+
+      if (this.oracle) {
+        logger.debug('Disconnecting Oracle service...');
+        await this.oracle.disconnect();
+      }
+
       // Stop fetcher registry health checks
       if (this.fetcherRegistry) {
         logger.debug('Stopping metric fetcher health checks...');
@@ -206,6 +242,8 @@ export class ServiceContainer {
       
       let eventListenerHealthy = true;
       let jobSchedulerHealthy = true;
+      let oracleHealthy = true;
+      let transactionMonitorHealthy = true;
       let fetchersHealthy = true;
       
       if (this.eventListener) {
@@ -216,13 +254,21 @@ export class ServiceContainer {
         jobSchedulerHealthy = await this.jobScheduler.isHealthy();
       }
 
+      if (this.oracle) {
+        oracleHealthy = await this.oracle.isHealthy();
+      }
+
+      if (this.transactionMonitor) {
+        transactionMonitorHealthy = await this.transactionMonitor.isHealthy();
+      }
+
       if (this.fetcherRegistry) {
         const healthStatus = this.fetcherRegistry.getHealthStatus();
         const healthyFetchers = Object.values(healthStatus).filter(s => s.healthy);
         fetchersHealthy = healthyFetchers.length > 0; // At least one fetcher must be healthy
       }
       
-      return dbHealthy && redisHealthy && blockchainHealthy && eventListenerHealthy && jobSchedulerHealthy && fetchersHealthy;
+      return dbHealthy && redisHealthy && blockchainHealthy && eventListenerHealthy && jobSchedulerHealthy && oracleHealthy && transactionMonitorHealthy && fetchersHealthy;
     } catch (error) {
       logger.error('Health check failed:', {
         error: error instanceof Error ? error.message : error

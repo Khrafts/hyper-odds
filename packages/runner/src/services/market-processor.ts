@@ -9,17 +9,29 @@ import {
   type SubjectKind,
   type PredicateOp,
   type Predicate,
-  type ValidatedMetricValue,
-  type ResolutionResult,
 } from './fetchers';
+import { OracleService, type OracleResolutionData } from './oracle';
+import { TransactionMonitorService } from './transaction-monitor';
 
 export class MarketProcessorService {
   private repositories: RepositoryFactory;
   private fetcherRegistry: MetricFetcherRegistry;
+  private oracle: OracleService;
+  private transactionMonitor: TransactionMonitorService;
 
-  constructor(repositories: RepositoryFactory, fetcherRegistry: MetricFetcherRegistry) {
+  constructor(
+    repositories: RepositoryFactory, 
+    fetcherRegistry: MetricFetcherRegistry,
+    oracle: OracleService,
+    transactionMonitor: TransactionMonitorService
+  ) {
     this.repositories = repositories;
     this.fetcherRegistry = fetcherRegistry;
+    this.oracle = oracle;
+    this.transactionMonitor = transactionMonitor;
+
+    // Set up transaction event listeners
+    this.setupTransactionEventListeners();
   }
 
   async processMarketCreatedEvent(event: MarketCreatedEvent): Promise<void> {
@@ -248,22 +260,37 @@ export class MarketProcessorService {
         // Oracle transaction hashes will be filled later
       });
 
-      // 8. TODO: Submit to oracle contract
-      // This would involve:
-      // - Preparing oracle submission data
-      // - Calling oracle commit function
-      // - Waiting for commit confirmation
-      // - Calling oracle finalize function
-      // - Updating resolution with transaction hashes
-      
-      logger.warn('Oracle submission not yet implemented', {
+      // 8. Submit to Oracle contract
+      const oracleData: OracleResolutionData = {
+        marketAddress: market.id,
+        outcome: resolutionResult.result,
+        metricValue: resolutionResult.metricValue.normalizedValue,
+        metricHash: resolutionResult.metricValue.hash,
+        confidence: resolutionResult.confidence,
+        sources: resolutionResult.sources,
+        resolvedAt: resolutionResult.resolvedAt,
+      };
+
+      const commitResult = await this.oracle.commitResolution(oracleData);
+
+      logger.info('Oracle commitment submitted', {
         marketId: market.id,
-        result: resolutionResult.result,
+        commitTxHash: commitResult.transactionHash,
+        blockNumber: commitResult.blockNumber,
+        gasUsed: commitResult.gasUsed,
       });
 
-      // 9. Update market status (for now, mark as resolved)
-      // In full implementation, this would happen after oracle finalization
-      await this.updateMarketStatus(market.id, 'RESOLVED');
+      // 9. Update resolution with commit transaction details
+      await this.repositories.resolutions.updateByMarketId(market.id, {
+        commitTxHash: commitResult.transactionHash,
+        blockNumber: BigInt(commitResult.blockNumber),
+      });
+
+      // 10. Schedule finalization job after dispute window
+      await this.scheduleMarketFinalization(market.id);
+
+      // 11. Update market status to COMMITTED (awaiting finalization)
+      await this.updateMarketStatus(market.id, 'COMMITTED');
 
       logger.info('Market resolution stored successfully', {
         marketId: market.id,
@@ -445,6 +472,314 @@ export class MarketProcessorService {
         error: error instanceof Error ? error.message : error
       });
       throw error;
+    }
+  }
+
+  /**
+   * Set up transaction event listeners for Oracle operations
+   */
+  private setupTransactionEventListeners(): void {
+    this.transactionMonitor.on('transactionSuccess', (transaction, result) => {
+      logger.info('Oracle transaction succeeded', {
+        hash: transaction.hash,
+        marketAddress: transaction.marketAddress,
+        type: transaction.type,
+        blockNumber: result.blockNumber,
+      });
+
+      if (transaction.type === 'finalize') {
+        this.handleFinalizationSuccess(transaction.marketAddress, result).catch(error => {
+          logger.error('Failed to handle finalization success:', {
+            marketAddress: transaction.marketAddress,
+            error: error instanceof Error ? error.message : error,
+          });
+        });
+      }
+    });
+
+    this.transactionMonitor.on('transactionFailed', (transaction, result) => {
+      logger.error('Oracle transaction failed', {
+        hash: transaction.hash,
+        marketAddress: transaction.marketAddress,
+        type: transaction.type,
+        status: result.status,
+      });
+
+      this.handleTransactionFailure(transaction).catch(error => {
+        logger.error('Failed to handle transaction failure:', {
+          marketAddress: transaction.marketAddress,
+          error: error instanceof Error ? error.message : error,
+        });
+      });
+    });
+
+    this.transactionMonitor.on('transactionTimeout', (transaction, timeout) => {
+      logger.warn('Oracle transaction timed out', {
+        hash: transaction.hash,
+        marketAddress: transaction.marketAddress,
+        type: transaction.type,
+        timeoutAt: timeout.timeoutAt,
+      });
+
+      this.handleTransactionTimeout(transaction).catch(error => {
+        logger.error('Failed to handle transaction timeout:', {
+          marketAddress: transaction.marketAddress,
+          error: error instanceof Error ? error.message : error,
+        });
+      });
+    });
+
+    this.transactionMonitor.on('transactionRetry', (transaction, _timeout) => {
+      logger.info('Retrying Oracle transaction', {
+        hash: transaction.hash,
+        marketAddress: transaction.marketAddress,
+        type: transaction.type,
+        attempts: transaction.attempts,
+      });
+
+      this.retryTransaction(transaction).catch(error => {
+        logger.error('Failed to retry transaction:', {
+          marketAddress: transaction.marketAddress,
+          error: error instanceof Error ? error.message : error,
+        });
+      });
+    });
+  }
+
+  /**
+   * Schedule market finalization job after dispute window
+   */
+  private async scheduleMarketFinalization(marketId: string): Promise<void> {
+    try {
+      const disputeWindow = await this.oracle.getDisputeWindow();
+      const finalizeTime = new Date(Date.now() + disputeWindow * 1000);
+
+      logger.debug('Scheduling market finalization job', {
+        marketId,
+        finalizeTime: finalizeTime.toISOString(),
+        disputeWindow,
+      });
+
+      const job = await this.repositories.jobs.create({
+        type: JobType.FINALIZE_MARKET,
+        marketId,
+        scheduledFor: finalizeTime,
+        data: {
+          marketId,
+          action: 'finalize',
+          timestamp: finalizeTime.getTime(),
+        },
+        maxAttempts: 5, // More attempts for finalization
+      });
+
+      logger.info('Market finalization job scheduled', {
+        jobId: job.id,
+        marketId,
+        scheduledFor: finalizeTime.toISOString(),
+      });
+
+    } catch (error) {
+      logger.error('Failed to schedule market finalization job:', {
+        error: error instanceof Error ? error.message : error,
+        marketId,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Process market finalization (called by job scheduler)
+   */
+  async processMarketFinalization(marketId: string): Promise<void> {
+    try {
+      logger.info('Processing market finalization', { marketId });
+
+      // Get market details
+      const market = await this.repositories.markets.findById(marketId);
+      if (!market) {
+        throw new Error(`Market not found: ${marketId}`);
+      }
+
+      // Check if already finalized
+      const resolution = await this.repositories.resolutions.findByMarketId(marketId);
+      if (!resolution || resolution.finalizedAt) {
+        logger.warn('Market already finalized or no resolution found', {
+          marketId,
+          hasResolution: !!resolution,
+          finalizedAt: resolution?.finalizedAt,
+        });
+        return;
+      }
+
+      // Check if Oracle commitment exists
+      const commitmentStatus = await this.oracle.getCommitmentStatus(market.id);
+      if (!commitmentStatus.committed) {
+        throw new Error(`No Oracle commitment found for market: ${marketId}`);
+      }
+
+      if (commitmentStatus.finalized) {
+        logger.warn('Market already finalized in Oracle', { marketId });
+        return;
+      }
+
+      // Check if finalization is possible (dispute window elapsed)
+      const canFinalize = await this.oracle.canFinalize(market.id);
+      if (!canFinalize) {
+        const timeRemaining = await this.oracle.getTimeUntilFinalization(market.id);
+        logger.warn('Market not ready for finalization yet', {
+          marketId,
+          timeRemainingSeconds: timeRemaining,
+        });
+        return;
+      }
+
+      logger.info('Market ready for finalization', {
+        marketId,
+        title: market.title,
+      });
+
+      // Submit finalization transaction
+      const finalizeResult = await this.oracle.finalizeResolution(market.id);
+
+      logger.info('Oracle finalization submitted', {
+        marketId,
+        finalizeTxHash: finalizeResult.transactionHash,
+        blockNumber: finalizeResult.blockNumber,
+        gasUsed: finalizeResult.gasUsed,
+      });
+
+      // Update resolution with finalize transaction details
+      await this.repositories.resolutions.updateByMarketId(marketId, {
+        finalizeTxHash: finalizeResult.transactionHash,
+        finalizedAt: new Date(),
+      });
+
+      // Update market status to fully resolved
+      await this.updateMarketStatus(marketId, 'RESOLVED');
+
+      logger.info('Market finalization completed', { marketId });
+
+    } catch (error) {
+      logger.error('Failed to process market finalization:', {
+        error: error instanceof Error ? error.message : error,
+        marketId,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Handle successful finalization transaction
+   */
+  private async handleFinalizationSuccess(marketAddress: string, result: any): Promise<void> {
+    try {
+      await this.repositories.resolutions.updateByMarketId(marketAddress, {
+        finalizeTxHash: result.transactionHash,
+        finalizedAt: new Date(),
+      });
+
+      await this.updateMarketStatus(marketAddress, 'RESOLVED');
+
+      logger.info('Market finalization success handled', {
+        marketAddress,
+        transactionHash: result.transactionHash,
+      });
+
+    } catch (error) {
+      logger.error('Failed to handle finalization success:', {
+        marketAddress,
+        error: error instanceof Error ? error.message : error,
+      });
+    }
+  }
+
+  /**
+   * Handle transaction failure
+   */
+  private async handleTransactionFailure(transaction: any): Promise<void> {
+    try {
+      // Log the failure and potentially schedule retry or manual intervention
+      logger.error('Oracle transaction failed, may need manual intervention', {
+        hash: transaction.hash,
+        marketAddress: transaction.marketAddress,
+        type: transaction.type,
+      });
+
+      // Could implement automatic retry logic here
+      // For now, just log for manual review
+
+    } catch (error) {
+      logger.error('Failed to handle transaction failure:', {
+        marketAddress: transaction.marketAddress,
+        error: error instanceof Error ? error.message : error,
+      });
+    }
+  }
+
+  /**
+   * Handle transaction timeout
+   */
+  private async handleTransactionTimeout(transaction: any): Promise<void> {
+    try {
+      logger.warn('Oracle transaction timed out, marking for review', {
+        hash: transaction.hash,
+        marketAddress: transaction.marketAddress,
+        type: transaction.type,
+      });
+
+      // Could implement escalation logic here
+      // For now, just log for manual review
+
+    } catch (error) {
+      logger.error('Failed to handle transaction timeout:', {
+        marketAddress: transaction.marketAddress,
+        error: error instanceof Error ? error.message : error,
+      });
+    }
+  }
+
+  /**
+   * Retry a failed or stuck transaction
+   */
+  private async retryTransaction(transaction: any): Promise<void> {
+    try {
+      logger.info('Retrying Oracle transaction', {
+        originalHash: transaction.hash,
+        marketAddress: transaction.marketAddress,
+        type: transaction.type,
+        attempt: transaction.attempts,
+      });
+
+      // TODO: Get higher gas price for retry and implement retry logic
+      // const newGasPrice = await this.transactionMonitor.getGasPriceRecommendation('high');
+
+      // Retry based on transaction type
+      if (transaction.type === 'commit') {
+        // Re-fetch resolution data and retry commit
+        const market = await this.repositories.markets.findById(transaction.marketAddress);
+        if (market) {
+          // Would need to reconstruct OracleResolutionData
+          logger.warn('Commit transaction retry not fully implemented', {
+            marketAddress: transaction.marketAddress,
+          });
+        }
+      } else if (transaction.type === 'finalize') {
+        // Retry finalization
+        const finalizeResult = await this.oracle.finalizeResolution(transaction.marketAddress);
+        
+        // Update monitoring with new transaction
+        this.transactionMonitor.updateTransactionAttempt(
+          transaction.hash,
+          finalizeResult.transactionHash,
+          finalizeResult.effectiveGasPrice
+        );
+      }
+
+    } catch (error) {
+      logger.error('Failed to retry transaction:', {
+        marketAddress: transaction.marketAddress,
+        error: error instanceof Error ? error.message : error,
+      });
     }
   }
 }

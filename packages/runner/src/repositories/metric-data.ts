@@ -1,4 +1,4 @@
-import { MetricData, Prisma } from '@prisma/client';
+import { MetricData } from '@prisma/client';
 import { BaseRepository } from './base';
 import { logger } from '../config/logger';
 

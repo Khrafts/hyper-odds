@@ -1,4 +1,4 @@
-import { Resolution, Prisma } from '@prisma/client';
+import { Resolution } from '@prisma/client';
 import { BaseRepository } from './base';
 import { logger } from '../config/logger';
 
@@ -238,6 +238,34 @@ export class ResolutionRepository extends BaseRepository {
     } catch (error) {
       logger.error('Failed to get resolution stats:', {
         error: error instanceof Error ? error.message : error,
+      });
+      throw error;
+    }
+  }
+
+  async updateByMarketId(marketId: string, data: UpdateResolutionData): Promise<Resolution> {
+    try {
+      // First find the resolution to get its ID
+      const existingResolution = await this.prisma.resolution.findFirst({
+        where: { marketId },
+      });
+
+      if (!existingResolution) {
+        throw new Error(`No resolution found for market: ${marketId}`);
+      }
+
+      const resolution = await this.prisma.resolution.update({
+        where: { id: existingResolution.id },
+        data,
+      });
+
+      return resolution;
+
+    } catch (error) {
+      logger.error('Failed to update resolution by market ID:', {
+        error: error instanceof Error ? error.message : error,
+        marketId,
+        data,
       });
       throw error;
     }
