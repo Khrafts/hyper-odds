@@ -8,6 +8,11 @@ import { JobSchedulerService } from './job-scheduler';
 import { MarketProcessorService } from './market-processor';
 import { RepositoryFactory } from '../repositories';
 import { config } from '../config/config';
+import { 
+  MetricFetcherRegistry,
+  HyperliquidService,
+  CoinMarketCapFetcher,
+} from './fetchers';
 
 export class ServiceContainer {
   private initialized = false;
@@ -24,6 +29,7 @@ export class ServiceContainer {
   
   // Data source services
   public readonly coinMarketCap: CoinMarketCapService;
+  public fetcherRegistry: MetricFetcherRegistry;
   
   // Repository factory
   public repositories: RepositoryFactory;
@@ -38,6 +44,7 @@ export class ServiceContainer {
     
     // Initialize placeholders - will be set after core services are connected
     this.repositories = null as any;
+    this.fetcherRegistry = null as any;
     this.eventListener = null as any;
     this.jobScheduler = null as any;
     this.marketProcessor = null as any;
@@ -71,9 +78,40 @@ export class ServiceContainer {
       // Initialize repositories now that database is connected
       this.repositories = new RepositoryFactory(this.database.client);
       
+      // Initialize metric fetcher registry and fetchers
+      logger.debug('Initializing metric fetcher registry...');
+      this.fetcherRegistry = new MetricFetcherRegistry({
+        enableFallbacks: true,
+        maxConcurrentFetches: 5,
+        healthCheckInterval: 60000,
+      });
+
+      // Register available fetchers
+      try {
+        logger.debug('Registering Hyperliquid fetcher...');
+        const hyperliquidFetcher = new HyperliquidService();
+        this.fetcherRegistry.register(hyperliquidFetcher);
+
+        logger.debug('Registering CoinMarketCap fetcher...');
+        const cmcFetcher = new CoinMarketCapFetcher(config.COINMARKETCAP_API_KEY);
+        this.fetcherRegistry.register(cmcFetcher);
+
+        // Start health checks
+        this.fetcherRegistry.startHealthChecks();
+
+        logger.info('Metric fetchers registered successfully', {
+          fetcherCount: this.fetcherRegistry.getFetchers().length,
+        });
+      } catch (error) {
+        logger.error('Failed to register metric fetchers:', {
+          error: error instanceof Error ? error.message : error
+        });
+        throw error;
+      }
+      
       // Initialize processing services
       logger.debug('Initializing market processor...');
-      this.marketProcessor = new MarketProcessorService(this.repositories);
+      this.marketProcessor = new MarketProcessorService(this.repositories, this.fetcherRegistry);
       
       logger.debug('Initializing job scheduler...');
       this.jobScheduler = new JobSchedulerService(this.redis, this.repositories);
@@ -125,6 +163,12 @@ export class ServiceContainer {
         logger.debug('Stopping job scheduler...');
         await this.jobScheduler.stop();
       }
+
+      // Stop fetcher registry health checks
+      if (this.fetcherRegistry) {
+        logger.debug('Stopping metric fetcher health checks...');
+        this.fetcherRegistry.stopHealthChecks();
+      }
       
       logger.debug('Disconnecting from blockchain...');
       await this.blockchain.disconnect();
@@ -162,6 +206,7 @@ export class ServiceContainer {
       
       let eventListenerHealthy = true;
       let jobSchedulerHealthy = true;
+      let fetchersHealthy = true;
       
       if (this.eventListener) {
         eventListenerHealthy = await this.eventListener.isHealthy();
@@ -170,8 +215,14 @@ export class ServiceContainer {
       if (this.jobScheduler) {
         jobSchedulerHealthy = await this.jobScheduler.isHealthy();
       }
+
+      if (this.fetcherRegistry) {
+        const healthStatus = this.fetcherRegistry.getHealthStatus();
+        const healthyFetchers = Object.values(healthStatus).filter(s => s.healthy);
+        fetchersHealthy = healthyFetchers.length > 0; // At least one fetcher must be healthy
+      }
       
-      return dbHealthy && redisHealthy && blockchainHealthy && eventListenerHealthy && jobSchedulerHealthy;
+      return dbHealthy && redisHealthy && blockchainHealthy && eventListenerHealthy && jobSchedulerHealthy && fetchersHealthy;
     } catch (error) {
       logger.error('Health check failed:', {
         error: error instanceof Error ? error.message : error

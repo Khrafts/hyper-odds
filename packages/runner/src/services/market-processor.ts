@@ -2,12 +2,24 @@ import { RepositoryFactory } from '../repositories';
 import { logger } from '../config/logger';
 import { MarketCreatedEvent } from '../types';
 import { JobType } from '@prisma/client';
+import { 
+  MetricFetcherRegistry, 
+  MetricDataValidator,
+  type Subject,
+  type SubjectKind,
+  type PredicateOp,
+  type Predicate,
+  type ValidatedMetricValue,
+  type ResolutionResult,
+} from './fetchers';
 
 export class MarketProcessorService {
   private repositories: RepositoryFactory;
+  private fetcherRegistry: MetricFetcherRegistry;
 
-  constructor(repositories: RepositoryFactory) {
+  constructor(repositories: RepositoryFactory, fetcherRegistry: MetricFetcherRegistry) {
     this.repositories = repositories;
+    this.fetcherRegistry = fetcherRegistry;
   }
 
   async processMarketCreatedEvent(event: MarketCreatedEvent): Promise<void> {
@@ -137,14 +149,10 @@ export class MarketProcessorService {
         },
       });
 
-      // TODO: Implement actual resolution logic
-      // This would involve:
-      // 1. Fetching the metric value based on market.subject
-      // 2. Comparing it against market.predicate
-      // 3. Submitting the result to the oracle contract
-      // 4. Updating the market status in the database
+      // Implement actual resolution logic
+      await this.resolveMarket(market);
       
-      logger.info('Market resolution logic not yet implemented', { marketId });
+      logger.info('Market resolution completed', { marketId });
       
     } catch (error) {
       logger.error('Failed to process market resolution:', {
@@ -152,6 +160,261 @@ export class MarketProcessorService {
         marketId,
       });
       throw error;
+    }
+  }
+
+  /**
+   * Resolve market by fetching metric data and evaluating predicate
+   */
+  private async resolveMarket(market: any): Promise<void> {
+    try {
+      logger.info('Starting market resolution', {
+        marketId: market.id,
+        title: market.title,
+        subjectKind: market.subjectKind,
+        predicateOp: market.predicateOp,
+        threshold: market.threshold,
+      });
+
+      // 1. Build subject for metric fetching
+      const subject: Subject = {
+        kind: market.subjectKind as SubjectKind,
+        metricId: market.metricId || undefined,
+        tokenIdentifier: market.tokenIdentifier || undefined,
+        valueDecimals: market.valueDecimals,
+      };
+
+      // 2. Fetch metric value
+      logger.debug('Fetching metric value', { subject });
+      const fetchResult = await this.fetcherRegistry.fetchMetric(subject, market.tEnd);
+      
+      // 3. Validate and normalize the metric data
+      const validatedMetric = MetricDataValidator.validateMetricValue(
+        fetchResult.value,
+        subject,
+        true // require hash
+      );
+
+      // 4. Store metric data for future reference
+      await this.repositories.metricData.create({
+        source: validatedMetric.source,
+        identifier: market.tokenIdentifier || market.metricId || 'unknown',
+        metricType: this.getMetricType(subject),
+        value: validatedMetric.value,
+        timestamp: validatedMetric.timestamp,
+        decimals: validatedMetric.decimals,
+        metadata: {
+          marketId: market.id,
+          confidence: validatedMetric.confidence,
+          hash: validatedMetric.hash,
+          fetchResult: {
+            fetcher: fetchResult.fetcher,
+            fetchTime: fetchResult.fetchTime,
+            fromFallback: fetchResult.fromFallback,
+          },
+          ...validatedMetric.metadata,
+        },
+      });
+
+      // 5. Build predicate for evaluation
+      const predicate: Predicate = {
+        op: market.predicateOp as PredicateOp,
+        threshold: market.threshold,
+      };
+
+      // 6. Evaluate predicate and create resolution result
+      const resolutionResult = MetricDataValidator.createResolutionResult(
+        validatedMetric,
+        predicate
+      );
+
+      logger.info('Market predicate evaluation completed', {
+        marketId: market.id,
+        metricValue: resolutionResult.metricValue.normalizedValue,
+        threshold: resolutionResult.predicate.threshold,
+        operation: resolutionResult.predicate.op,
+        result: resolutionResult.result,
+        confidence: resolutionResult.confidence,
+      });
+
+      // 7. Store resolution result
+      await this.repositories.resolutions.create({
+        marketId: market.id,
+        value: resolutionResult.metricValue.normalizedValue,
+        source: resolutionResult.metricValue.source,
+        confidence: resolutionResult.confidence,
+        resolvedAt: resolutionResult.resolvedAt,
+        submittedAt: new Date(), // Mark as ready for oracle submission
+        // Oracle transaction hashes will be filled later
+      });
+
+      // 8. TODO: Submit to oracle contract
+      // This would involve:
+      // - Preparing oracle submission data
+      // - Calling oracle commit function
+      // - Waiting for commit confirmation
+      // - Calling oracle finalize function
+      // - Updating resolution with transaction hashes
+      
+      logger.warn('Oracle submission not yet implemented', {
+        marketId: market.id,
+        result: resolutionResult.result,
+      });
+
+      // 9. Update market status (for now, mark as resolved)
+      // In full implementation, this would happen after oracle finalization
+      await this.updateMarketStatus(market.id, 'RESOLVED');
+
+      logger.info('Market resolution stored successfully', {
+        marketId: market.id,
+        result: resolutionResult.result,
+        confidence: resolutionResult.confidence,
+        sources: resolutionResult.sources,
+      });
+
+    } catch (error) {
+      logger.error('Market resolution failed', {
+        marketId: market.id,
+        error: error instanceof Error ? error.message : error,
+      });
+
+      // Store failed resolution for debugging
+      try {
+        await this.repositories.resolutions.create({
+          marketId: market.id,
+          value: '0',
+          source: 'error',
+          confidence: 0,
+          resolvedAt: new Date(),
+        });
+      } catch (storeError) {
+        logger.error('Failed to store error resolution', {
+          marketId: market.id,
+          storeError: storeError instanceof Error ? storeError.message : storeError,
+        });
+      }
+
+      throw error;
+    }
+  }
+
+  /**
+   * Try multiple sources for better confidence
+   */
+  private async resolveMarketMultiSource(market: any): Promise<void> {
+    try {
+      logger.info('Starting multi-source market resolution', {
+        marketId: market.id,
+        title: market.title,
+      });
+
+      const subject: Subject = {
+        kind: market.subjectKind as SubjectKind,
+        metricId: market.metricId || undefined,
+        tokenIdentifier: market.tokenIdentifier || undefined,
+        valueDecimals: market.valueDecimals,
+      };
+
+      // Fetch from multiple sources
+      const fetchResults = await this.fetcherRegistry.fetchMetricMultiSource(
+        subject,
+        market.tEnd,
+        3 // max 3 sources
+      );
+
+      if (fetchResults.length === 0) {
+        throw new Error('No successful fetches from any source');
+      }
+
+      // Validate all metric values
+      const validatedMetrics = fetchResults.map(result =>
+        MetricDataValidator.validateMetricValue(result.value, subject, true)
+      );
+
+      // Store all metric data
+      for (const metric of validatedMetrics) {
+        await this.repositories.metricData.create({
+          source: metric.source,
+          identifier: market.tokenIdentifier || market.metricId || 'unknown',
+          metricType: this.getMetricType(subject),
+          value: metric.value,
+          timestamp: metric.timestamp,
+          decimals: metric.decimals,
+          metadata: {
+            marketId: market.id,
+            confidence: metric.confidence,
+            hash: metric.hash,
+            ...metric.metadata,
+          },
+        });
+      }
+
+      // Aggregate results for higher confidence
+      const aggregatedMetric = MetricDataValidator.aggregateMetricValues(
+        validatedMetrics,
+        'weighted' // Use confidence-weighted average
+      );
+
+      const predicate: Predicate = {
+        op: market.predicateOp as PredicateOp,
+        threshold: market.threshold,
+      };
+
+      const resolutionResult = MetricDataValidator.createResolutionResult(
+        aggregatedMetric,
+        predicate,
+        validatedMetrics.map(m => m.source)
+      );
+
+      // Store aggregated resolution
+      await this.repositories.resolutions.create({
+        marketId: market.id,
+        value: resolutionResult.metricValue.normalizedValue,
+        source: resolutionResult.metricValue.source,
+        confidence: resolutionResult.confidence,
+        resolvedAt: resolutionResult.resolvedAt,
+        submittedAt: new Date(),
+      });
+
+      await this.updateMarketStatus(market.id, 'RESOLVED');
+
+      logger.info('Multi-source market resolution completed', {
+        marketId: market.id,
+        result: resolutionResult.result,
+        confidence: resolutionResult.confidence,
+        sourceCount: validatedMetrics.length,
+        sources: resolutionResult.sources,
+      });
+
+    } catch (error) {
+      logger.error('Multi-source market resolution failed', {
+        marketId: market.id,
+        error: error instanceof Error ? error.message : error,
+      });
+      throw error;
+    }
+  }
+
+  private getMetricType(subject: Subject): string {
+    if (subject.kind === 0) { // SubjectKind.HL_METRIC
+      return subject.metricId?.split(':')[0] || 'hl_metric';
+    } else if (subject.kind === 1) { // SubjectKind.TOKEN_PRICE
+      return 'token_price';
+    }
+    return 'unknown';
+  }
+
+  private async updateMarketStatus(marketId: string, status: string): Promise<void> {
+    try {
+      // This would update the market status in the database
+      // For now, just log it since we'd need to add the update method to MarketRepository
+      logger.info('Market status updated', { marketId, status });
+    } catch (error) {
+      logger.error('Failed to update market status', {
+        marketId,
+        status,
+        error: error instanceof Error ? error.message : error,
+      });
     }
   }
 
