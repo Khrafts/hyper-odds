@@ -70,6 +70,20 @@ export class MetricFetcherRegistry {
   }
 
   /**
+   * Get registered fetcher names
+   */
+  getRegisteredFetchers(): string[] {
+    return Array.from(this.fetchers.keys());
+  }
+
+  /**
+   * Get fetcher by name
+   */
+  getFetcher(name: string): IMetricFetcher | undefined {
+    return this.fetchers.get(name);
+  }
+
+  /**
    * Get fetchers that can handle a specific subject
    */
   getFetchersForSubject(subject: Subject): IMetricFetcher[] {

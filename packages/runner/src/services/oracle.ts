@@ -463,26 +463,29 @@ export class OracleService {
   /**
    * Get Oracle service info for monitoring
    */
-  async getInfo(): Promise<{
+  async getServiceInfo(): Promise<{
     oracleAddress: string;
-    resolverAddress: string;
+    walletAddress: string;
     disputeWindow: number;
     chainId: number;
     blockNumber: number;
-    walletBalance: string;
+    balance: string;
+    minimumBalance: string;
   }> {
     try {
       const network = await this.provider.getNetwork();
       const blockNumber = await this.provider.getBlockNumber();
       const balance = await this.provider.getBalance(this.wallet.address);
+      const minimumBalance = ethers.parseEther('0.01'); // 0.01 ETH minimum
 
       return {
         oracleAddress: config.ORACLE_ADDRESS,
-        resolverAddress: this.wallet.address,
+        walletAddress: this.wallet.address,
         disputeWindow: this.disputeWindow,
         chainId: Number(network.chainId),
         blockNumber,
-        walletBalance: ethers.formatEther(balance),
+        balance: ethers.formatEther(balance),
+        minimumBalance: ethers.formatEther(minimumBalance),
       };
 
     } catch (error) {

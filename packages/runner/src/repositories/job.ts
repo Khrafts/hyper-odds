@@ -232,4 +232,78 @@ export class JobRepository extends BaseRepository {
       this.handleError('getFailedJobs', error);
     }
   }
+
+  /**
+   * Get job statistics
+   */
+  async getJobStats(): Promise<{
+    totalJobs: number;
+    pendingJobs: number;
+    processingJobs: number;
+    completedJobs: number;
+    failedJobs: number;
+    retryingJobs: number;
+  }> {
+    try {
+      const [
+        totalJobs,
+        pendingJobs,
+        processingJobs,
+        completedJobs,
+        failedJobs,
+        retryingJobs,
+      ] = await Promise.all([
+        this.prisma.job.count(),
+        this.prisma.job.count({ where: { status: 'PENDING' } }),
+        this.prisma.job.count({ where: { status: 'PROCESSING' } }),
+        this.prisma.job.count({ where: { status: 'COMPLETED' } }),
+        this.prisma.job.count({ where: { status: 'FAILED' } }),
+        this.prisma.job.count({ where: { status: 'RETRYING' } }),
+      ]);
+
+      return {
+        totalJobs,
+        pendingJobs,
+        processingJobs,
+        completedJobs,
+        failedJobs,
+        retryingJobs,
+      };
+    } catch (error) {
+      this.handleError('getJobStats', error);
+      return {
+        totalJobs: 0,
+        pendingJobs: 0,
+        processingJobs: 0,
+        completedJobs: 0,
+        failedJobs: 0,
+        retryingJobs: 0,
+      };
+    }
+  }
+
+  /**
+   * Get stuck jobs (jobs that have been processing too long)
+   */
+  async getStuckJobs(timeoutMinutes = 60): Promise<Job[]> {
+    try {
+      const timeoutDate = new Date(Date.now() - timeoutMinutes * 60 * 1000);
+      
+      return await this.prisma.job.findMany({
+        where: {
+          status: 'PROCESSING',
+          startedAt: {
+            lt: timeoutDate,
+          },
+        },
+        include: {
+          market: true,
+        },
+        orderBy: { startedAt: 'asc' },
+      });
+    } catch (error) {
+      this.handleError('getStuckJobs', error);
+      return [];
+    }
+  }
 }

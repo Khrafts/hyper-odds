@@ -141,6 +141,7 @@ export class MarketRepository extends BaseRepository {
       return await this.prisma.market.count();
     } catch (error) {
       this.handleError('count', error);
+      return 0;
     }
   }
 
@@ -152,6 +153,51 @@ export class MarketRepository extends BaseRepository {
       });
     } catch (error) {
       this.handleError('countByStatus', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Get market statistics
+   */
+  async getStats(): Promise<{
+    totalMarkets: number;
+    activeMarkets: number;
+    resolvedMarkets: number;
+    cancelledMarkets: number;
+    disputedMarkets: number;
+  }> {
+    try {
+      const [
+        totalMarkets,
+        activeMarkets,
+        resolvedMarkets,
+        cancelledMarkets,
+        disputedMarkets,
+      ] = await Promise.all([
+        this.prisma.market.count(),
+        this.prisma.market.count({ where: { status: 'ACTIVE' } }),
+        this.prisma.market.count({ where: { status: 'RESOLVED' } }),
+        this.prisma.market.count({ where: { status: 'CANCELLED' } }),
+        this.prisma.market.count({ where: { status: 'DISPUTE' } }),
+      ]);
+
+      return {
+        totalMarkets,
+        activeMarkets,
+        resolvedMarkets,
+        cancelledMarkets,
+        disputedMarkets,
+      };
+    } catch (error) {
+      this.handleError('getStats', error);
+      return {
+        totalMarkets: 0,
+        activeMarkets: 0,
+        resolvedMarkets: 0,
+        cancelledMarkets: 0,
+        disputedMarkets: 0,
+      };
     }
   }
 

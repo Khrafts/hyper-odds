@@ -8,6 +8,9 @@ import { JobSchedulerService } from './job-scheduler';
 import { MarketProcessorService } from './market-processor';
 import { OracleService } from './oracle';
 import { TransactionMonitorService } from './transaction-monitor';
+import { HealthMonitorService } from './health-monitor';
+import { AlertManagerService } from './alert-manager';
+import { APIServer } from '../api/server';
 import { RepositoryFactory } from '../repositories';
 import { config } from '../config/config';
 import { 
@@ -32,6 +35,11 @@ export class ServiceContainer {
   // Oracle and transaction services
   public oracle: OracleService;
   public transactionMonitor: TransactionMonitorService;
+  
+  // Health monitoring and API
+  public healthMonitor!: HealthMonitorService;
+  public alertManager!: AlertManagerService;
+  public apiServer!: APIServer;
   
   // Data source services
   public readonly coinMarketCap: CoinMarketCapService;
@@ -158,9 +166,33 @@ export class ServiceContainer {
       });
       
       await this.eventListener.start();
+
+      // Initialize health monitoring and alerting
+      logger.debug('Initializing alert manager...');
+      this.alertManager = new AlertManagerService();
+
+      logger.debug('Initializing health monitor...');
+      this.healthMonitor = new HealthMonitorService(
+        this.repositories,
+        this.oracle,
+        this.transactionMonitor,
+        this.fetcherRegistry,
+        this.alertManager
+      );
+
+      logger.debug('Initializing API server...');
+      this.apiServer = new APIServer(this.healthMonitor, this.alertManager);
+      await this.apiServer.start();
       
       this.initialized = true;
       logger.info('Service container initialized successfully');
+      
+      // Perform initial health check
+      const healthResult = await this.healthMonitor.performHealthCheck();
+      logger.info('Initial health check completed', {
+        status: healthResult.status,
+        summary: healthResult.summary,
+      });
       
     } catch (error) {
       logger.error('Failed to initialize service container:', {
@@ -198,6 +230,12 @@ export class ServiceContainer {
       if (this.oracle) {
         logger.debug('Disconnecting Oracle service...');
         await this.oracle.disconnect();
+      }
+
+      // Stop API server
+      if (this.apiServer) {
+        logger.debug('Stopping API server...');
+        await this.apiServer.stop();
       }
 
       // Stop fetcher registry health checks
