@@ -6,9 +6,9 @@ dataSources:
     name: MarketFactory
     network: arbitrum-sepolia
     source:
-      address: "0x0737429B71cc5E0aceA43C6Ef60F72AC38Dd8A81"
+      address: "0x40DefEEa8e5F418Bf86B19eD72615dC35386Fae4"
       abi: MarketFactory
-      startBlock: 186923944
+      startBlock: 187015060
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
@@ -30,6 +30,8 @@ dataSources:
           handler: handleMarketCreated
         - event: StakeReleased(indexed address,indexed address,uint256)
           handler: handleStakeReleased
+        - event: MinCPMMLiquidityUpdated(uint256)
+          handler: handleMinCPMMLiquidityUpdated
       file: ./src/factory.ts
   - kind: ethereum
     name: MarketRouter

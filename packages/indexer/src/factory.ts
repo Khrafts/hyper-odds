@@ -1,4 +1,4 @@
-import { MarketCreated, StakeReleased, MarketFactory } from "../generated/MarketFactory/MarketFactory"
+import { MarketCreated, StakeReleased, MinCPMMLiquidityUpdated, MarketFactory } from "../generated/MarketFactory/MarketFactory"
 import { ParimutuelMarket, CPMMMarket } from "../generated/templates"
 import { Market, User, MarketCreated as MarketCreatedEntity, Protocol } from "../generated/schema"
 import { BigInt, BigDecimal, Address } from "@graphprotocol/graph-ts"
@@ -17,6 +17,7 @@ function getOrCreateProtocol(): Protocol {
     protocol.totalUsers = BigInt.fromI32(0)
     protocol.totalDeposits = BigInt.fromI32(0)
     protocol.totalClaims = BigInt.fromI32(0)
+    protocol.minCPMMLiquidity = BigDecimal.fromString("1000000000") // 1000 USDC with 6 decimals = 1000e6
     protocol.save()
   }
   return protocol
@@ -199,4 +200,11 @@ export function handleStakeReleased(event: StakeReleased): void {
     user.lastActiveAtBlock = event.block.number
     user.save()
   }
+}
+
+export function handleMinCPMMLiquidityUpdated(event: MinCPMMLiquidityUpdated): void {
+  // Update protocol minimum liquidity
+  let protocol = getOrCreateProtocol()
+  protocol.minCPMMLiquidity = BigDecimal.fromString(event.params.newMinLiquidity.toString())
+  protocol.save()
 }

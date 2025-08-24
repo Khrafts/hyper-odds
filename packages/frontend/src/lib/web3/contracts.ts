@@ -1,15 +1,15 @@
 import { Address } from 'viem'
-import FactoryABI from './MarketFactory.abi.json'
+import FactoryABI from './MarketFactoryABI'
 
 /**
  * Contract addresses for different networks
  */
 export const CONTRACT_ADDRESSES = {
   421614: {
-    ParimutuelMarketFactory: '0x0737429B71cc5E0aceA43C6Ef60F72AC38Dd8A81' as Address,
+    ParimutuelMarketFactory: '0x40DefEEa8e5F418Bf86B19eD72615dC35386Fae4' as Address,
     ParimutuelMarket: '0x89b371a0a56713C3E660C9eFCe659853c755dDF9' as Address, // Test market (will be updated after creation)
-    MarketImplementation: '0x55A80Ce7837D251BC482CC0c8d383B7F45978288' as Address, // ParimutuelMarketImplementation
-    CPMMImplementation: '0x934a017560E37c95eB3e2A2ED550b704BC7BE7F3' as Address, // CPMMMarketImplementation
+    MarketImplementation: '0x06Bfe7f7234252687C22B2f2C3F005a030A00875' as Address, // ParimutuelMarketImplementation
+    CPMMImplementation: '0xdA279925283822892F90330805944f27CE0A08C8' as Address, // CPMMMarketImplementation
     StakeToken: '0x380e784a7262d9c8b0deda2AB7436659E9514A39' as Address, // MockUSDC
     MarketRouter: '0xe049685cC6aDe34918c719982D7e0337b10B951A' as Address, // Router contract
     Oracle: '0xf462a61C6a48303e281486bDD309C06cC64a56A3' as Address,
@@ -359,7 +359,7 @@ export const ERC20_ABI = [
  * ParimutuelMarketFactory contract ABI - Import from compiled contract
  * Factory contract for creating new prediction markets with complex parameters
  */
-export const PARIMUTUEL_MARKET_FACTORY_ABI = FactoryABI.abi as const
+export const PARIMUTUEL_MARKET_FACTORY_ABI = FactoryABI
 
 /**
  * Legacy ABI for reference (replaced with imported ABI above)

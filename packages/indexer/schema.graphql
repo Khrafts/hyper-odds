@@ -9,6 +9,7 @@ type Protocol @entity {
   totalUsers: BigInt!
   totalDeposits: BigInt!
   totalClaims: BigInt!
+  minCPMMLiquidity: BigDecimal! # Minimum required liquidity for CPMM markets
 }
 
 type Market @entity {
