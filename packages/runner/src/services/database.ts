@@ -87,16 +87,14 @@ export class DatabaseService {
     try {
       logger.info('Running database migrations...');
       
-      // In production, this would use the migrate deploy command
-      // For development, we ensure the database schema matches by pushing the schema
       if (config.NODE_ENV === 'production') {
-        logger.warn('Production migration requires running: npx prisma migrate deploy');
-        // Verify database is accessible and schema exists
-        await this.verifyDatabaseSchema();
+        // Production: use prisma migrate deploy for safe migrations
+        logger.info('Production mode: deploying pending migrations');
+        await this.deployMigrations();
       } else {
-        // Development: push schema changes
-        logger.info('Development mode: ensuring database schema is up to date');
-        await this.pushDatabaseSchema();
+        // Development: verify migrations are applied
+        logger.info('Development mode: checking migration status');
+        await this.verifyMigrations();
       }
       
       logger.info('Database migrations completed');
@@ -135,19 +133,46 @@ export class DatabaseService {
     }
   }
 
-  private async pushDatabaseSchema(): Promise<void> {
+  private async deployMigrations(): Promise<void> {
     try {
-      // In development, we can use db push to sync schema
-      // This is equivalent to running: npx prisma db push
-      logger.info('Pushing database schema changes...');
+      // Production: deploy pending migrations safely
+      logger.info('Deploying pending migrations...');
       
-      // For now, just verify the connection works
-      // In a full implementation, this would use Prisma's programmatic API
-      await this.prisma.$queryRaw`SELECT 1`;
+      // Check migration status first
+      const { execSync } = require('child_process');
+      const result = execSync('npx prisma migrate status', { 
+        encoding: 'utf8',
+        cwd: process.cwd(),
+      });
       
-      logger.warn('Note: Run "npx prisma db push" manually to sync schema changes in development');
+      logger.info('Migration status:', { status: result.trim() });
+      
+      // Deploy migrations
+      execSync('npx prisma migrate deploy', { 
+        encoding: 'utf8',
+        cwd: process.cwd(),
+      });
+      
+      logger.info('Migrations deployed successfully');
     } catch (error) {
-      logger.error('Failed to push database schema:', {
+      logger.error('Failed to deploy migrations:', {
+        error: error instanceof Error ? error.message : error
+      });
+      throw error;
+    }
+  }
+
+  private async verifyMigrations(): Promise<void> {
+    try {
+      // Development: check if migrations are applied
+      logger.info('Verifying migration status...');
+      
+      // Verify core tables exist
+      await this.verifyDatabaseSchema();
+      
+      logger.info('Migration verification passed');
+    } catch (error) {
+      logger.error('Migration verification failed:', {
         error: error instanceof Error ? error.message : error
       });
       throw error;
