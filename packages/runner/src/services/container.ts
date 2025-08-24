@@ -3,6 +3,9 @@ import { CoinMarketCapService } from './coinmarketcap';
 import { DatabaseService } from './database';
 import { RedisService } from './redis';
 import { BlockchainService } from './blockchain';
+import { EventListenerService } from './event-listener';
+import { JobSchedulerService } from './job-scheduler';
+import { MarketProcessorService } from './market-processor';
 import { RepositoryFactory } from '../repositories';
 import { config } from '../config/config';
 
@@ -13,6 +16,11 @@ export class ServiceContainer {
   public readonly database: DatabaseService;
   public readonly redis: RedisService;
   public readonly blockchain: BlockchainService;
+  
+  // Processing services
+  public eventListener: EventListenerService;
+  public jobScheduler: JobSchedulerService;
+  public marketProcessor: MarketProcessorService;
   
   // Data source services
   public readonly coinMarketCap: CoinMarketCapService;
@@ -28,8 +36,11 @@ export class ServiceContainer {
       config.COINMARKETCAP_API_KEY || 'dummy-key-for-testing'
     );
     
-    // Initialize repositories placeholder - will be set after database connection
-    this.repositories = null as any; // Temporary until initialized
+    // Initialize placeholders - will be set after core services are connected
+    this.repositories = null as any;
+    this.eventListener = null as any;
+    this.jobScheduler = null as any;
+    this.marketProcessor = null as any;
   }
 
   async initialize(): Promise<void> {
@@ -57,8 +68,33 @@ export class ServiceContainer {
       logger.debug('Initializing CoinMarketCap service...');
       // CoinMarketCapService doesn't need async initialization
       
-      // Re-initialize repositories now that database is connected
+      // Initialize repositories now that database is connected
       this.repositories = new RepositoryFactory(this.database.client);
+      
+      // Initialize processing services
+      logger.debug('Initializing market processor...');
+      this.marketProcessor = new MarketProcessorService(this.repositories);
+      
+      logger.debug('Initializing job scheduler...');
+      this.jobScheduler = new JobSchedulerService(this.redis, this.repositories);
+      await this.jobScheduler.start();
+      
+      logger.debug('Initializing event listener...');
+      this.eventListener = new EventListenerService(this.blockchain);
+      
+      // Connect event listener to market processor
+      this.eventListener.on('marketCreated', async (event) => {
+        await this.marketProcessor.processMarketCreatedEvent({
+          marketAddress: event.marketAddress,
+          creator: event.creator,
+          marketParams: event.marketParams,
+          blockNumber: event.blockNumber,
+          transactionHash: event.transactionHash,
+          logIndex: event.logIndex,
+        });
+      });
+      
+      await this.eventListener.start();
       
       this.initialized = true;
       logger.info('Service container initialized successfully');
@@ -80,6 +116,16 @@ export class ServiceContainer {
 
     try {
       // Shutdown services in reverse dependency order
+      if (this.eventListener) {
+        logger.debug('Stopping event listener...');
+        await this.eventListener.stop();
+      }
+      
+      if (this.jobScheduler) {
+        logger.debug('Stopping job scheduler...');
+        await this.jobScheduler.stop();
+      }
+      
       logger.debug('Disconnecting from blockchain...');
       await this.blockchain.disconnect();
       
@@ -114,7 +160,18 @@ export class ServiceContainer {
       const redisHealthy = await this.redis.isHealthy();
       const blockchainHealthy = await this.blockchain.isHealthy();
       
-      return dbHealthy && redisHealthy && blockchainHealthy;
+      let eventListenerHealthy = true;
+      let jobSchedulerHealthy = true;
+      
+      if (this.eventListener) {
+        eventListenerHealthy = await this.eventListener.isHealthy();
+      }
+      
+      if (this.jobScheduler) {
+        jobSchedulerHealthy = await this.jobScheduler.isHealthy();
+      }
+      
+      return dbHealthy && redisHealthy && blockchainHealthy && eventListenerHealthy && jobSchedulerHealthy;
     } catch (error) {
       logger.error('Health check failed:', {
         error: error instanceof Error ? error.message : error

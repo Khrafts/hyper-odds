@@ -149,6 +149,54 @@ export class HealthCheckService {
       overallHealthy = false;
     }
 
+    // Check event listener health
+    if (this.container.eventListener) {
+      try {
+        const eventListenerHealthy = await this.container.eventListener.isHealthy();
+        if (eventListenerHealthy) {
+          services.eventListener = { 
+            status: 'healthy',
+          };
+        } else {
+          services.eventListener = { 
+            status: 'unhealthy',
+            message: 'Event listener not running or unhealthy'
+          };
+          overallHealthy = false;
+        }
+      } catch (error) {
+        services.eventListener = {
+          status: 'unhealthy',
+          message: `Event listener error: ${error instanceof Error ? error.message : error}`
+        };
+        overallHealthy = false;
+      }
+    }
+
+    // Check job scheduler health
+    if (this.container.jobScheduler) {
+      try {
+        const jobSchedulerHealthy = await this.container.jobScheduler.isHealthy();
+        if (jobSchedulerHealthy) {
+          services.jobScheduler = { 
+            status: 'healthy',
+          };
+        } else {
+          services.jobScheduler = { 
+            status: 'unhealthy',
+            message: 'Job scheduler not running or unhealthy'
+          };
+          overallHealthy = false;
+        }
+      } catch (error) {
+        services.jobScheduler = {
+          status: 'unhealthy',
+          message: `Job scheduler error: ${error instanceof Error ? error.message : error}`
+        };
+        overallHealthy = false;
+      }
+    }
+
     // Check overall container health
     try {
       const containerHealthy = await this.container.isHealthy();
@@ -161,11 +209,6 @@ export class HealthCheckService {
       });
       overallHealthy = false;
     }
-
-    // TODO: Add more health checks as services are implemented
-    // - Redis connection
-    // - Blockchain RPC connection
-    // - External APIs
 
     return {
       status: overallHealthy ? 'healthy' : 'unhealthy',
