@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { MarketHeader } from '@/components/markets/market-detail/marketHeader'
-import { TradingInterface } from '@/components/markets/market-detail/tradingInterface'
+import { TradingInterfaceRouter } from '@/components/markets/market-detail/TradingInterfaceRouter'
 import { ActivityFeed } from '@/components/markets/market-detail/activityFeed'
 import { ProbabilityChart } from '@/components/charts/probabilityChart'
 import { PageErrorBoundary, AsyncBoundary, NotFoundError } from '@/components/error'
@@ -101,7 +101,7 @@ function MarketDetailContent({ marketId }: { marketId: string }) {
       {market ? (
         <div className={cn(
           "transition-all duration-300 ease-in-out",
-          isTradingSidebarOpen ? "mr-96" : "mr-0"
+          isTradingSidebarOpen ? "lg:mr-[480px]" : "mr-0"
         )}>
           <div className="space-y-8">
             {/* Navigation */}
@@ -332,7 +332,7 @@ function MarketDetailContent({ marketId }: { marketId: string }) {
       {/* Trading Sidebar */}
       {market && (
         <div className={cn(
-          "fixed top-0 right-0 h-full w-96 bg-background border-l shadow-xl z-50 transform transition-transform duration-300 ease-in-out overflow-y-auto",
+          "fixed top-0 right-0 h-full w-full lg:w-[480px] bg-background border-l shadow-xl z-50 transform transition-transform duration-300 ease-in-out overflow-y-auto",
           isTradingSidebarOpen ? "translate-x-0" : "translate-x-full"
         )}>
           <div className="p-6">
@@ -362,17 +362,9 @@ function MarketDetailContent({ marketId }: { marketId: string }) {
             </div>
 
             {/* Trading Interface */}
-            <TradingInterface 
+            <TradingInterfaceRouter 
               market={market}
-              yesDisplay={yesDisplay}
-              noDisplay={noDisplay}
-              yesProb={yesProb}
-              noProb={noProb}
-              onTrade={async (side, amount) => {
-                console.log(`Trading ${side} for ${amount} USDC`)
-                // Trading will be handled by the TradingInterface component
-              }}
-              onTransactionSuccess={handleTransactionSuccess}
+              className="w-full"
             />
           </div>
         </div>

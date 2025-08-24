@@ -1,11 +1,11 @@
 /**
- * CPMM Trading Interface
- * Handles buy/sell trading for CPMM markets with slippage protection
+ * Clean CPMM Trading Interface
+ * Intuitive buy/sell interface for CPMM markets with clear trade previews
  */
 
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,27 +14,28 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
-import { Slider } from '@/components/ui/slider'
 import {
   TrendingUp,
   TrendingDown,
   AlertCircle,
   Wallet,
+  ArrowDown,
   Settings,
-  Info,
-  Zap,
-  ArrowUpDown
+  Info
 } from 'lucide-react'
 import { useWallet } from '@/hooks/useWallet'
 import { usePrivy } from '@privy-io/react-auth'
-import { formatUnits, parseEther } from 'viem'
+import { formatEther, parseEther } from 'viem'
 import { Market } from '@/types/market'
-import { getMarketProbability, calculateCPMMBuyShares, calculateCPMMSellAmount } from '@/lib/pricing'
+import { 
+  calculateCPMMBuyShares, 
+  calculateCPMMSellAmount
+} from '@/lib/pricing'
 import { cn } from '@/lib/utils'
 
 interface CPMMTradingInterfaceProps {
   market: Market
-  trading: any // Trading hook result
+  trading: any
   className?: string
 }
 
@@ -46,355 +47,563 @@ export function CPMMTradingInterface({
   const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy')
   const [selectedSide, setSelectedSide] = useState<'YES' | 'NO'>('YES')
   const [amount, setAmount] = useState('')
-  const [slippage, setSlippage] = useState(3) // 3% default slippage
-  const [isTrading, setIsTrading] = useState(false)
+  const [slippage, setSlippage] = useState(2)
+  const [showSlippage, setShowSlippage] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  
   const { authenticated, login } = usePrivy()
-  const { balance } = useWallet()
+  const wallet = useWallet()
+  const balance = wallet.balance
 
-  // Calculate probabilities
-  const yesProb = getMarketProbability(market)
-  const noProb = 100 - yesProb
+  // Get market reserves
+  const reserveYes = BigInt(market.reserveYes || '0')
+  const reserveNo = BigInt(market.reserveNo || '0')
+  const totalReserves = reserveYes + reserveNo
+
+  // Calculate current probabilities
+  const currentProbabilities = useMemo(() => {
+    if (totalReserves === 0n) return { yes: 50, no: 50 }
+    
+    // CPMM: P(YES) = reserveNo / total (counter-intuitive but correct)
+    const yesProb = Number((reserveNo * 100n) / totalReserves)
+    return { yes: yesProb, no: 100 - yesProb }
+  }, [reserveYes, reserveNo, totalReserves])
+
+  // Get user position
+  const userShares = useMemo(() => {
+    if (!trading.position) return { yes: '0', no: '0' }
+    return {
+      yes: formatEther(trading.position.sharesYes || 0n),
+      no: formatEther(trading.position.sharesNo || 0n)
+    }
+  }, [trading.position])
 
   // Calculate trade preview
   const tradePreview = useMemo(() => {
-    if (!amount || parseFloat(amount) <= 0) return null
+    if (!amount || parseFloat(amount) <= 0 || totalReserves === 0n) return null
     
     try {
-      const reserveYes = market.reserveYes || '0'
-      const reserveNo = market.reserveNo || '0'
+      const amountBigInt = parseEther(amount)
       
       if (tradeType === 'buy') {
         const result = calculateCPMMBuyShares(
           selectedSide,
-          parseEther(amount),
-          BigInt(reserveYes),
-          BigInt(reserveNo)
+          amountBigInt,
+          reserveYes,
+          reserveNo
         )
         
         return {
-          sharesOut: formatUnits(result.sharesOut, 18),
+          type: 'buy' as const,
+          input: amount,
+          inputLabel: 'USDC',
+          output: formatEther(result.sharesOut),
+          outputLabel: `${selectedSide} shares`,
           priceImpact: result.priceImpact,
           effectivePrice: result.effectivePrice,
-          type: 'buy' as const
+          fee: '3%'
         }
       } else {
+        // Check if user has enough shares
+        const availableShares = parseFloat(selectedSide === 'YES' ? userShares.yes : userShares.no)
+        if (parseFloat(amount) > availableShares) {
+          throw new Error('Insufficient shares')
+        }
+        
         const result = calculateCPMMSellAmount(
           selectedSide,
-          parseEther(amount),
-          BigInt(reserveYes),
-          BigInt(reserveNo)
+          amountBigInt,
+          reserveYes,
+          reserveNo
         )
         
         return {
-          amountOut: formatUnits(result.amountOut, 18),
+          type: 'sell' as const,
+          input: amount,
+          inputLabel: `${selectedSide} shares`,
+          output: formatEther(result.amountOut),
+          outputLabel: 'USDC',
           priceImpact: result.priceImpact,
           effectivePrice: result.effectivePrice,
-          type: 'sell' as const
+          fee: '3%'
         }
       }
     } catch (error) {
+      console.error('Trade preview error:', error)
       return null
     }
-  }, [amount, selectedSide, tradeType, market.reserveYes, market.reserveNo])
+  }, [amount, selectedSide, tradeType, reserveYes, reserveNo, totalReserves, userShares])
 
-  const handleTrade = async () => {
-    if (!amount || parseFloat(amount) <= 0) return
+  // Validation
+  const validation = useMemo(() => {
+    if (!authenticated) {
+      return { isValid: false, message: 'Connect wallet to trade' }
+    }
+    
+    if (!amount || parseFloat(amount) <= 0) {
+      return { isValid: false, message: 'Enter an amount' }
+    }
+    
+    if (totalReserves === 0n) {
+      return { isValid: false, message: 'No liquidity available' }
+    }
+    
+    if (tradeType === 'buy') {
+      const userBalance = balance ? parseFloat(formatEther(balance)) : 0
+      if (parseFloat(amount) > userBalance) {
+        return { isValid: false, message: `Insufficient balance` }
+      }
+      if (parseFloat(amount) < 1) {
+        return { isValid: false, message: 'Minimum: 1 USDC' }
+      }
+    } else {
+      const availableShares = parseFloat(selectedSide === 'YES' ? userShares.yes : userShares.no)
+      if (parseFloat(amount) > availableShares) {
+        return { isValid: false, message: `Insufficient ${selectedSide} shares` }
+      }
+    }
+    
+    if (tradePreview && tradePreview.priceImpact > 90) {
+      return { isValid: false, message: 'Price impact too high' }
+    }
+    
+    return { isValid: true, message: null }
+  }, [authenticated, amount, tradeType, balance, totalReserves, selectedSide, userShares, tradePreview])
+
+  // Handle trade
+  const handleTrade = useCallback(async () => {
+    if (!validation.isValid || !tradePreview) {
+      if (!authenticated) {
+        login()
+        return
+      }
+      return
+    }
+    
+    setIsProcessing(true)
+    setError(null)
     
     try {
-      setIsTrading(true)
-      
       if (tradeType === 'buy') {
-        // Calculate minimum shares with slippage protection
-        const minSharesOut = tradePreview ? 
-          (parseFloat(tradePreview.sharesOut) * (1 - slippage / 100)).toString() : 
-          undefined
-        
+        const minOut = (parseFloat(tradePreview.output) * (1 - slippage / 100)).toString()
         if (selectedSide === 'YES') {
-          await trading.buyYes(amount, minSharesOut)
+          await trading.buyYes(amount, minOut)
         } else {
-          await trading.buyNo(amount, minSharesOut)
+          await trading.buyNo(amount, minOut)
         }
       } else {
-        // Calculate minimum amount with slippage protection
-        const minAmountOut = tradePreview ? 
-          (parseFloat(tradePreview.amountOut) * (1 - slippage / 100)).toString() : 
-          undefined
-        
+        const minOut = (parseFloat(tradePreview.output) * (1 - slippage / 100)).toString()
         if (selectedSide === 'YES') {
-          await trading.sellYes(amount, minAmountOut)
+          await trading.sellYes(amount, minOut)
         } else {
-          await trading.sellNo(amount, minAmountOut)
+          await trading.sellNo(amount, minOut)
         }
       }
       
-      // Reset form on success
       setAmount('')
     } catch (error) {
-      console.error('Trade failed:', error)
+      setError(error instanceof Error ? error.message : 'Transaction failed')
     } finally {
-      setIsTrading(false)
+      setIsProcessing(false)
     }
-  }
+  }, [validation, tradePreview, tradeType, selectedSide, amount, slippage, trading, authenticated, login])
 
-  const canTrade = trading.canTrade && parseFloat(amount) > 0
-  const canSell = trading.canSell && tradeType === 'sell'
-  const hasInsufficientBalance = balance && tradeType === 'buy' && 
-    parseFloat(amount) > parseFloat(formatUnits(balance, 18))
-
-  // Get user's shares for selling
-  const userShares = trading.position ? {
-    yes: formatUnits(trading.position.sharesYes, 18),
-    no: formatUnits(trading.position.sharesNo, 18)
-  } : { yes: '0', no: '0' }
-
-  const hasInsufficientShares = tradeType === 'sell' && 
-    parseFloat(amount) > parseFloat(selectedSide === 'YES' ? userShares.yes : userShares.no)
+  // Quick amounts
+  const quickAmounts = useMemo(() => {
+    if (tradeType === 'buy') {
+      const userBalance = balance ? parseFloat(formatEther(balance)) : 0
+      return [25, 50, 100, 250].filter(amt => amt <= userBalance)
+    } else {
+      const shares = parseFloat(selectedSide === 'YES' ? userShares.yes : userShares.no)
+      if (shares === 0) return []
+      return [
+        { label: '25%', value: (shares * 0.25).toFixed(4) },
+        { label: '50%', value: (shares * 0.5).toFixed(4) },
+        { label: '75%', value: (shares * 0.75).toFixed(4) },
+        { label: 'Max', value: shares.toFixed(4) }
+      ]
+    }
+  }, [tradeType, balance, selectedSide, userShares])
 
   return (
     <Card className={cn("w-full", className)}>
-      <CardHeader>
+      <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-xl">Trade Shares</CardTitle>
-          <Badge variant="outline" className="text-blue-700 border-blue-200">
-            CPMM AMM
-          </Badge>
+          <CardTitle>Trade</CardTitle>
+          <Badge variant="outline" className="text-blue-600">CPMM</Badge>
         </div>
       </CardHeader>
       
       <CardContent className="space-y-6">
-        {/* Trade Type Selection */}
-        <div className="space-y-4">
-          <Label className="text-base font-medium">Action</Label>
-          <Tabs value={tradeType} onValueChange={(value) => setTradeType(value as 'buy' | 'sell')}>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="buy" className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4" />
-                Buy Shares
-              </TabsTrigger>
-              <TabsTrigger value="sell" className="flex items-center gap-2">
-                <TrendingDown className="h-4 w-4" />
-                Sell Shares
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
+        {/* Buy/Sell Tabs */}
+        <Tabs value={tradeType} onValueChange={(value) => {
+          setTradeType(value as 'buy' | 'sell')
+          setAmount('')
+          setError(null)
+        }}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="buy" className="text-green-600 data-[state=active]:bg-green-50">
+              Buy
+            </TabsTrigger>
+            <TabsTrigger value="sell" className="text-red-600 data-[state=active]:bg-red-50">
+              Sell
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Outcome Selection */}
-        <div className="space-y-4">
-          <Label className="text-base font-medium">Outcome</Label>
-          <Tabs value={selectedSide} onValueChange={(value) => setSelectedSide(value as 'YES' | 'NO')}>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="YES" className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4" />
-                YES {yesProb.toFixed(1)}%
-              </TabsTrigger>
-              <TabsTrigger value="NO" className="flex items-center gap-2">
-                <TrendingDown className="h-4 w-4" />
-                NO {noProb.toFixed(1)}%
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
-
-        {/* Amount Input */}
-        <div className="space-y-4">
-          <Label htmlFor="amount" className="text-base font-medium">
-            {tradeType === 'buy' ? 'Amount (USDC)' : 'Shares to Sell'}
-          </Label>
-          <div className="relative">
-            <Input
-              id="amount"
-              type="number"
-              placeholder="0.00"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="pl-8"
+          <TabsContent value="buy" className="space-y-4 mt-6">
+            <BuyInterface
+              selectedSide={selectedSide}
+              onSideChange={setSelectedSide}
+              amount={amount}
+              onAmountChange={setAmount}
+              quickAmounts={quickAmounts}
+              balance={balance}
+              probabilities={currentProbabilities}
+              userShares={userShares}
             />
-            <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-              <span className="text-muted-foreground">
-                {tradeType === 'buy' ? '$' : '#'}
-              </span>
-            </div>
-          </div>
-          
-          {/* Balance/Shares Display */}
-          <div className="flex items-center justify-between text-sm">
-            {tradeType === 'buy' ? (
-              <>
-                <span className="text-muted-foreground">Balance:</span>
-                <span className="font-medium">
-                  ${balance ? parseFloat(formatUnits(balance, 18)).toFixed(2) : '0.00'} USDC
-                </span>
-              </>
-            ) : (
-              <>
-                <span className="text-muted-foreground">Your {selectedSide} shares:</span>
-                <span className="font-medium">
-                  {parseFloat(selectedSide === 'YES' ? userShares.yes : userShares.no).toFixed(4)}
-                </span>
-              </>
-            )}
-          </div>
-        </div>
+          </TabsContent>
 
-        {/* Slippage Settings */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <Label className="text-base font-medium flex items-center gap-2">
-              <Settings className="h-4 w-4" />
-              Slippage Tolerance
-            </Label>
-            <span className="text-sm font-medium">{slippage}%</span>
-          </div>
-          <Slider
-            value={[slippage]}
-            onValueChange={([value]) => setSlippage(value)}
-            max={20}
-            min={0.1}
-            step={0.1}
-            className="w-full"
-          />
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>0.1%</span>
-            <span>20%</span>
-          </div>
-        </div>
+          <TabsContent value="sell" className="space-y-4 mt-6">
+            <SellInterface
+              selectedSide={selectedSide}
+              onSideChange={setSelectedSide}
+              amount={amount}
+              onAmountChange={setAmount}
+              quickAmounts={quickAmounts}
+              probabilities={currentProbabilities}
+              userShares={userShares}
+            />
+          </TabsContent>
+        </Tabs>
 
         {/* Trade Preview */}
         {tradePreview && (
-          <div className="p-4 bg-muted/50 rounded-lg space-y-2">
-            {tradeType === 'buy' ? (
-              <>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">You pay:</span>
-                  <span className="font-medium">${amount} USDC</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">You receive:</span>
-                  <span className="font-medium text-green-600">
-                    {parseFloat(tradePreview.sharesOut).toFixed(4)} {selectedSide} shares
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Effective price:</span>
-                  <span className="font-medium">
-                    ${tradePreview.effectivePrice.toFixed(4)} per share
-                  </span>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">You sell:</span>
-                  <span className="font-medium">{amount} {selectedSide} shares</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">You receive:</span>
-                  <span className="font-medium text-green-600">
-                    ${parseFloat(tradePreview.amountOut).toFixed(2)} USDC
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Effective price:</span>
-                  <span className="font-medium">
-                    ${tradePreview.effectivePrice.toFixed(4)} per share
-                  </span>
-                </div>
-              </>
-            )}
-            
-            {/* Price Impact Warning */}
-            {tradePreview.priceImpact > 2 && (
-              <div className="flex items-center gap-2 text-amber-600 text-sm mt-2">
-                <AlertCircle className="h-3 w-3" />
-                <span>High price impact: {tradePreview.priceImpact.toFixed(2)}%</span>
-              </div>
-            )}
-            
-            <Separator />
-            <div className="text-xs text-muted-foreground">
-              <Info className="h-3 w-3 inline mr-1" />
-              {slippage}% slippage tolerance applied. 3% fee included in calculation.
+          <>
+            <div className="flex items-center justify-center py-2">
+              <ArrowDown className="h-4 w-4 text-muted-foreground" />
             </div>
-          </div>
-        )}
-
-        {/* Validation Errors */}
-        {hasInsufficientBalance && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              Insufficient balance. You need ${amount} USDC to buy these shares.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {hasInsufficientShares && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              Insufficient shares. You only have {selectedSide === 'YES' ? userShares.yes : userShares.no} {selectedSide} shares.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Action Buttons */}
-        <div className="space-y-3">
-          {!authenticated ? (
-            <Button onClick={login} className="w-full" size="lg">
-              <Wallet className="h-4 w-4 mr-2" />
-              Connect Wallet to Trade
-            </Button>
-          ) : (
-            <Button
-              onClick={handleTrade}
-              disabled={
-                !canTrade || 
-                (tradeType === 'sell' && !canSell) ||
-                hasInsufficientBalance || 
-                hasInsufficientShares || 
-                isTrading
-              }
-              className="w-full"
-              size="lg"
-            >
-              {isTrading ? (
-                <>Processing...</>
-              ) : tradeType === 'buy' ? (
-                <>
-                  <Zap className="h-4 w-4 mr-2" />
-                  Buy {amount || '0'} USDC of {selectedSide}
-                </>
-              ) : (
-                <>
-                  <ArrowUpDown className="h-4 w-4 mr-2" />
-                  Sell {amount || '0'} {selectedSide} Shares
-                </>
+            
+            <div className="p-4 bg-muted/30 rounded-lg space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">You receive:</span>
+                <span className="font-medium">
+                  {parseFloat(tradePreview.output).toFixed(tradeType === 'buy' ? 4 : 2)} {tradePreview.outputLabel}
+                </span>
+              </div>
+              
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Price impact:</span>
+                <span className={cn(
+                  "font-medium",
+                  tradePreview.priceImpact > 5 ? "text-red-500" :
+                  tradePreview.priceImpact > 2 ? "text-amber-500" : "text-green-500"
+                )}>
+                  {tradePreview.priceImpact.toFixed(2)}%
+                </span>
+              </div>
+              
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Trading fee:</span>
+                <span className="font-medium">{tradePreview.fee}</span>
+              </div>
+              
+              {/* High impact warning */}
+              {tradePreview.priceImpact > 5 && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    High price impact! Consider reducing your trade size.
+                  </AlertDescription>
+                </Alert>
               )}
-            </Button>
+            </div>
+          </>
+        )}
+
+        {/* Slippage Settings */}
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => setShowSlippage(!showSlippage)}
+            className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <Settings className="h-3 w-3" />
+            Slippage: {slippage}%
+          </button>
+          {showSlippage && (
+            <div className="flex items-center gap-2">
+              {[0.5, 1, 2, 5].map((value) => (
+                <Button
+                  key={value}
+                  variant={slippage === value ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSlippage(value)}
+                  className="h-7 px-2 text-xs"
+                >
+                  {value}%
+                </Button>
+              ))}
+            </div>
           )}
         </div>
 
-        {/* Current Position */}
-        {trading.position && trading.position.totalShares > 0n && (
-          <div className="pt-4">
-            <Separator className="mb-4" />
-            <div className="space-y-2">
-              <h4 className="font-medium">Your Position</h4>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <div className="text-muted-foreground">YES shares</div>
-                  <div className="font-medium">{userShares.yes}</div>
-                </div>
-                <div>
-                  <div className="text-muted-foreground">NO shares</div>
-                  <div className="font-medium">{userShares.no}</div>
-                </div>
-              </div>
-            </div>
-          </div>
+        {/* Validation Errors */}
+        {!validation.isValid && validation.message && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{validation.message}</AlertDescription>
+          </Alert>
         )}
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {/* Trade Button */}
+        <Button
+          onClick={handleTrade}
+          disabled={!validation.isValid || isProcessing || !tradePreview}
+          className={cn(
+            "w-full h-12 text-base font-medium",
+            tradeType === 'sell' && "bg-red-600 hover:bg-red-700"
+          )}
+          size="lg"
+        >
+          {!authenticated ? (
+            <>
+              <Wallet className="h-4 w-4 mr-2" />
+              Connect Wallet
+            </>
+          ) : isProcessing ? (
+            "Processing..."
+          ) : (
+            `${tradeType === 'buy' ? 'Buy' : 'Sell'} ${selectedSide}`
+          )}
+        </Button>
       </CardContent>
     </Card>
+  )
+}
+
+// Buy Interface Component
+function BuyInterface({ 
+  selectedSide, 
+  onSideChange, 
+  amount, 
+  onAmountChange, 
+  quickAmounts, 
+  balance, 
+  probabilities,
+  userShares 
+}: {
+  selectedSide: 'YES' | 'NO'
+  onSideChange: (side: 'YES' | 'NO') => void
+  amount: string
+  onAmountChange: (amount: string) => void
+  quickAmounts: number[]
+  balance: any
+  probabilities: { yes: number; no: number }
+  userShares: { yes: string; no: string }
+}) {
+  return (
+    <>
+      {/* Outcome Selection */}
+      <div className="space-y-3">
+        <Label className="text-sm font-medium">Choose Outcome</Label>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => onSideChange('YES')}
+            className={cn(
+              "p-4 rounded-lg border-2 transition-all text-left",
+              selectedSide === 'YES'
+                ? "border-green-500 bg-green-50 dark:bg-green-950/20"
+                : "border-border hover:border-green-200"
+            )}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="font-medium text-green-700">YES</span>
+              <TrendingUp className="h-4 w-4 text-green-600" />
+            </div>
+            <div className="text-lg font-bold text-green-600">
+              {probabilities.yes.toFixed(1)}%
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              ${(probabilities.yes / 100).toFixed(3)} per share
+            </div>
+          </button>
+          
+          <button
+            onClick={() => onSideChange('NO')}
+            className={cn(
+              "p-4 rounded-lg border-2 transition-all text-left",
+              selectedSide === 'NO'
+                ? "border-red-500 bg-red-50 dark:bg-red-950/20"
+                : "border-border hover:border-red-200"
+            )}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="font-medium text-red-700">NO</span>
+              <TrendingDown className="h-4 w-4 text-red-600" />
+            </div>
+            <div className="text-lg font-bold text-red-600">
+              {probabilities.no.toFixed(1)}%
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              ${(probabilities.no / 100).toFixed(3)} per share
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* Amount Input */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm font-medium">You Pay</Label>
+          <span className="text-xs text-muted-foreground">
+            Balance: ${balance ? parseFloat(formatEther(balance)).toFixed(2) : '0.00'}
+          </span>
+        </div>
+        
+        <div className="relative">
+          <Input
+            type="number"
+            placeholder="0.00"
+            value={amount}
+            onChange={(e) => onAmountChange(e.target.value)}
+            className="text-lg h-14 pl-4 pr-16"
+          />
+          <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+            <span className="text-sm font-medium text-muted-foreground">USDC</span>
+          </div>
+        </div>
+        
+        {/* Quick amounts */}
+        <div className="flex gap-2">
+          {quickAmounts.map((amt) => (
+            <Button
+              key={amt}
+              variant="outline"
+              size="sm"
+              onClick={() => onAmountChange(amt.toString())}
+              className="text-xs"
+            >
+              ${amt}
+            </Button>
+          ))}
+        </div>
+      </div>
+    </>
+  )
+}
+
+// Sell Interface Component  
+function SellInterface({ 
+  selectedSide, 
+  onSideChange, 
+  amount, 
+  onAmountChange, 
+  quickAmounts, 
+  probabilities,
+  userShares 
+}: {
+  selectedSide: 'YES' | 'NO'
+  onSideChange: (side: 'YES' | 'NO') => void
+  amount: string
+  onAmountChange: (amount: string) => void
+  quickAmounts: any[]
+  probabilities: { yes: number; no: number }
+  userShares: { yes: string; no: string }
+}) {
+  return (
+    <>
+      {/* Outcome Selection */}
+      <div className="space-y-3">
+        <Label className="text-sm font-medium">Sell Shares</Label>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => onSideChange('YES')}
+            className={cn(
+              "p-4 rounded-lg border-2 transition-all text-left",
+              selectedSide === 'YES'
+                ? "border-green-500 bg-green-50 dark:bg-green-950/20"
+                : "border-border hover:border-green-200"
+            )}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="font-medium text-green-700">YES</span>
+              <TrendingUp className="h-4 w-4 text-green-600" />
+            </div>
+            <div className="text-sm font-medium">
+              {parseFloat(userShares.yes).toFixed(4)} shares
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              ≈ ${(parseFloat(userShares.yes) * probabilities.yes / 100).toFixed(2)} value
+            </div>
+          </button>
+          
+          <button
+            onClick={() => onSideChange('NO')}
+            className={cn(
+              "p-4 rounded-lg border-2 transition-all text-left",
+              selectedSide === 'NO'
+                ? "border-red-500 bg-red-50 dark:bg-red-950/20"
+                : "border-border hover:border-red-200"
+            )}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="font-medium text-red-700">NO</span>
+              <TrendingDown className="h-4 w-4 text-red-600" />
+            </div>
+            <div className="text-sm font-medium">
+              {parseFloat(userShares.no).toFixed(4)} shares
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              ≈ ${(parseFloat(userShares.no) * probabilities.no / 100).toFixed(2)} value
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* Amount Input */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm font-medium">You Sell</Label>
+          <span className="text-xs text-muted-foreground">
+            Available: {parseFloat(selectedSide === 'YES' ? userShares.yes : userShares.no).toFixed(4)}
+          </span>
+        </div>
+        
+        <div className="relative">
+          <Input
+            type="number"
+            placeholder="0.0000"
+            value={amount}
+            onChange={(e) => onAmountChange(e.target.value)}
+            className="text-lg h-14 pl-4 pr-20"
+          />
+          <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+            <span className="text-sm font-medium text-muted-foreground">{selectedSide}</span>
+          </div>
+        </div>
+        
+        {/* Quick amounts */}
+        <div className="flex gap-2">
+          {quickAmounts.map((item) => (
+            <Button
+              key={item.label}
+              variant="outline"
+              size="sm"
+              onClick={() => onAmountChange(item.value)}
+              className="text-xs"
+            >
+              {item.label}
+            </Button>
+          ))}
+        </div>
+      </div>
+    </>
   )
 }
