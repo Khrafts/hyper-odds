@@ -350,6 +350,61 @@ contract CPMMMarketImplementation is IMarket, ReentrancyGuard, Pausable {
     }
     
     /**
+     * @notice Buy shares for another user (router compatibility)
+     * @param user The user who will own the shares
+     * @param outcome 0 for NO, 1 for YES
+     * @param amountIn Amount of stake tokens to spend
+     * @param minSharesOut Minimum shares expected (slippage protection)
+     */
+    function buySharesFor(
+        address user,
+        uint8 outcome,
+        uint256 amountIn,
+        uint256 minSharesOut
+    ) external nonReentrant whenNotPaused beforeCutoff notResolved {
+        require(outcome <= 1, "Invalid outcome");
+        require(amountIn >= MIN_TRADE_AMOUNT, "Below minimum");
+        require(user != address(0), "Invalid user");
+        
+        (uint256 sharesOut, uint256 feeAmount) = getAmountOut(outcome, amountIn);
+        require(sharesOut >= minSharesOut, "Slippage exceeded");
+        
+        // Check position limits for the actual user
+        _checkPositionLimit(user, outcome, sharesOut);
+        
+        // Check minimum liquidity protection
+        _checkMinimumLiquidity(outcome, sharesOut, feeAmount);
+        
+        // Transfer payment from caller (router)
+        stakeToken.safeTransferFrom(msg.sender, address(this), amountIn);
+        
+        // Update reserves using constant product formula
+        if (outcome == 1) { // Buying YES
+            reserveYES += amountIn; // Add payment to YES reserves
+            reserveNO -= sharesOut + feeAmount; // Remove shares from NO reserves
+            sharesYES[user] += sharesOut; // Assign shares to user, not caller
+        } else { // Buying NO
+            reserveNO += amountIn; // Add payment to NO reserves
+            reserveYES -= sharesOut + feeAmount; // Remove shares from YES reserves
+            sharesNO[user] += sharesOut; // Assign shares to user, not caller
+        }
+        
+        // Track fees for distribution
+        totalFeesCollected += feeAmount;
+        
+        uint256 newPrice = (reserveYES * PRECISION) / (reserveYES + reserveNO);
+        
+        emit SharesPurchased(
+            user, // Event shows the actual user, not the router
+            outcome,
+            amountIn,
+            sharesOut,
+            feeAmount,
+            newPrice
+        );
+    }
+    
+    /**
      * @notice Sell shares back to the AMM
      * @param outcome 0 for NO, 1 for YES
      * @param sharesIn Amount of shares to sell
@@ -469,6 +524,37 @@ contract CPMMMarketImplementation is IMarket, ReentrancyGuard, Pausable {
         stakeToken.safeTransfer(msg.sender, payout);
         
         emit Claimed(msg.sender, payout);
+    }
+    
+    /**
+     * @notice Claim winnings for another user (router compatibility)
+     * @param user The user to claim for
+     */
+    function claimFor(address user) external nonReentrant afterResolution {
+        require(user != address(0), "Invalid user");
+        require(!claimed[user], "Already claimed");
+        
+        uint256 winningShares;
+        
+        if (config.winningOutcome == 1) {
+            winningShares = sharesYES[user];
+            sharesYES[user] = 0; // Reset shares
+        } else {
+            winningShares = sharesNO[user];
+            sharesNO[user] = 0; // Reset shares
+        }
+        
+        require(winningShares > 0, "No winnings to claim");
+        
+        claimed[user] = true;
+        
+        // Calculate payout (1 winning share = 1 stakeToken)
+        uint256 payout = winningShares;
+        
+        // Transfer winnings to user
+        stakeToken.safeTransfer(user, payout);
+        
+        emit Claimed(user, payout);
     }
     
     /**

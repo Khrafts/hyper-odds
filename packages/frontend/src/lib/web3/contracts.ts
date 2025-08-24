@@ -1,5 +1,6 @@
 import { Address } from 'viem'
 import FactoryABI from './MarketFactoryABI'
+import UniversalRouterABI from './UniversalRouterABI'
 
 /**
  * Contract addresses for different networks
@@ -9,9 +10,10 @@ export const CONTRACT_ADDRESSES = {
     ParimutuelMarketFactory: '0x40DefEEa8e5F418Bf86B19eD72615dC35386Fae4' as Address,
     ParimutuelMarket: '0x89b371a0a56713C3E660C9eFCe659853c755dDF9' as Address, // Test market (will be updated after creation)
     MarketImplementation: '0x06Bfe7f7234252687C22B2f2C3F005a030A00875' as Address, // ParimutuelMarketImplementation
-    CPMMImplementation: '0xdA279925283822892F90330805944f27CE0A08C8' as Address, // CPMMMarketImplementation
+    CPMMImplementation: '0xd0282D1751d64D20AF6820160D2926e3B4e357BD' as Address, // CPMMMarketImplementation (with router support)
     StakeToken: '0x380e784a7262d9c8b0deda2AB7436659E9514A39' as Address, // MockUSDC
-    MarketRouter: '0xe049685cC6aDe34918c719982D7e0337b10B951A' as Address, // Router contract
+    MarketRouter: '0xe049685cC6aDe34918c719982D7e0337b10B951A' as Address, // Old router (Parimutuel only)
+    UniversalRouter: '0x487Db9105BFB3211a7761e5367C4E3C59B0B0bDf' as Address, // New universal router
     Oracle: '0xf462a61C6a48303e281486bDD309C06cC64a56A3' as Address,
     StHYPE: '0x7efF83564686F013a8A1e270240281B99cB7559D' as Address,
     WHYPE: '0xcd751fd7fE968Bb59D6Aa22f5F2de5C18bC9232e' as Address, // MockWHYPE
@@ -663,7 +665,13 @@ export const PARIMUTUEL_MARKET_FACTORY_ABI_LEGACY = [
 ] as const
 
 /**
- * MarketRouter contract ABI
+ * UniversalMarketRouter contract ABI
+ * Universal router that works with both PARIMUTUEL and CPMM markets
+ */
+export const UNIVERSAL_MARKET_ROUTER_ABI = UniversalRouterABI
+
+/**
+ * MarketRouter contract ABI (Legacy - Parimutuel only)
  * Router contract for handling deposits and claims with user attribution
  */
 export const MARKET_ROUTER_ABI = [
@@ -777,6 +785,9 @@ export const CONTRACTS = {
   },
   MarketRouter: {
     abi: MARKET_ROUTER_ABI,
+  },
+  UniversalRouter: {
+    abi: UNIVERSAL_MARKET_ROUTER_ABI,
   },
   StakeToken: {
     abi: ERC20_ABI,

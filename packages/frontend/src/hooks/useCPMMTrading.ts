@@ -2,20 +2,23 @@
  * Trading hooks for CPMM markets
  */
 
-import { useWriteContract, useWaitForTransactionReceipt, useReadContract, useSimulateContract } from 'wagmi'
-import { parseEther, formatEther, Address } from 'viem'
+import { useWriteContract, useWaitForTransactionReceipt, useReadContract, useSimulateContract, useChainId } from 'wagmi'
+import { parseEther, formatEther, Address, parseUnits } from 'viem'
 import { useState, useCallback, useMemo } from 'react'
 import { 
   CPMM_MARKET_ABI, 
   OUTCOME,
+  UNIVERSAL_MARKET_ROUTER_ABI,
+  getContractAddress,
   type Outcome 
 } from '@/lib/web3/contracts'
 import { calculateCPMMBuyShares, calculateCPMMSellAmount } from '@/lib/pricing'
 
 /**
- * Hook for buying shares in CPMM markets
+ * Hook for buying shares in CPMM markets via Universal Router
  */
 export function useCPMMBuy(marketAddress: Address) {
+  const chainId = useChainId()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
@@ -24,6 +27,10 @@ export function useCPMMBuy(marketAddress: Address) {
   const { isLoading: isConfirming, isSuccess, isError } = useWaitForTransactionReceipt({
     hash,
   })
+
+  const routerAddress = useMemo(() => {
+    return getContractAddress(chainId as any, 'UniversalRouter')
+  }, [chainId])
 
   const buyShares = useCallback(async (
     outcome: Outcome,
@@ -35,20 +42,19 @@ export function useCPMMBuy(marketAddress: Address) {
       setError(null)
       
       const amount = parseEther(amountIn)
-      const minShares = minSharesOut ? parseEther(minSharesOut) : 0n
       
       await writeContract({
-        address: marketAddress,
-        abi: CPMM_MARKET_ABI,
-        functionName: 'buyShares',
-        args: [outcome, amount, minShares],
+        address: routerAddress,
+        abi: UNIVERSAL_MARKET_ROUTER_ABI,
+        functionName: 'depositToMarket',
+        args: [marketAddress, outcome, amount],
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to buy shares')
     } finally {
       setIsLoading(false)
     }
-  }, [marketAddress, writeContract])
+  }, [marketAddress, routerAddress, writeContract])
 
   const buyYes = useCallback((amountIn: string, minSharesOut?: string) => {
     return buyShares(OUTCOME.YES, amountIn, minSharesOut)
@@ -71,9 +77,10 @@ export function useCPMMBuy(marketAddress: Address) {
 }
 
 /**
- * Hook for selling shares in CPMM markets
+ * Hook for selling shares in CPMM markets via Universal Router
  */
 export function useCPMMSell(marketAddress: Address) {
+  const chainId = useChainId()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
@@ -82,6 +89,10 @@ export function useCPMMSell(marketAddress: Address) {
   const { isLoading: isConfirming, isSuccess, isError } = useWaitForTransactionReceipt({
     hash,
   })
+
+  const routerAddress = useMemo(() => {
+    return getContractAddress(chainId as any, 'UniversalRouter')
+  }, [chainId])
 
   const sellShares = useCallback(async (
     outcome: Outcome,
@@ -96,17 +107,17 @@ export function useCPMMSell(marketAddress: Address) {
       const minAmount = minAmountOut ? parseEther(minAmountOut) : 0n
       
       await writeContract({
-        address: marketAddress,
-        abi: CPMM_MARKET_ABI,
-        functionName: 'sellShares',
-        args: [outcome, shares, minAmount],
+        address: routerAddress,
+        abi: UNIVERSAL_MARKET_ROUTER_ABI,
+        functionName: 'withdrawFromMarket',
+        args: [marketAddress, outcome, shares, minAmount],
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to sell shares')
     } finally {
       setIsLoading(false)
     }
-  }, [marketAddress, writeContract])
+  }, [marketAddress, routerAddress, writeContract])
 
   const sellYes = useCallback((sharesIn: string, minAmountOut?: string) => {
     return sellShares(OUTCOME.YES, sharesIn, minAmountOut)
@@ -129,9 +140,10 @@ export function useCPMMSell(marketAddress: Address) {
 }
 
 /**
- * Hook for claiming winnings from resolved CPMM markets
+ * Hook for claiming winnings from resolved CPMM markets via Universal Router
  */
 export function useCPMMClaim(marketAddress: Address) {
+  const chainId = useChainId()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
@@ -141,22 +153,27 @@ export function useCPMMClaim(marketAddress: Address) {
     hash,
   })
 
+  const routerAddress = useMemo(() => {
+    return getContractAddress(chainId as any, 'UniversalRouter')
+  }, [chainId])
+
   const claimWinnings = useCallback(async () => {
     try {
       setIsLoading(true)
       setError(null)
       
       await writeContract({
-        address: marketAddress,
-        abi: CPMM_MARKET_ABI,
-        functionName: 'claimWinnings',
+        address: routerAddress,
+        abi: UNIVERSAL_MARKET_ROUTER_ABI,
+        functionName: 'claimFromMarket',
+        args: [marketAddress],
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to claim winnings')
     } finally {
       setIsLoading(false)
     }
-  }, [marketAddress, writeContract])
+  }, [marketAddress, routerAddress, writeContract])
 
   return {
     claimWinnings,
