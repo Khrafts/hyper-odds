@@ -1,0 +1,208 @@
+// Market Runner Database Schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums matching Solidity contract types
+enum SubjectKind {
+  HL_METRIC
+  TOKEN_PRICE
+}
+
+enum PredicateOp {
+  GT
+  GTE
+  LT
+  LTE
+}
+
+enum WindowKind {
+  SNAPSHOT_AT
+  WINDOW_SUM
+  WINDOW_COUNT
+}
+
+enum MarketStatus {
+  ACTIVE
+  RESOLVED
+  CANCELLED
+  DISPUTE
+}
+
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  RETRYING
+}
+
+enum JobType {
+  RESOLVE_MARKET
+  FETCH_METRIC
+  HEALTH_CHECK
+}
+
+// Market data model
+model Market {
+  id                String        @id // Market address
+  factoryAddress    String
+  implementationType String       // "PARIMUTUEL" or "CPMM"
+  title             String
+  description       String
+  
+  // Subject parameters
+  subjectKind       SubjectKind
+  metricId          String?       // For HL_METRIC
+  tokenIdentifier   String?       // For TOKEN_PRICE (CMC ID/symbol)
+  valueDecimals     Int
+  
+  // Predicate parameters
+  predicateOp       PredicateOp
+  threshold         String        // Store as string to handle large numbers
+  
+  // Window parameters
+  windowKind        WindowKind
+  tStart            DateTime
+  tEnd              DateTime
+  
+  // Oracle configuration
+  primarySourceId   String
+  fallbackSourceId  String?
+  roundingDecimals  Int
+  
+  // Timing
+  cutoffTime        DateTime
+  resolutionTime    DateTime?
+  
+  // Economic parameters
+  feeBps            Int
+  creatorFeeShareBps Int
+  maxTotalPool      String        // Store as string for large numbers
+  timeDecayBps      Int?
+  
+  // Market metadata
+  creator           String        // Address
+  isProtocolMarket  Boolean
+  status            MarketStatus  @default(ACTIVE)
+  
+  // Resolution data
+  resolvedValue     String?       // Final resolved value
+  resolvedAt        DateTime?
+  resolutionTxHash  String?
+  
+  // Blockchain metadata
+  blockNumber       BigInt
+  transactionHash   String
+  logIndex          Int
+  
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  
+  // Relations
+  jobs              Job[]
+  resolutions       Resolution[]
+  
+  @@unique([transactionHash, logIndex])
+  @@index([status])
+  @@index([resolutionTime])
+  @@index([cutoffTime])
+}
+
+// Job processing model
+model Job {
+  id            String    @id @default(cuid())
+  type          JobType
+  status        JobStatus @default(PENDING)
+  
+  // Job metadata
+  marketId      String?
+  market        Market?   @relation(fields: [marketId], references: [id])
+  
+  // Job configuration
+  scheduledFor  DateTime
+  attempts      Int       @default(0)
+  maxAttempts   Int       @default(3)
+  
+  // Job data (JSON)
+  data          Json?
+  result        Json?
+  error         String?
+  
+  // Timing
+  createdAt     DateTime  @default(now())
+  startedAt     DateTime?
+  completedAt   DateTime?
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([status])
+  @@index([scheduledFor])
+  @@index([type, status])
+}
+
+// Market resolution tracking
+model Resolution {
+  id            String    @id @default(cuid())
+  marketId      String
+  market        Market    @relation(fields: [marketId], references: [id])
+  
+  // Resolution data
+  value         String    // The resolved metric value
+  source        String    // Which source provided the value
+  confidence    Float?    // Confidence score if applicable
+  
+  // Blockchain interaction
+  commitTxHash  String?   // Oracle commit transaction
+  finalizeTxHash String?  // Oracle finalize transaction
+  blockNumber   BigInt?
+  
+  // Timing
+  resolvedAt    DateTime
+  submittedAt   DateTime?
+  finalizedAt   DateTime?
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([marketId])
+  @@index([resolvedAt])
+}
+
+// Metric data caching
+model MetricData {
+  id            String    @id @default(cuid())
+  
+  // Metric identification
+  source        String    // "coinmarketcap", "hyperliquid", etc.
+  identifier    String    // Token symbol, metric ID, etc.
+  metricType    String    // "price", "volume", "open_interest", etc.
+  
+  // Value data
+  value         String    // The metric value
+  timestamp     DateTime  // When this value was observed
+  decimals      Int?      // Value precision
+  
+  // Metadata
+  metadata      Json?     // Additional source-specific data
+  
+  // Timing
+  createdAt     DateTime  @default(now())
+  
+  @@unique([source, identifier, metricType, timestamp])
+  @@index([source, identifier])
+  @@index([timestamp])
+}
+
+// System state tracking
+model SystemState {
+  id            String    @id
+  value         Json
+  updatedAt     DateTime  @updatedAt
+  
+  @@map("system_state")
+}
