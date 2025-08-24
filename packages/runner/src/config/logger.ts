@@ -12,7 +12,7 @@ const consoleFormat = combine(
   printf(({ level, message, timestamp, ...meta }) => {
     let metaStr = '';
     if (Object.keys(meta).length > 0) {
-      metaStr = '\n' + JSON.stringify(meta, null, 2);
+      metaStr = `\n${  JSON.stringify(meta, null, 2)}`;
     }
     return `[${timestamp}] ${level}: ${message}${metaStr}`;
   })

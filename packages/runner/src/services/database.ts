@@ -87,13 +87,67 @@ export class DatabaseService {
     try {
       logger.info('Running database migrations...');
       
-      // This would run migrations in production
-      // For now, we'll just ensure the database is accessible
-      await this.prisma.$queryRaw`SELECT 1`;
+      // In production, this would use the migrate deploy command
+      // For development, we ensure the database schema matches by pushing the schema
+      if (config.NODE_ENV === 'production') {
+        logger.warn('Production migration requires running: npx prisma migrate deploy');
+        // Verify database is accessible and schema exists
+        await this.verifyDatabaseSchema();
+      } else {
+        // Development: push schema changes
+        logger.info('Development mode: ensuring database schema is up to date');
+        await this.pushDatabaseSchema();
+      }
       
       logger.info('Database migrations completed');
     } catch (error) {
       logger.error('Failed to run migrations:', {
+        error: error instanceof Error ? error.message : error
+      });
+      throw error;
+    }
+  }
+
+  private async verifyDatabaseSchema(): Promise<void> {
+    try {
+      // Check if core tables exist by querying system tables
+      const result = await this.prisma.$queryRaw<Array<{ table_name: string }>>`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name IN ('Market', 'Job', 'Resolution', 'MetricData')
+      `;
+      
+      const tableNames = result.map(row => row.table_name);
+      const expectedTables = ['Market', 'Job', 'Resolution', 'MetricData'];
+      const missingTables = expectedTables.filter(table => !tableNames.includes(table));
+      
+      if (missingTables.length > 0) {
+        throw new Error(`Missing database tables: ${missingTables.join(', ')}. Run migrations first.`);
+      }
+      
+      logger.info('Database schema verification passed');
+    } catch (error) {
+      logger.error('Database schema verification failed:', {
+        error: error instanceof Error ? error.message : error
+      });
+      throw error;
+    }
+  }
+
+  private async pushDatabaseSchema(): Promise<void> {
+    try {
+      // In development, we can use db push to sync schema
+      // This is equivalent to running: npx prisma db push
+      logger.info('Pushing database schema changes...');
+      
+      // For now, just verify the connection works
+      // In a full implementation, this would use Prisma's programmatic API
+      await this.prisma.$queryRaw`SELECT 1`;
+      
+      logger.warn('Note: Run "npx prisma db push" manually to sync schema changes in development');
+    } catch (error) {
+      logger.error('Failed to push database schema:', {
         error: error instanceof Error ? error.message : error
       });
       throw error;

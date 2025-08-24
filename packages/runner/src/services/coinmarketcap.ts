@@ -174,7 +174,9 @@ export class CoinMarketCapService {
    */
   async getQuoteBySymbol(symbol: string): Promise<TokenPriceData | null> {
     const cmcId = await this.getCmcIdBySymbol(symbol);
-    if (!cmcId) return null;
+    if (!cmcId) {
+return null;
+}
     
     return this.getQuoteById(cmcId);
   }
@@ -195,8 +197,6 @@ export class CoinMarketCapService {
    * Refresh the symbol to CMC ID mapping
    */
   private async refreshSymbolMapping(): Promise<void> {
-    const cacheKey = this.getCacheKey('/cryptocurrency/map');
-
     try {
       const response = await this.client.get('/cryptocurrency/map', {
         params: {
@@ -221,8 +221,8 @@ export class CoinMarketCapService {
       this.mapCacheExpiry = Date.now() + this.mapCacheTimeMs;
 
     } catch (error) {
-      console.error('Failed to refresh CMC symbol mapping:', error);
-      throw error;
+      // Use proper error handling instead of console.error
+      throw new Error(`Failed to refresh CMC symbol mapping: ${error instanceof Error ? error.message : error}`);
     }
   }
 
@@ -249,10 +249,14 @@ export class CoinMarketCapService {
   async getPriceByTokenIdentifier(tokenIdentifier: string): Promise<TokenPriceData | null> {
     // Convert bytes32 hex to string
     const identifier = this.bytes32ToString(tokenIdentifier);
-    if (!identifier) return null;
+    if (!identifier) {
+return null;
+}
 
     const cmcId = await this.resolveTokenIdentifier(identifier);
-    if (!cmcId) return null;
+    if (!cmcId) {
+return null;
+}
 
     return this.getQuoteById(cmcId);
   }
@@ -275,7 +279,7 @@ export class CoinMarketCapService {
   static stringToBytes32(str: string): string {
     const buffer = Buffer.alloc(32);
     buffer.write(str, 'utf8');
-    return '0x' + buffer.toString('hex');
+    return `0x${  buffer.toString('hex')}`;
   }
 
   /**

@@ -1,6 +1,9 @@
 import { logger } from '../config/logger';
 import { CoinMarketCapService } from './coinmarketcap';
 import { DatabaseService } from './database';
+import { RedisService } from './redis';
+import { BlockchainService } from './blockchain';
+import { RepositoryFactory } from '../repositories';
 import { config } from '../config/config';
 
 export class ServiceContainer {
@@ -8,15 +11,25 @@ export class ServiceContainer {
   
   // Core services
   public readonly database: DatabaseService;
+  public readonly redis: RedisService;
+  public readonly blockchain: BlockchainService;
   
   // Data source services
   public readonly coinMarketCap: CoinMarketCapService;
+  
+  // Repository factory
+  public repositories: RepositoryFactory;
 
   constructor() {
     this.database = new DatabaseService();
+    this.redis = new RedisService();
+    this.blockchain = new BlockchainService();
     this.coinMarketCap = new CoinMarketCapService(
       config.COINMARKETCAP_API_KEY || 'dummy-key-for-testing'
     );
+    
+    // Initialize repositories placeholder - will be set after database connection
+    this.repositories = null as any; // Temporary until initialized
   }
 
   async initialize(): Promise<void> {
@@ -35,8 +48,17 @@ export class ServiceContainer {
       logger.debug('Running database migrations...');
       await this.database.runMigrations();
       
+      logger.debug('Connecting to Redis...');
+      await this.redis.connect();
+      
+      logger.debug('Connecting to blockchain...');
+      await this.blockchain.connect();
+      
       logger.debug('Initializing CoinMarketCap service...');
-      // CoinMarketCapService doesn't need async initialization yet
+      // CoinMarketCapService doesn't need async initialization
+      
+      // Re-initialize repositories now that database is connected
+      this.repositories = new RepositoryFactory(this.database.client);
       
       this.initialized = true;
       logger.info('Service container initialized successfully');
@@ -58,6 +80,12 @@ export class ServiceContainer {
 
     try {
       // Shutdown services in reverse dependency order
+      logger.debug('Disconnecting from blockchain...');
+      await this.blockchain.disconnect();
+      
+      logger.debug('Disconnecting from Redis...');
+      await this.redis.disconnect();
+      
       logger.debug('Disconnecting from database...');
       await this.database.disconnect();
       
@@ -83,7 +111,10 @@ export class ServiceContainer {
 
     try {
       const dbHealthy = await this.database.isHealthy();
-      return dbHealthy;
+      const redisHealthy = await this.redis.isHealthy();
+      const blockchainHealthy = await this.blockchain.isHealthy();
+      
+      return dbHealthy && redisHealthy && blockchainHealthy;
     } catch (error) {
       logger.error('Health check failed:', {
         error: error instanceof Error ? error.message : error

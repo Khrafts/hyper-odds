@@ -98,11 +98,53 @@ export class HealthCheckService {
           message: 'Database connection failed'
         };
       }
-      if (!dbHealthy) overallHealthy = false;
+      if (!dbHealthy) {
+        overallHealthy = false;
+      }
     } catch (error) {
       services.database = {
         status: 'unhealthy',
         message: `Database error: ${error instanceof Error ? error.message : error}`
+      };
+      overallHealthy = false;
+    }
+
+    // Check Redis health
+    try {
+      const redisHealthy = await this.container.redis.isHealthy();
+      if (redisHealthy) {
+        services.redis = { status: 'healthy' };
+      } else {
+        services.redis = { 
+          status: 'unhealthy',
+          message: 'Redis connection failed'
+        };
+        overallHealthy = false;
+      }
+    } catch (error) {
+      services.redis = {
+        status: 'unhealthy',
+        message: `Redis error: ${error instanceof Error ? error.message : error}`
+      };
+      overallHealthy = false;
+    }
+
+    // Check blockchain health
+    try {
+      const blockchainHealthy = await this.container.blockchain.isHealthy();
+      if (blockchainHealthy) {
+        services.blockchain = { status: 'healthy' };
+      } else {
+        services.blockchain = { 
+          status: 'unhealthy',
+          message: 'Blockchain connection failed'
+        };
+        overallHealthy = false;
+      }
+    } catch (error) {
+      services.blockchain = {
+        status: 'unhealthy',
+        message: `Blockchain error: ${error instanceof Error ? error.message : error}`
       };
       overallHealthy = false;
     }
