@@ -21,7 +21,7 @@ interface TradingInterfaceRouterProps {
 export function TradingInterfaceRouter({ market, className }: TradingInterfaceRouterProps) {
   const { address } = useWallet()
   const marketType = getMarketType(market)
-  const trading = useTradingRouter(market, address)
+  const trading = useTradingRouter(market, address as `0x${string}` | undefined)
 
   if (marketType === 'CPMM') {
     return (
