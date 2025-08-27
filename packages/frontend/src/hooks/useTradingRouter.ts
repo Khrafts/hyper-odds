@@ -4,6 +4,8 @@
 
 import { Address } from 'viem'
 import { useParimutuelTrading } from './useParimutuelTrading'
+import { useParimutuelTradingDirect } from './useParimutuelTradingDirect'
+import { useParimutuelTradingFixed } from './useParimutuelTradingFixed'
 import { useCPMMTrading } from './useCPMMTrading'
 import { getMarketType } from '@/lib/web3/contracts'
 import type { Market } from '@/types/market'
@@ -24,6 +26,16 @@ export function useTradingRouter(
     userAddress
   )
   
+  // Direct hook for testing
+  const parimutuelDirectHook = useParimutuelTradingDirect(
+    marketAddress || '0x0' as Address
+  )
+  
+  // Fixed hook with proper wagmi connection
+  const parimutuelFixedHook = useParimutuelTradingFixed(
+    marketAddress || '0x0' as Address
+  )
+  
   const cpmmHook = useCPMMTrading(
     marketAddress || '0x0' as Address,
     userAddress
@@ -40,11 +52,25 @@ export function useTradingRouter(
       buyShares: async () => {},
       sellShares: async () => {},
       claimWinnings: async () => {},
+      approveToken: async () => {},
+      continueAfterApproval: async () => {},
+      reset: () => {},
+      allowance: 0n,
+      hash: undefined,
+      lastSuccessHash: undefined,
       canTrade: false,
       canClaim: false,
       canSell: false,
       marketState: null,
       position: null,
+      isProcessingDeposit: false,
+      isWaitingApproval: false,
+      isProcessingClaim: false,
+      isSuccess: false,
+      isApprovalSuccess: false,
+      isTransactionSuccess: false,
+      isError: false,
+      receiptError: null,
     }
   }
   
@@ -79,30 +105,52 @@ export function useTradingRouter(
     }
   }
   
-  // Default to Parimutuel
+  // Default to Parimutuel (using fixed hook)
   return {
     marketType: 'PARIMUTUEL' as const,
-    isLoading: parimutuelHook.isLoadingMarket || parimutuelHook.isLoadingPosition,
-    error: null,
+    isLoading: parimutuelFixedHook.isLoading,
+    error: parimutuelFixedHook.error,
     
-    // Parimutuel functions
-    deposit: parimutuelHook.deposit,
-    depositYes: parimutuelHook.depositYes,
-    depositNo: parimutuelHook.depositNo,
-    claimWinnings: parimutuelHook.claimWinnings,
+    // Parimutuel functions (fixed)
+    deposit: parimutuelFixedHook.deposit,
+    depositYes: parimutuelFixedHook.depositYes,
+    depositNo: parimutuelFixedHook.depositNo,
+    // claimWinnings: parimutuelHook.claimWinnings, // TODO: implement in direct hook
+    // approveToken: parimutuelHook.approveToken, // Not needed with direct hook
+    // continueAfterApproval: parimutuelHook.continueAfterApproval, // Not needed
+    // reset: parimutuelHook.reset, // Not needed
+    
+    // Token state
+    allowance: parimutuelFixedHook.allowance,
+    balance: parimutuelFixedHook.balance,
+    
+    // Transaction hashes
+    // hash: parimutuelHook.hash, // Not available in fixed hook yet
+    lastSuccessHash: parimutuelFixedHook.lastSuccessHash,
     
     // Helpers
-    canTrade: parimutuelHook.canTrade,
-    canClaim: parimutuelHook.canClaim,
+    canTrade: parimutuelFixedHook.canTrade,
+    // canClaim: parimutuelHook.canClaim, // TODO: implement
     canSell: false, // Parimutuel doesn't support selling
     
-    // State
-    marketState: parimutuelHook.marketState,
-    position: parimutuelHook.position,
+    // State (TODO: implement in fixed hook)
+    // marketState: parimutuelHook.marketState,
+    // position: parimutuelHook.position,
     
     // Loading states
-    isProcessingDeposit: parimutuelHook.isLoading,
-    isProcessingClaim: parimutuelHook.isProcessingClaim,
+    isProcessingDeposit: parimutuelFixedHook.isLoading,
+    isWaitingApproval: parimutuelFixedHook.isWaitingApproval,
+    // isProcessingClaim: parimutuelHook.isProcessingClaim,
+    
+    // Success states (simplified)
+    isSuccess: false, // TODO: implement
+    isApprovalSuccess: false, // TODO: implement
+    isTransactionSuccess: !!parimutuelFixedHook.lastSuccessHash,
+    
+    // Error states
+    isError: !!parimutuelFixedHook.error,
+    // receiptError: parimutuelHook.receiptError,
+    // writeError: parimutuelHook.writeError,
   }
 }
 
