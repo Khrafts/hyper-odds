@@ -43,7 +43,7 @@ const GET_MARKET = gql`
       creator {
         id
       }
-      deposits(first: 10, orderBy: timestamp, orderDirection: desc) {
+      deposits(first: 20, orderBy: timestamp, orderDirection: desc) {
         id
         user {
           id

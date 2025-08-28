@@ -224,17 +224,29 @@ function MarketDetailContent({ marketId }: { marketId: string }) {
                   <CardContent>
                     <ActivityFeed 
                       marketId={marketId} 
-                      trades={market?.deposits?.map((deposit: any) => ({
-                        id: deposit.id,
-                        trader: deposit.user.id,
-                        outcome: deposit.outcome === 1 ? 'YES' : 'NO' as 'YES' | 'NO',
-                        type: 'buy' as 'buy' | 'sell', // Deposits are always buys in this context
-                        shares: BigInt(deposit.amount), // Using amount as shares for now
-                        amount: BigInt(Math.round(parseFloat(deposit.amount) * 1e6)), // Convert to USDC (6 decimals)
-                        price: 0, // Price calculation removed - will not display
-                        timestamp: new Date(parseInt(deposit.timestamp) * 1000),
-                        txHash: deposit.transactionHash
-                      }))}
+                      trades={market?.deposits?.map((deposit: any) => {
+                        // Convert deposits to trade format
+                        // For CPMM markets, deposits represent buy/sell operations
+                        // For Parimutuel markets, deposits are always buys
+                        const isCPMM = market.marketType === 'CPMM'
+                        const amount = parseFloat(deposit.amount)
+                        
+                        return {
+                          id: deposit.id,
+                          trader: deposit.user.id,
+                          outcome: deposit.outcome === 1 ? 'YES' : 'NO',
+                          type: 'buy' as const,
+                          shares: BigInt(Math.round(amount * 1e6)),
+                          amount: BigInt(Math.round(amount * 1e6)),
+                          price: isCPMM && market.spotPrice ? 
+                            (deposit.outcome === 1 ? 
+                              1 - parseFloat(market.spotPrice) :
+                              parseFloat(market.spotPrice)) :
+                            0,
+                          timestamp: new Date(parseInt(deposit.timestamp) * 1000),
+                          txHash: deposit.transactionHash
+                        }
+                      })}
                     />
                   </CardContent>
                 </Card>
@@ -307,9 +319,58 @@ function MarketDetailContent({ marketId }: { marketId: string }) {
                     </div>
                     
                     <div className="flex justify-between text-sm font-medium">
-                      <span className="text-muted-foreground">Total Pool</span>
+                      <span className="text-muted-foreground">
+                        {market.marketType === 'CPMM' ? 'Total Liquidity' : 'Total Pool'}
+                      </span>
                       <span>{totalPool.toFixed(2)} USDC</span>
                     </div>
+                    
+                    {/* CPMM-specific stats */}
+                    {market.marketType === 'CPMM' && (
+                      <>
+                        <Separator />
+                        
+                        {market.totalFeesCollected && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Fees Collected</span>
+                            <span className="font-medium">
+                              {parseFloat(market.totalFeesCollected).toFixed(2)} USDC
+                            </span>
+                          </div>
+                        )}
+                        
+                        {market.feeBps && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Trading Fee</span>
+                            <span className="font-medium">
+                              {(market.feeBps / 100).toFixed(1)}%
+                            </span>
+                          </div>
+                        )}
+                        
+                        {market.spotPrice && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Spot Price</span>
+                            <span className="font-medium">
+                              ${parseFloat(market.spotPrice).toFixed(4)}
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                    
+                    {/* Parimutuel-specific stats */}
+                    {market.marketType !== 'CPMM' && market.timeDecayBps && (
+                      <>
+                        <Separator />
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Time Decay</span>
+                          <span className="font-medium">
+                            {(market.timeDecayBps / 100).toFixed(1)}%
+                          </span>
+                        </div>
+                      </>
+                    )}
                   </CardContent>
                 </Card>
               </div>
