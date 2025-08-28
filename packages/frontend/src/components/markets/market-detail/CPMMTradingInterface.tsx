@@ -23,9 +23,8 @@ import {
   Settings,
   Info
 } from 'lucide-react'
-import { useWallet } from '@/hooks/useWallet'
 import { usePrivy } from '@privy-io/react-auth'
-import { formatEther, parseEther } from 'viem'
+import { formatUnits, parseUnits } from 'viem'
 import { Market } from '@/types/market'
 import { 
   calculateCPMMBuyShares, 
@@ -53,12 +52,13 @@ export function CPMMTradingInterface({
   const [error, setError] = useState<string | null>(null)
   
   const { authenticated, login } = usePrivy()
-  const wallet = useWallet()
-  const balance = wallet.balance
+  const balance = trading.balance || 0n
 
-  // Get market reserves
-  const reserveYes = BigInt(market.reserveYes || '0')
-  const reserveNo = BigInt(market.reserveNo || '0')
+  // Get market reserves - convert decimal values from indexer back to integer format (USDC has 6 decimals)
+  const reserveYes = market.reserveYes ? 
+    BigInt(Math.floor(parseFloat(market.reserveYes) * 1000000)) : 0n
+  const reserveNo = market.reserveNo ? 
+    BigInt(Math.floor(parseFloat(market.reserveNo) * 1000000)) : 0n
   const totalReserves = reserveYes + reserveNo
 
   // Calculate current probabilities
@@ -67,6 +67,13 @@ export function CPMMTradingInterface({
     
     // CPMM: P(YES) = reserveNo / total (counter-intuitive but correct)
     const yesProb = Number((reserveNo * 100n) / totalReserves)
+    console.log('CPMM Probability Calculation:', {
+      reserveYes: reserveYes.toString(),
+      reserveNo: reserveNo.toString(),
+      totalReserves: totalReserves.toString(),
+      yesProb,
+      noProb: 100 - yesProb
+    })
     return { yes: yesProb, no: 100 - yesProb }
   }, [reserveYes, reserveNo, totalReserves])
 
@@ -74,8 +81,8 @@ export function CPMMTradingInterface({
   const userShares = useMemo(() => {
     if (!trading.position) return { yes: '0', no: '0' }
     return {
-      yes: formatEther(trading.position.sharesYes || 0n),
-      no: formatEther(trading.position.sharesNo || 0n)
+      yes: formatUnits(trading.position.sharesYes || 0n, 6),
+      no: formatUnits(trading.position.sharesNo || 0n, 6)
     }
   }, [trading.position])
 
@@ -84,25 +91,26 @@ export function CPMMTradingInterface({
     if (!amount || parseFloat(amount) <= 0 || totalReserves === 0n) return null
     
     try {
-      const amountBigInt = parseEther(amount)
+      const amountBigInt = parseUnits(amount, 6) // USDC has 6 decimals
       
       if (tradeType === 'buy') {
         const result = calculateCPMMBuyShares(
           selectedSide,
           amountBigInt,
           reserveYes,
-          reserveNo
+          reserveNo,
+          market.feeBps // Use market-specific fee
         )
         
         return {
           type: 'buy' as const,
           input: amount,
           inputLabel: 'USDC',
-          output: formatEther(result.sharesOut),
+          output: formatUnits(result.sharesOut, 6),
           outputLabel: `${selectedSide} shares`,
           priceImpact: result.priceImpact,
           effectivePrice: result.effectivePrice,
-          fee: '3%'
+          fee: `${(market.feeBps / 100).toFixed(1)}%`
         }
       } else {
         // Check if user has enough shares
@@ -115,18 +123,19 @@ export function CPMMTradingInterface({
           selectedSide,
           amountBigInt,
           reserveYes,
-          reserveNo
+          reserveNo,
+          market.feeBps // Use market-specific fee
         )
         
         return {
           type: 'sell' as const,
           input: amount,
           inputLabel: `${selectedSide} shares`,
-          output: formatEther(result.amountOut),
+          output: formatUnits(result.amountOut, 6),
           outputLabel: 'USDC',
           priceImpact: result.priceImpact,
           effectivePrice: result.effectivePrice,
-          fee: '3%'
+          fee: `${(market.feeBps / 100).toFixed(1)}%`
         }
       }
     } catch (error) {
@@ -150,7 +159,7 @@ export function CPMMTradingInterface({
     }
     
     if (tradeType === 'buy') {
-      const userBalance = balance ? parseFloat(formatEther(balance)) : 0
+      const userBalance = balance ? parseFloat(formatUnits(balance, 6)) : 0
       if (parseFloat(amount) > userBalance) {
         return { isValid: false, message: `Insufficient balance` }
       }
@@ -212,7 +221,7 @@ export function CPMMTradingInterface({
   // Quick amounts
   const quickAmounts = useMemo(() => {
     if (tradeType === 'buy') {
-      const userBalance = balance ? parseFloat(formatEther(balance)) : 0
+      const userBalance = balance ? parseFloat(formatUnits(balance, 6)) : 0
       return [25, 50, 100, 250].filter(amt => amt <= userBalance)
     } else {
       const shares = parseFloat(selectedSide === 'YES' ? userShares.yes : userShares.no)
@@ -277,43 +286,84 @@ export function CPMMTradingInterface({
           </TabsContent>
         </Tabs>
 
-        {/* Trade Preview */}
+        {/* Trade Preview - Shows as user types */}
         {tradePreview && (
           <>
             <div className="flex items-center justify-center py-2">
               <ArrowDown className="h-4 w-4 text-muted-foreground" />
             </div>
             
-            <div className="p-4 bg-muted/30 rounded-lg space-y-3">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">You receive:</span>
-                <span className="font-medium">
-                  {parseFloat(tradePreview.output).toFixed(tradeType === 'buy' ? 4 : 2)} {tradePreview.outputLabel}
-                </span>
+            <div className="border border-border rounded-lg p-4 space-y-4 bg-card">
+              {/* Main trade info */}
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">You receive:</span>
+                <div className="text-right">
+                  <div className="text-lg font-bold">
+                    {parseFloat(tradePreview.output).toFixed(tradeType === 'buy' ? 4 : 2)} {tradePreview.outputLabel}
+                  </div>
+                  {tradeType === 'buy' && (
+                    <div className="text-xs text-muted-foreground">
+                      ≈ ${(parseFloat(tradePreview.output) * tradePreview.effectivePrice).toFixed(2)} value
+                    </div>
+                  )}
+                </div>
               </div>
               
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Price impact:</span>
-                <span className={cn(
-                  "font-medium",
-                  tradePreview.priceImpact > 5 ? "text-red-500" :
-                  tradePreview.priceImpact > 2 ? "text-amber-500" : "text-green-500"
-                )}>
-                  {tradePreview.priceImpact.toFixed(2)}%
-                </span>
+              <Separator />
+              
+              {/* Key metrics */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Effective price:</span>
+                  <span className="font-medium">
+                    ${tradePreview.effectivePrice.toFixed(4)} per {tradeType === 'buy' ? 'share' : 'USDC'}
+                  </span>
+                </div>
+                
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Price impact:</span>
+                  <span className={cn(
+                    "font-medium",
+                    tradePreview.priceImpact > 5 ? "text-red-500" :
+                    tradePreview.priceImpact > 2 ? "text-amber-500" : "text-green-500"
+                  )}>
+                    {tradePreview.priceImpact.toFixed(3)}%
+                  </span>
+                </div>
+                
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Trading fee:</span>
+                  <span className="font-medium text-muted-foreground">{tradePreview.fee}</span>
+                </div>
+                
+                {tradeType === 'buy' && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">New {selectedSide} probability:</span>
+                    <span className="font-medium">
+                      {selectedSide === 'YES' 
+                        ? (currentProbabilities.yes + tradePreview.priceImpact * (selectedSide === 'YES' ? 1 : -1)).toFixed(1)
+                        : (currentProbabilities.no + tradePreview.priceImpact * (selectedSide === 'NO' ? 1 : -1)).toFixed(1)
+                      }%
+                    </span>
+                  </div>
+                )}
               </div>
               
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Trading fee:</span>
-                <span className="font-medium">{tradePreview.fee}</span>
-              </div>
-              
-              {/* High impact warning */}
+              {/* Warnings and tips */}
               {tradePreview.priceImpact > 5 && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
                     High price impact! Consider reducing your trade size.
+                  </AlertDescription>
+                </Alert>
+              )}
+              
+              {tradePreview.priceImpact > 2 && tradePreview.priceImpact <= 5 && (
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    Moderate price impact. Your trade will move the market price.
                   </AlertDescription>
                 </Alert>
               )}
@@ -403,7 +453,7 @@ function BuyInterface({
   onSideChange: (side: 'YES' | 'NO') => void
   amount: string
   onAmountChange: (amount: string) => void
-  quickAmounts: number[]
+  quickAmounts: number[] | {label: string, value: string}[]
   balance: any
   probabilities: { yes: number; no: number }
   userShares: { yes: string; no: string }
@@ -427,11 +477,11 @@ function BuyInterface({
               <span className="font-medium text-green-700">YES</span>
               <TrendingUp className="h-4 w-4 text-green-600" />
             </div>
-            <div className="text-lg font-bold text-green-600">
-              {probabilities.yes.toFixed(1)}%
+            <div className="text-xl font-bold text-green-600">
+              ${(probabilities.yes / 100).toFixed(3)}
             </div>
-            <div className="text-xs text-muted-foreground mt-1">
-              ${(probabilities.yes / 100).toFixed(3)} per share
+            <div className="text-sm text-muted-foreground mt-1">
+              {probabilities.yes.toFixed(1)}% chance
             </div>
           </button>
           
@@ -448,11 +498,11 @@ function BuyInterface({
               <span className="font-medium text-red-700">NO</span>
               <TrendingDown className="h-4 w-4 text-red-600" />
             </div>
-            <div className="text-lg font-bold text-red-600">
-              {probabilities.no.toFixed(1)}%
+            <div className="text-xl font-bold text-red-600">
+              ${(probabilities.no / 100).toFixed(3)}
             </div>
-            <div className="text-xs text-muted-foreground mt-1">
-              ${(probabilities.no / 100).toFixed(3)} per share
+            <div className="text-sm text-muted-foreground mt-1">
+              {probabilities.no.toFixed(1)}% chance
             </div>
           </button>
         </div>
@@ -463,7 +513,7 @@ function BuyInterface({
         <div className="flex items-center justify-between">
           <Label className="text-sm font-medium">You Pay</Label>
           <span className="text-xs text-muted-foreground">
-            Balance: ${balance ? parseFloat(formatEther(balance)).toFixed(2) : '0.00'}
+            Balance: ${balance ? parseFloat(formatUnits(balance, 6)).toFixed(2) : '0.00'}
           </span>
         </div>
         
@@ -482,17 +532,24 @@ function BuyInterface({
         
         {/* Quick amounts */}
         <div className="flex gap-2">
-          {quickAmounts.map((amt) => (
-            <Button
-              key={amt}
-              variant="outline"
-              size="sm"
-              onClick={() => onAmountChange(amt.toString())}
-              className="text-xs"
-            >
-              ${amt}
-            </Button>
-          ))}
+          {quickAmounts.map((amt, index) => {
+            const isObject = typeof amt === 'object' && amt !== null
+            const key = isObject ? amt.label : amt
+            const value = isObject ? amt.value : amt.toString()
+            const display = isObject ? amt.label : `$${amt}`
+            
+            return (
+              <Button
+                key={`${key}-${index}`}
+                variant="outline"
+                size="sm"
+                onClick={() => onAmountChange(value)}
+                className="text-xs"
+              >
+                {display}
+              </Button>
+            )
+          })}
         </div>
       </div>
     </>
@@ -513,7 +570,7 @@ function SellInterface({
   onSideChange: (side: 'YES' | 'NO') => void
   amount: string
   onAmountChange: (amount: string) => void
-  quickAmounts: any[]
+  quickAmounts: number[] | {label: string, value: string}[]
   probabilities: { yes: number; no: number }
   userShares: { yes: string; no: string }
 }) {
@@ -591,17 +648,24 @@ function SellInterface({
         
         {/* Quick amounts */}
         <div className="flex gap-2">
-          {quickAmounts.map((item) => (
-            <Button
-              key={item.label}
-              variant="outline"
-              size="sm"
-              onClick={() => onAmountChange(item.value)}
-              className="text-xs"
-            >
-              {item.label}
-            </Button>
-          ))}
+          {quickAmounts.map((item, index) => {
+            const isObject = typeof item === 'object' && item !== null
+            const key = isObject ? item.label : item
+            const value = isObject ? item.value : item.toString()
+            const display = isObject ? item.label : `$${item}`
+            
+            return (
+              <Button
+                key={`${key}-${index}`}
+                variant="outline"
+                size="sm"
+                onClick={() => onAmountChange(value)}
+                className="text-xs"
+              >
+                {display}
+              </Button>
+            )
+          })}
         </div>
       </div>
     </>

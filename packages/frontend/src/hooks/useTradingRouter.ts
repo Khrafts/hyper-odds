@@ -4,7 +4,6 @@
 
 import { Address } from 'viem'
 import { useParimutuelTrading } from './useParimutuelTrading'
-import { useParimutuelTradingDirect } from './useParimutuelTradingDirect'
 import { useParimutuelTradingFixed } from './useParimutuelTradingFixed'
 import { useCPMMTrading } from './useCPMMTrading'
 import { getMarketType } from '@/lib/web3/contracts'
@@ -24,11 +23,6 @@ export function useTradingRouter(
   const parimutuelHook = useParimutuelTrading(
     marketAddress || '0x0' as Address,
     userAddress
-  )
-  
-  // Direct hook for testing
-  const parimutuelDirectHook = useParimutuelTradingDirect(
-    marketAddress || '0x0' as Address
   )
   
   // Fixed hook with proper wagmi connection

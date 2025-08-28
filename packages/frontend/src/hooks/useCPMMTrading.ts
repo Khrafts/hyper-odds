@@ -3,7 +3,7 @@
  */
 
 import { useWriteContract, useWaitForTransactionReceipt, useReadContract, useSimulateContract, useChainId } from 'wagmi'
-import { parseEther, formatEther, Address, parseUnits } from 'viem'
+import { parseEther, formatEther, Address, parseUnits, formatUnits } from 'viem'
 import { useState, useCallback, useMemo } from 'react'
 import { 
   CPMM_MARKET_ABI, 
@@ -41,7 +41,7 @@ export function useCPMMBuy(marketAddress: Address) {
       setIsLoading(true)
       setError(null)
       
-      const amount = parseEther(amountIn)
+      const amount = parseUnits(amountIn, 6) // USDC has 6 decimals
       
       await writeContract({
         address: routerAddress,
@@ -103,8 +103,8 @@ export function useCPMMSell(marketAddress: Address) {
       setIsLoading(true)
       setError(null)
       
-      const shares = parseEther(sharesIn)
-      const minAmount = minAmountOut ? parseEther(minAmountOut) : 0n
+      const shares = parseUnits(sharesIn, 6) // USDC has 6 decimals
+      const minAmount = minAmountOut ? parseUnits(minAmountOut, 6) : 0n
       
       await writeContract({
         address: routerAddress,
@@ -283,7 +283,8 @@ export function useCPMMPosition(
 export function useCPMMSimulation(
   marketAddress: Address,
   outcome: 'YES' | 'NO',
-  amount: string
+  amount: string,
+  feeBps: number = 300 // Default to 3% if not provided
 ) {
   const marketState = useCPMMMarketState(marketAddress)
   
@@ -295,20 +296,21 @@ export function useCPMMSimulation(
     try {
       const result = calculateCPMMBuyShares(
         outcome,
-        parseEther(amount),
+        parseUnits(amount, 6), // USDC has 6 decimals
         marketState.reserveYes,
-        marketState.reserveNo
+        marketState.reserveNo,
+        feeBps
       )
       
       return {
-        sharesOut: formatEther(result.sharesOut),
+        sharesOut: formatUnits(result.sharesOut, 6),
         priceImpact: result.priceImpact,
         effectivePrice: result.effectivePrice,
       }
     } catch {
       return null
     }
-  }, [amount, outcome, marketState.reserveYes, marketState.reserveNo])
+  }, [amount, outcome, marketState.reserveYes, marketState.reserveNo, feeBps])
   
   return simulation
 }

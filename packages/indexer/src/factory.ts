@@ -17,7 +17,7 @@ function getOrCreateProtocol(): Protocol {
     protocol.totalUsers = BigInt.fromI32(0)
     protocol.totalDeposits = BigInt.fromI32(0)
     protocol.totalClaims = BigInt.fromI32(0)
-    protocol.minCPMMLiquidity = BigDecimal.fromString("1000000000") // 1000 USDC with 6 decimals = 1000e6
+    protocol.minCPMMLiquidity = BigDecimal.fromString("1000") // 1000 USDC (already converted to human readable)
     protocol.save()
   }
   return protocol
@@ -101,10 +101,10 @@ export function handleMarketCreated(event: MarketCreated): void {
   market.fallbackSourceId = event.params.params.oracle.fallbackSourceId
   market.roundingDecimals = event.params.params.oracle.roundingDecimals
   
-  // Economics - actual values!
+  // Economics - actual values! (convert maxTotalPool from USDC 6-decimal format)
   market.feeBps = event.params.params.econ.feeBps
   market.creatorFeeShareBps = event.params.params.econ.creatorFeeShareBps
-  market.maxTotalPool = BigDecimal.fromString(event.params.params.econ.maxTotalPool.toString())
+  market.maxTotalPool = BigDecimal.fromString(event.params.params.econ.maxTotalPool.toString()).div(BigDecimal.fromString("1000000"))
   market.timeDecayBps = event.params.params.econ.timeDecayBps
   
   // Timing - actual values!
@@ -203,8 +203,8 @@ export function handleStakeReleased(event: StakeReleased): void {
 }
 
 export function handleMinCPMMLiquidityUpdated(event: MinCPMMLiquidityUpdated): void {
-  // Update protocol minimum liquidity
+  // Update protocol minimum liquidity (convert from USDC 6-decimal format)
   let protocol = getOrCreateProtocol()
-  protocol.minCPMMLiquidity = BigDecimal.fromString(event.params.newMinLiquidity.toString())
+  protocol.minCPMMLiquidity = BigDecimal.fromString(event.params.newMinLiquidity.toString()).div(BigDecimal.fromString("1000000"))
   protocol.save()
 }

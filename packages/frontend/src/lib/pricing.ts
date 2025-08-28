@@ -11,8 +11,11 @@ export function calculateParimutuelProbability(
   poolYes: string | bigint,
   poolNo: string | bigint
 ): number {
-  const yesAmount = BigInt(poolYes)
-  const noAmount = BigInt(poolNo)
+  // Convert decimal values from indexer back to integer format (USDC has 6 decimals)
+  const yesAmount = typeof poolYes === 'string' ? 
+    BigInt(Math.floor(parseFloat(poolYes) * 1000000)) : BigInt(poolYes)
+  const noAmount = typeof poolNo === 'string' ? 
+    BigInt(Math.floor(parseFloat(poolNo) * 1000000)) : BigInt(poolNo)
   const total = yesAmount + noAmount
   
   if (total === 0n) return 50 // Default to 50% if no deposits
@@ -27,8 +30,11 @@ export function calculateCPMMProbability(
   reserveYes: string | bigint,
   reserveNo: string | bigint
 ): number {
-  const yesReserve = BigInt(reserveYes)
-  const noReserve = BigInt(reserveNo)
+  // Convert decimal values from indexer back to integer format (USDC has 6 decimals)
+  const yesReserve = typeof reserveYes === 'string' ? 
+    BigInt(Math.floor(parseFloat(reserveYes) * 1000000)) : BigInt(reserveYes)
+  const noReserve = typeof reserveNo === 'string' ? 
+    BigInt(Math.floor(parseFloat(reserveNo) * 1000000)) : BigInt(reserveNo)
   const total = yesReserve + noReserve
   
   if (total === 0n) return 50 // Default to 50% if no liquidity
@@ -44,8 +50,11 @@ export function calculateSpotPrice(
   reserveYes: string | bigint,
   reserveNo: string | bigint
 ): number {
-  const yesReserve = BigInt(reserveYes)
-  const noReserve = BigInt(reserveNo)
+  // Convert decimal values from indexer back to integer format (USDC has 6 decimals)
+  const yesReserve = typeof reserveYes === 'string' ? 
+    BigInt(Math.floor(parseFloat(reserveYes) * 1000000)) : BigInt(reserveYes)
+  const noReserve = typeof reserveNo === 'string' ? 
+    BigInt(Math.floor(parseFloat(reserveNo) * 1000000)) : BigInt(reserveNo)
   
   if (yesReserve === 0n) return 0
   
@@ -61,31 +70,47 @@ export function calculateCPMMBuyShares(
   amountIn: string | bigint,
   reserveYes: string | bigint,
   reserveNo: string | bigint,
-  feeBps: number = 300 // 3% default fee
+  feeBps: number // Market-specific fee rate
 ): { sharesOut: bigint; priceImpact: number; effectivePrice: number } {
   const amount = BigInt(amountIn)
-  const yesReserve = BigInt(reserveYes)
-  const noReserve = BigInt(reserveNo)
+  // Convert decimal values from indexer back to integer format (USDC has 6 decimals)
+  const yesReserve = typeof reserveYes === 'string' ? 
+    BigInt(Math.floor(parseFloat(reserveYes) * 1000000)) : BigInt(reserveYes)
+  const noReserve = typeof reserveNo === 'string' ? 
+    BigInt(Math.floor(parseFloat(reserveNo) * 1000000)) : BigInt(reserveNo)
   const k = yesReserve * noReserve
   
-  // Apply fee
-  const feeAmount = (amount * BigInt(feeBps)) / 10000n
-  const amountAfterFee = amount - feeAmount
+  let reserveIn: bigint
+  let reserveOut: bigint
   
-  let sharesOut: bigint
+  if (outcome === 'YES') {
+    // Buying YES shares: add to NO reserve, remove from YES reserve
+    reserveIn = noReserve
+    reserveOut = yesReserve
+  } else {
+    // Buying NO shares: add to YES reserve, remove from NO reserve
+    reserveIn = yesReserve
+    reserveOut = noReserve
+  }
+  
+  // Calculate gross shares using constant product formula (matches contract)
+  // sharesOutGross = (reserveOut * amountIn) / (reserveIn + amountIn)
+  const sharesOutGross = (reserveOut * amount) / (reserveIn + amount)
+  
+  // Apply fee to output shares (matches contract line 244-245)
+  const feeAmount = (sharesOutGross * BigInt(feeBps)) / 10000n
+  const sharesOut = sharesOutGross - feeAmount
+  
+  // Calculate new reserves after trade
   let newYesReserve: bigint
   let newNoReserve: bigint
   
   if (outcome === 'YES') {
-    // Buying YES shares: add to NO reserve, remove from YES reserve
-    newNoReserve = noReserve + amountAfterFee
-    newYesReserve = k / newNoReserve
-    sharesOut = yesReserve - newYesReserve
+    newNoReserve = noReserve + amount
+    newYesReserve = yesReserve - sharesOutGross
   } else {
-    // Buying NO shares: add to YES reserve, remove from NO reserve
-    newYesReserve = yesReserve + amountAfterFee
-    newNoReserve = k / newYesReserve
-    sharesOut = noReserve - newNoReserve
+    newYesReserve = yesReserve + amount
+    newNoReserve = noReserve - sharesOutGross
   }
   
   // Calculate price impact
@@ -93,7 +118,7 @@ export function calculateCPMMBuyShares(
   const newPrice = calculateSpotPrice(newYesReserve, newNoReserve)
   const priceImpact = Math.abs((newPrice - oldPrice) / oldPrice) * 100
   
-  // Calculate effective price (amount paid per share)
+  // Calculate effective price (amount paid per share received)
   const effectivePrice = Number(amount) / Number(sharesOut)
   
   return { sharesOut, priceImpact, effectivePrice }
@@ -107,11 +132,14 @@ export function calculateCPMMSellAmount(
   sharesIn: string | bigint,
   reserveYes: string | bigint,
   reserveNo: string | bigint,
-  feeBps: number = 300 // 3% default fee
+  feeBps: number // Market-specific fee rate
 ): { amountOut: bigint; priceImpact: number; effectivePrice: number } {
   const shares = BigInt(sharesIn)
-  const yesReserve = BigInt(reserveYes)
-  const noReserve = BigInt(reserveNo)
+  // Convert decimal values from indexer back to integer format (USDC has 6 decimals)
+  const yesReserve = typeof reserveYes === 'string' ? 
+    BigInt(Math.floor(parseFloat(reserveYes) * 1000000)) : BigInt(reserveYes)
+  const noReserve = typeof reserveNo === 'string' ? 
+    BigInt(Math.floor(parseFloat(reserveNo) * 1000000)) : BigInt(reserveNo)
   const k = yesReserve * noReserve
   
   let amountBeforeFee: bigint
@@ -178,11 +206,15 @@ export function calculateParimutuelPayout(
   userStake: string | bigint,
   totalWinningPool: string | bigint,
   totalLosingPool: string | bigint,
-  feeBps: number = 500 // 5% default fee
+  feeBps: number // Market-specific fee rate
 ): bigint {
-  const stake = BigInt(userStake)
-  const winningPool = BigInt(totalWinningPool)
-  const losingPool = BigInt(totalLosingPool)
+  // Convert decimal values from indexer back to integer format (USDC has 6 decimals)
+  const stake = typeof userStake === 'string' ? 
+    BigInt(Math.floor(parseFloat(userStake) * 1000000)) : BigInt(userStake)
+  const winningPool = typeof totalWinningPool === 'string' ? 
+    BigInt(Math.floor(parseFloat(totalWinningPool) * 1000000)) : BigInt(totalWinningPool)
+  const losingPool = typeof totalLosingPool === 'string' ? 
+    BigInt(Math.floor(parseFloat(totalLosingPool) * 1000000)) : BigInt(totalLosingPool)
   
   if (winningPool === 0n) return 0n
   

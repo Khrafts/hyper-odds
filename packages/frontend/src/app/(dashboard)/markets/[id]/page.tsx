@@ -63,13 +63,15 @@ function MarketDetailContent({ marketId }: { marketId: string }) {
   // Use appropriate fields based on market type (CPMM uses reserves, Parimutuel uses pools)
   const { yesProb, noProb, yesDisplay, noDisplay } = market ? (() => {
     if (market.marketType === 'CPMM' && market.spotPrice) {
-      // For CPMM markets, use the spot price directly
+      // For CPMM markets, spotPrice = reserveYes / totalReserves
+      // YES probability = reserveNo / totalReserves = (1 - spotPrice)
+      // NO probability = reserveYes / totalReserves = spotPrice
       const spotPrice = parseFloat(market.spotPrice)
       return {
-        yesProb: spotPrice * 100,
-        noProb: (1 - spotPrice) * 100,
-        yesDisplay: `${(spotPrice * 100).toFixed(1)}%`,
-        noDisplay: `${((1 - spotPrice) * 100).toFixed(1)}%`
+        yesProb: (1 - spotPrice) * 100,
+        noProb: spotPrice * 100,
+        yesDisplay: `${((1 - spotPrice) * 100).toFixed(1)}%`,
+        noDisplay: `${(spotPrice * 100).toFixed(1)}%`
       }
     } else {
       // For Parimutuel markets, use pool calculation
