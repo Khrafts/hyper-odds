@@ -72,7 +72,7 @@ export function useTradingRouter(
     return {
       marketType: 'CPMM' as const,
       isLoading: cpmmHook.isLoadingMarket || cpmmHook.isLoadingPosition,
-      error: null,
+      error: cpmmHook.error,
       
       // CPMM functions
       buyShares: cpmmHook.buyShares,
@@ -83,6 +83,10 @@ export function useTradingRouter(
       sellNo: cpmmHook.sellNo,
       claimWinnings: cpmmHook.claimWinnings,
       
+      // Transaction hashes
+      hash: cpmmHook.hash,
+      lastSuccessHash: cpmmHook.lastSuccessHash,
+      
       // Helpers
       canTrade: cpmmHook.canTrade,
       canSell: cpmmHook.canSell,
@@ -91,11 +95,27 @@ export function useTradingRouter(
       // State
       marketState: cpmmHook.marketState,
       position: cpmmHook.position,
+      balance: cpmmHook.balance,
+      allowance: cpmmHook.allowance,
       
       // Loading states
       isProcessingBuy: cpmmHook.isProcessingBuy,
       isProcessingSell: cpmmHook.isProcessingSell,
       isProcessingClaim: cpmmHook.isProcessingClaim,
+      isWaitingApproval: cpmmHook.isWaitingApproval,
+      
+      // Success states
+      isSuccess: cpmmHook.isSuccess,
+      isApprovalSuccess: cpmmHook.isApprovalSuccess,
+      isTransactionSuccess: cpmmHook.isTransactionSuccess,
+      
+      // Error states
+      isError: cpmmHook.isError,
+      writeError: cpmmHook.writeError,
+      receiptError: cpmmHook.receiptError,
+      
+      // Actions
+      reset: cpmmHook.reset,
     }
   }
   

@@ -5,7 +5,7 @@
 
 'use client'
 
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useState, useMemo, useCallback, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,7 +21,9 @@ import {
   Wallet,
   ArrowDown,
   Settings,
-  Info
+  Info,
+  CheckCircle,
+  Clock
 } from 'lucide-react'
 import { usePrivy } from '@privy-io/react-auth'
 import { formatUnits, parseUnits } from 'viem'
@@ -53,6 +55,15 @@ export function CPMMTradingInterface({
   
   const { authenticated, login } = usePrivy()
   const balance = trading.balance || 0n
+
+  // Reset form when transaction is successful
+  useEffect(() => {
+    if (trading.lastSuccessHash) {
+      setAmount('')
+      setIsProcessing(false)
+      setError(null)
+    }
+  }, [trading.lastSuccessHash])
 
   // Get market reserves - convert decimal values from indexer back to integer format (USDC has 6 decimals)
   const reserveYes = market.reserveYes ? 
@@ -397,6 +408,77 @@ export function CPMMTradingInterface({
           )}
         </div>
 
+        {/* Check if approval is needed */}
+        {(() => {
+          const needsApproval = tradeType === 'buy' && trading.allowance !== undefined && 
+            parseFloat(amount) > 0 && trading.allowance < parseUnits(amount, 6) // USDC has 6 decimals
+          
+          return needsApproval && !trading.isWaitingApproval ? (
+            <Alert className="border-yellow-200 bg-yellow-50">
+              <Info className="h-4 w-4 text-yellow-600" />
+              <AlertDescription className="text-yellow-800">
+                <strong>First-time setup required:</strong> You'll need to approve USDC spending before trading. 
+                This is a one-time transaction that allows the smart contract to use your tokens.
+              </AlertDescription>
+            </Alert>
+          ) : null
+        })()}
+
+        {/* Transaction State Alerts */}
+        {trading.isWaitingApproval && (
+          <Alert className="border-blue-200 bg-blue-50">
+            <Clock className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="text-blue-800">
+              Step 1 of 2: Waiting for USDC approval transaction to confirm...
+              <br />
+              <span className="text-sm text-blue-600">
+                This allows the router to spend your USDC tokens for trading.
+              </span>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {trading.isLoading && !trading.isWaitingApproval && (
+          <Alert className="border-blue-200 bg-blue-50">
+            <Clock className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="text-blue-800">
+              {trading.isApprovalSuccess ? 
+                `Step 2 of 2: Processing your ${tradeType} transaction...` : 
+                `Processing your ${tradeType} transaction...`
+              }
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {trading.isTransactionSuccess && trading.lastSuccessHash && (
+          <Alert className="border-green-200 bg-green-50">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-800">
+              Transaction successful!{' '}
+              <a 
+                href={`https://sepolia.arbiscan.io/tx/${trading.lastSuccessHash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:no-underline"
+              >
+                View on Arbiscan
+              </a>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {(trading.error || trading.writeError || trading.receiptError) && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              {trading.error || 
+               (trading.writeError && `Write Error: ${trading.writeError.message}`) || 
+               (trading.receiptError && `Receipt Error: ${trading.receiptError.message}`) || 
+               'An unknown error occurred'}
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Validation Errors */}
         {!validation.isValid && validation.message && (
           <Alert variant="destructive">
@@ -415,7 +497,7 @@ export function CPMMTradingInterface({
         {/* Trade Button */}
         <Button
           onClick={handleTrade}
-          disabled={!validation.isValid || isProcessing || !tradePreview}
+          disabled={!validation.isValid || isProcessing || !tradePreview || trading.isLoading || trading.isWaitingApproval}
           className={cn(
             "w-full h-12 text-base font-medium",
             tradeType === 'sell' && "bg-red-600 hover:bg-red-700"
@@ -427,11 +509,19 @@ export function CPMMTradingInterface({
               <Wallet className="h-4 w-4 mr-2" />
               Connect Wallet
             </>
+          ) : trading.isWaitingApproval ? (
+            "Waiting for Approval..."
+          ) : trading.isLoading ? (
+            `Processing ${tradeType}...`
           ) : isProcessing ? (
-            "Processing..."
-          ) : (
-            `${tradeType === 'buy' ? 'Buy' : 'Sell'} ${selectedSide}`
-          )}
+            "Initiating..."
+          ) : (() => {
+            const needsApproval = tradeType === 'buy' && trading.allowance !== undefined && 
+              parseFloat(amount) > 0 && trading.allowance < parseUnits(amount, 6)
+            return needsApproval ? 
+              `Approve & ${tradeType === 'buy' ? 'Buy' : 'Sell'} ${selectedSide}` :
+              `${tradeType === 'buy' ? 'Buy' : 'Sell'} ${selectedSide}`
+          })()}
         </Button>
       </CardContent>
     </Card>
