@@ -20,18 +20,18 @@ contract stHYPETest is Test {
         sthype = new stHYPE(address(whype), address(staking));
 
         // Give test users native HYPE by dealing ETH (native token)
-        vm.deal(alice, 10000e18);
-        vm.deal(bob, 10000e18);
+        vm.deal(alice, 10_000e18);
+        vm.deal(bob, 10_000e18);
 
         // Users need to wrap their native HYPE to WHYPE first
         vm.prank(alice);
-        whype.deposit{ value: 10000e18 }();
+        whype.deposit{ value: 10_000e18 }();
 
         vm.prank(bob);
-        whype.deposit{ value: 10000e18 }();
+        whype.deposit{ value: 10_000e18 }();
 
         // Fund the staking contract with native HYPE for rewards
-        vm.deal(address(staking), 10000e18);
+        vm.deal(address(staking), 10_000e18);
     }
 
     function testStHYPEDeposit() public {
@@ -66,7 +66,7 @@ contract stHYPETest is Test {
 
         // Should receive approximately deposit + rewards (1% from mock)
         // Allow for small rounding differences in ERC4626
-        uint256 expectedAssets = depositAmount + (depositAmount * 100) / 10000;
+        uint256 expectedAssets = depositAmount + (depositAmount * 100) / 10_000;
         assertApproxEqAbs(assets, expectedAssets, 1e15); // Allow 0.001 token difference
         assertEq(whype.balanceOf(alice) - hypeBalanceBefore, assets);
         assertEq(sthype.balanceOf(alice), 0);
@@ -118,15 +118,12 @@ contract stHYPETest is Test {
         uint256 value = 500e18;
 
         // OpenZeppelin's ERC20Permit uses this typehash
-        bytes32 PERMIT_TYPEHASH = keccak256(
-            "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
-        );
+        bytes32 PERMIT_TYPEHASH =
+            keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
 
-        bytes32 structHash =
-            keccak256(abi.encode(PERMIT_TYPEHASH, owner, alice, value, nonce, deadline));
+        bytes32 structHash = keccak256(abi.encode(PERMIT_TYPEHASH, owner, alice, value, nonce, deadline));
 
-        bytes32 digest =
-            keccak256(abi.encodePacked("\x19\x01", sthype.DOMAIN_SEPARATOR(), structHash));
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", sthype.DOMAIN_SEPARATOR(), structHash));
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
 

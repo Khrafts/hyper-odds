@@ -15,7 +15,10 @@ contract MarketFactory is Ownable {
     using Clones for address;
 
     // Market Types
-    enum MarketType { PARIMUTUEL, CPMM }
+    enum MarketType {
+        PARIMUTUEL,
+        CPMM
+    }
 
     // Storage
     IERC20 public stakeToken;
@@ -34,18 +37,13 @@ contract MarketFactory is Ownable {
 
     // Events
     event MarketCreated(
-        address indexed market,
-        address indexed creator,
-        MarketType indexed marketType,
-        MarketTypes.MarketParams params
+        address indexed market, address indexed creator, MarketType indexed marketType, MarketTypes.MarketParams params
     );
     event StakeLocked(address indexed creator, address indexed market, uint256 amount);
     event StakeReleased(address indexed creator, address indexed market, uint256 amount);
     event MinCPMMLiquidityUpdated(uint256 newMinLiquidity);
 
-    constructor(address _stakeToken, address _stHYPE, address _treasury, address _oracle)
-        Ownable(msg.sender)
-    {
+    constructor(address _stakeToken, address _stHYPE, address _treasury, address _oracle) Ownable(msg.sender) {
         stakeToken = IERC20(_stakeToken);
         stHYPE = IstHYPE(_stHYPE);
         treasury = _treasury;
@@ -56,7 +54,10 @@ contract MarketFactory is Ownable {
         MarketTypes.MarketParams memory p,
         MarketType _marketType,
         uint256 liquidityAmount // Only for CPMM markets
-    ) public returns (address) {
+    )
+        public
+        returns (address)
+    {
         if (_marketType == MarketType.PARIMUTUEL) {
             require(parimutuelImplementation != address(0), "Parimutuel implementation not set");
         } else {
@@ -64,7 +65,7 @@ contract MarketFactory is Ownable {
             require(liquidityAmount >= minCPMMLiquidity, "Insufficient liquidity");
         }
         address market;
-        
+
         if (_marketType == MarketType.PARIMUTUEL) {
             market = _createParimutuelMarket(p);
         } else {
@@ -75,12 +76,7 @@ contract MarketFactory is Ownable {
         marketCreator[market] = msg.sender;
         marketType[market] = _marketType;
 
-        emit MarketCreated(
-            market,
-            msg.sender,
-            _marketType,
-            p
-        );
+        emit MarketCreated(market, msg.sender, _marketType, p);
 
         return market;
     }
@@ -89,12 +85,9 @@ contract MarketFactory is Ownable {
     function createParimutuelMarket(MarketTypes.MarketParams memory p) external returns (address) {
         return createMarket(p, MarketType.PARIMUTUEL, 0);
     }
-    
+
     // Convenience function for CPMM markets
-    function createCPMMMarket(
-        MarketTypes.MarketParams memory p,
-        uint256 liquidityAmount
-    ) external returns (address) {
+    function createCPMMMarket(MarketTypes.MarketParams memory p, uint256 liquidityAmount) external returns (address) {
         return createMarket(p, MarketType.CPMM, liquidityAmount);
     }
 
@@ -106,7 +99,10 @@ contract MarketFactory is Ownable {
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) external returns (address) {
+    )
+        external
+        returns (address)
+    {
         if (_marketType == MarketType.PARIMUTUEL) {
             // Use permit for gasless stHYPE approval
             stHYPE.permit(msg.sender, address(this), STAKE_PER_MARKET, deadline, v, r, s);
@@ -123,9 +119,13 @@ contract MarketFactory is Ownable {
         MarketTypes.MarketParams memory p,
         MarketType _marketType,
         uint256 liquidityAmount
-    ) external onlyOwner returns (address) {
+    )
+        external
+        onlyOwner
+        returns (address)
+    {
         address market;
-        
+
         if (_marketType == MarketType.PARIMUTUEL) {
             market = _createProtocolParimutuelMarket(p);
         } else {
@@ -137,12 +137,7 @@ contract MarketFactory is Ownable {
         marketCreator[market] = msg.sender;
         marketType[market] = _marketType;
 
-        emit MarketCreated(
-            market,
-            msg.sender,
-            _marketType,
-            p
-        );
+        emit MarketCreated(market, msg.sender, _marketType, p);
 
         return market;
     }
@@ -182,29 +177,26 @@ contract MarketFactory is Ownable {
     function setParimutuelImplementation(address _implementation) external onlyOwner {
         parimutuelImplementation = _implementation;
     }
-    
+
     function setCPMMImplementation(address _implementation) external onlyOwner {
         cpmmImplementation = _implementation;
     }
-    
+
     // Backward compatibility
     function setImplementation(address _implementation) external onlyOwner {
         parimutuelImplementation = _implementation;
     }
-    
+
     function setMinCPMMLiquidity(uint256 _minLiquidity) external onlyOwner {
         require(_minLiquidity > 0, "Min liquidity must be greater than zero");
         minCPMMLiquidity = _minLiquidity;
         emit MinCPMMLiquidityUpdated(_minLiquidity);
     }
-    
+
     // Internal helper functions to avoid stack too deep
     function _createParimutuelMarket(MarketTypes.MarketParams memory p) private returns (address market) {
         // Parimutuel markets require stHYPE staking
-        require(
-            IERC20(address(stHYPE)).balanceOf(msg.sender) >= STAKE_PER_MARKET,
-            "Insufficient stHYPE balance"
-        );
+        require(IERC20(address(stHYPE)).balanceOf(msg.sender) >= STAKE_PER_MARKET, "Insufficient stHYPE balance");
         require(
             IERC20(address(stHYPE)).allowance(msg.sender, address(this)) >= STAKE_PER_MARKET,
             "Insufficient stHYPE allowance"
@@ -235,16 +227,18 @@ contract MarketFactory is Ownable {
         creatorLockedStake[msg.sender] += STAKE_PER_MARKET;
         emit StakeLocked(msg.sender, market, STAKE_PER_MARKET);
     }
-    
-    function _createCPMMMarket(MarketTypes.MarketParams memory p, uint256 liquidityAmount) private returns (address market) {
+
+    function _createCPMMMarket(
+        MarketTypes.MarketParams memory p,
+        uint256 liquidityAmount
+    )
+        private
+        returns (address market)
+    {
         // CPMM markets require upfront liquidity
+        require(stakeToken.balanceOf(msg.sender) >= liquidityAmount, "Insufficient balance for liquidity");
         require(
-            stakeToken.balanceOf(msg.sender) >= liquidityAmount,
-            "Insufficient balance for liquidity"
-        );
-        require(
-            stakeToken.allowance(msg.sender, address(this)) >= liquidityAmount,
-            "Insufficient allowance for liquidity"
+            stakeToken.allowance(msg.sender, address(this)) >= liquidityAmount, "Insufficient allowance for liquidity"
         );
 
         // Pull liquidity from creator first
@@ -252,7 +246,7 @@ contract MarketFactory is Ownable {
 
         // Deploy CPMM clone
         market = cpmmImplementation.clone();
-        
+
         // Approve the market to pull liquidity from factory
         stakeToken.approve(market, liquidityAmount);
 
@@ -267,7 +261,7 @@ contract MarketFactory is Ownable {
             minCPMMLiquidity
         );
     }
-    
+
     function _createProtocolParimutuelMarket(MarketTypes.MarketParams memory p) private returns (address market) {
         require(parimutuelImplementation != address(0), "Parimutuel implementation not set");
 
@@ -289,23 +283,26 @@ contract MarketFactory is Ownable {
             keccak256(abi.encode(p.window))
         );
     }
-    
-    function _createProtocolCPMMMarket(MarketTypes.MarketParams memory p, uint256 liquidityAmount) private returns (address market) {
+
+    function _createProtocolCPMMMarket(
+        MarketTypes.MarketParams memory p,
+        uint256 liquidityAmount
+    )
+        private
+        returns (address market)
+    {
         require(cpmmImplementation != address(0), "CPMM implementation not set");
         require(liquidityAmount >= minCPMMLiquidity, "Insufficient liquidity");
 
         // Protocol provides the liquidity for CPMM
-        require(
-            stakeToken.balanceOf(msg.sender) >= liquidityAmount,
-            "Insufficient protocol balance"
-        );
+        require(stakeToken.balanceOf(msg.sender) >= liquidityAmount, "Insufficient protocol balance");
 
         // Pull liquidity from protocol owner first
         stakeToken.safeTransferFrom(msg.sender, address(this), liquidityAmount);
 
         // Deploy CPMM clone
         market = cpmmImplementation.clone();
-        
+
         // Approve the market to pull liquidity from factory
         stakeToken.approve(market, liquidityAmount);
 

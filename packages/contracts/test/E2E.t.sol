@@ -70,7 +70,7 @@ contract E2EHappyPath is Test {
         hlStaking = new MockHyperLiquidStaking();
 
         // Fund staking contract with rewards
-        vm.deal(address(hlStaking), 10000e18);
+        vm.deal(address(hlStaking), 10_000e18);
 
         console.log("  Stake Token:", address(stakeToken));
         console.log("  WHYPE:", address(whype));
@@ -95,8 +95,7 @@ contract E2EHappyPath is Test {
         console.log("  Implementation:", address(implementation));
 
         // Deploy factory
-        factory =
-            new MarketFactory(address(stakeToken), address(stHypeToken), treasury, address(oracle));
+        factory = new MarketFactory(address(stakeToken), address(stHypeToken), treasury, address(oracle));
         console.log("  Factory:", address(factory));
 
         // Set implementation
@@ -219,7 +218,7 @@ contract E2EHappyPath is Test {
             econ: MarketTypes.Economics({
                 feeBps: 500, // 5% fee
                 creatorFeeShareBps: 1000, // Creator gets 10% of fees
-                maxTotalPool: 10000e6, // Max 10,000 USDC
+                maxTotalPool: 10_000e6, // Max 10,000 USDC
                 timeDecayBps: 0 // No time decay for E2E tests
              }),
             isProtocolMarket: false
@@ -407,10 +406,7 @@ contract E2EHappyPath is Test {
                 tokenIdentifier: "",
                 valueDecimals: 18
             }),
-            predicate: MarketTypes.PredicateParams({
-                op: MarketTypes.PredicateOp.GT,
-                threshold: 500_000_000e18
-            }),
+            predicate: MarketTypes.PredicateParams({ op: MarketTypes.PredicateOp.GT, threshold: 500_000_000e18 }),
             window: MarketTypes.WindowParams({
                 kind: MarketTypes.WindowKind.SNAPSHOT_AT,
                 tStart: uint64(block.timestamp),
@@ -426,9 +422,9 @@ contract E2EHappyPath is Test {
             econ: MarketTypes.Economics({
                 feeBps: 500,
                 creatorFeeShareBps: 0, // All fees to treasury
-                maxTotalPool: 50000e6,
+                maxTotalPool: 50_000e6,
                 timeDecayBps: 0 // No time decay for E2E tests
-            }),
+             }),
             isProtocolMarket: true
         });
 

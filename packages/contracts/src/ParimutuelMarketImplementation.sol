@@ -63,7 +63,9 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
         bytes32 _subject,
         bytes32 _predicate,
         bytes32 _windowSpec
-    ) external {
+    )
+        external
+    {
         require(!initialized, "Already initialized");
         require(_stakeToken != address(0), "Invalid stake token");
         require(_treasury != address(0), "Invalid treasury");
@@ -95,32 +97,32 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
     }
 
     function _calculateTimeMultiplier() internal view returns (uint256) {
-        if (timeDecayBps == 0) return 10000; // No decay, 1.0x multiplier
-        
+        if (timeDecayBps == 0) return 10_000; // No decay, 1.0x multiplier
+
         uint256 timeRemaining = cutoffTime > block.timestamp ? cutoffTime - block.timestamp : 0;
         uint256 totalMarketTime = cutoffTime - createdAt;
-        
+
         // Prevent division by zero
         if (totalMarketTime == 0) {
-            return 10000; // If market duration is 0, no decay
+            return 10_000; // If market duration is 0, no decay
         }
-        
-        uint256 timeRatio = (timeRemaining * 10000) / totalMarketTime;
-        if (timeRatio > 10000) timeRatio = 10000; // Cap at 100%
-        
+
+        uint256 timeRatio = (timeRemaining * 10_000) / totalMarketTime;
+        if (timeRatio > 10_000) timeRatio = 10_000; // Cap at 100%
+
         // Formula: multiplier = 1.0 - halfSpread + (timeRatio * timeDecayBps) / 10000
         uint256 halfSpread = timeDecayBps / 2;
-        return 10000 - halfSpread + (timeRatio * timeDecayBps) / 10000;
+        return 10_000 - halfSpread + (timeRatio * timeDecayBps) / 10_000;
     }
 
     function deposit(uint8 outcome, uint256 amount) external whenNotPaused nonReentrant {
         _depositFor(msg.sender, outcome, amount);
     }
-    
+
     function depositFor(address user, uint8 outcome, uint256 amount) external whenNotPaused nonReentrant {
         _depositFor(user, outcome, amount);
     }
-    
+
     function _depositFor(address user, uint8 outcome, uint256 amount) private {
         require(block.timestamp < cutoffTime, "Deposits closed");
         require(outcome <= 1, "Invalid outcome");
@@ -132,7 +134,7 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
 
         // Calculate effective stakes with time multiplier
         uint256 timeMultiplier = _calculateTimeMultiplier();
-        uint256 effectiveAmount = (amount * timeMultiplier) / 10000;
+        uint256 effectiveAmount = (amount * timeMultiplier) / 10_000;
 
         pool[outcome] += amount;
         stakeOf[user][outcome] += amount;
@@ -158,11 +160,11 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
     function claim() external nonReentrant {
         _claimFor(msg.sender);
     }
-    
+
     function claimFor(address user) external nonReentrant {
         _claimFor(user);
     }
-    
+
     function _claimFor(address user) private {
         require(resolved, "Not resolved");
         require(!claimed[user], "Already claimed");
@@ -177,10 +179,10 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
 
         // Calculate fee only once (first claimer)
         if (feeCollected == 0 && totalLosingPool > 0) {
-            feeCollected = (totalLosingPool * feeBps) / 10000;
+            feeCollected = (totalLosingPool * feeBps) / 10_000;
 
             // Split fee: 90% treasury, 10% creator
-            uint256 creatorFee = (feeCollected * creatorFeeShareBps) / 10000;
+            uint256 creatorFee = (feeCollected * creatorFeeShareBps) / 10_000;
             uint256 treasuryFee = feeCollected - creatorFee;
 
             if (treasuryFee > 0) {
@@ -196,7 +198,7 @@ contract ParimutuelMarketImplementation is IMarket, Ownable, Pausable, Reentranc
         // Calculate payout using effective stakes for winnings distribution
         uint256 payout;
         uint256 userActualStake = stakeOf[user][winningOutcome];
-        
+
         if (totalLosingPool == 0) {
             // No losers, just return actual stake
             payout = userActualStake;

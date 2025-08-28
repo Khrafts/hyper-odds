@@ -16,7 +16,7 @@ import { MockHyperLiquidStaking } from "./mocks/MockHyperLiquidStaking.sol";
 
 contract MockERC20 is ERC20 {
     constructor() ERC20("Mock Token", "MOCK") {
-        _mint(msg.sender, 1000000e18);
+        _mint(msg.sender, 1_000_000e18);
     }
 
     function mint(address to, uint256 amount) external {
@@ -50,7 +50,7 @@ contract FuzzPayouts is Test {
             oracle,
             cutoffTime,
             resolveTime,
-            100000e18, // Max pool
+            100_000e18, // Max pool
             0, // No time decay for fuzz tests
             keccak256("subject"),
             keccak256("predicate"),
@@ -63,7 +63,9 @@ contract FuzzPayouts is Test {
         uint256[10] memory yesStakes,
         uint256[10] memory noStakes,
         uint8 winningOutcome
-    ) public {
+    )
+        public
+    {
         // Bound inputs to reasonable values
         numUsers = bound(numUsers, 2, 10);
         winningOutcome = uint8(bound(winningOutcome, 0, 1));
@@ -143,17 +145,17 @@ contract FuzzPayouts is Test {
         // INVARIANT: Fee structure is correct (5% total, 90/10 split)
         if (winningOutcome == 1 && totalNo > 0) {
             // YES won, NO lost
-            uint256 expectedFee = (totalNo * 500) / 10000; // 5% of losing pool
-            uint256 expectedTreasuryFee = (expectedFee * 9000) / 10000; // 90% of fee
-            uint256 expectedCreatorFee = (expectedFee * 1000) / 10000; // 10% of fee
+            uint256 expectedFee = (totalNo * 500) / 10_000; // 5% of losing pool
+            uint256 expectedTreasuryFee = (expectedFee * 9000) / 10_000; // 90% of fee
+            uint256 expectedCreatorFee = (expectedFee * 1000) / 10_000; // 10% of fee
 
             assertApproxEqAbs(treasuryFee, expectedTreasuryFee, 2, "Treasury fee incorrect");
             assertApproxEqAbs(creatorFee, expectedCreatorFee, 2, "Creator fee incorrect");
         } else if (winningOutcome == 0 && totalYes > 0) {
             // NO won, YES lost
-            uint256 expectedFee = (totalYes * 500) / 10000; // 5% of losing pool
-            uint256 expectedTreasuryFee = (expectedFee * 9000) / 10000; // 90% of fee
-            uint256 expectedCreatorFee = (expectedFee * 1000) / 10000; // 10% of fee
+            uint256 expectedFee = (totalYes * 500) / 10_000; // 5% of losing pool
+            uint256 expectedTreasuryFee = (expectedFee * 9000) / 10_000; // 90% of fee
+            uint256 expectedCreatorFee = (expectedFee * 1000) / 10_000; // 10% of fee
 
             assertApproxEqAbs(treasuryFee, expectedTreasuryFee, 2, "Treasury fee incorrect");
             assertApproxEqAbs(creatorFee, expectedCreatorFee, 2, "Creator fee incorrect");
@@ -180,14 +182,13 @@ contract InvariantTests is StdInvariant, Test {
         stakeToken = new MockERC20();
         whype = new MockWHYPE();
         hlStaking = new MockHyperLiquidStaking();
-        vm.deal(address(hlStaking), 10000e18);
+        vm.deal(address(hlStaking), 10_000e18);
 
         stHypeToken = new stHYPE(address(whype), address(hlStaking));
         oracle = new SimpleOracle(600);
         implementation = new ParimutuelMarketImplementation();
 
-        factory =
-            new MarketFactory(address(stakeToken), address(stHypeToken), treasury, address(oracle));
+        factory = new MarketFactory(address(stakeToken), address(stHypeToken), treasury, address(oracle));
         factory.setImplementation(address(implementation));
 
         // Deploy handler
@@ -245,7 +246,7 @@ contract InvariantTests is StdInvariant, Test {
             // Fee should be at most 5% of losing pool
             if (market.resolved()) {
                 uint256 losingPool = market.winningOutcome() == 0 ? market.pool(1) : market.pool(0);
-                uint256 maxFee = (losingPool * 500) / 10000;
+                uint256 maxFee = (losingPool * 500) / 10_000;
                 assertLe(feeCollected, maxFee, "Fee exceeds 5% of losing pool");
             }
         }
@@ -283,12 +284,7 @@ contract MarketHandler is Test {
 
     uint256 public nonProtocolMarketCount;
 
-    constructor(
-        MarketFactory _factory,
-        stHYPE _stHypeToken,
-        MockERC20 _stakeToken,
-        SimpleOracle _oracle
-    ) {
+    constructor(MarketFactory _factory, stHYPE _stHypeToken, MockERC20 _stakeToken, SimpleOracle _oracle) {
         factory = _factory;
         stHypeToken = _stHypeToken;
         stakeToken = _stakeToken;
@@ -321,10 +317,7 @@ contract MarketHandler is Test {
                 tokenIdentifier: "",
                 valueDecimals: 18
             }),
-            predicate: MarketTypes.PredicateParams({
-                op: MarketTypes.PredicateOp.GT,
-                threshold: int256(seed * 1e18)
-            }),
+            predicate: MarketTypes.PredicateParams({ op: MarketTypes.PredicateOp.GT, threshold: int256(seed * 1e18) }),
             window: MarketTypes.WindowParams({
                 kind: MarketTypes.WindowKind.SNAPSHOT_AT,
                 tStart: uint64(block.timestamp),
@@ -340,9 +333,9 @@ contract MarketHandler is Test {
             econ: MarketTypes.Economics({
                 feeBps: 500,
                 creatorFeeShareBps: 1000,
-                maxTotalPool: 100000e18,
+                maxTotalPool: 100_000e18,
                 timeDecayBps: 0 // No time decay for fuzz tests
-            }),
+             }),
             isProtocolMarket: false
         });
 
@@ -367,10 +360,7 @@ contract MarketHandler is Test {
                 tokenIdentifier: "",
                 valueDecimals: 18
             }),
-            predicate: MarketTypes.PredicateParams({
-                op: MarketTypes.PredicateOp.GT,
-                threshold: int256(seed * 1e18)
-            }),
+            predicate: MarketTypes.PredicateParams({ op: MarketTypes.PredicateOp.GT, threshold: int256(seed * 1e18) }),
             window: MarketTypes.WindowParams({
                 kind: MarketTypes.WindowKind.SNAPSHOT_AT,
                 tStart: uint64(block.timestamp),
@@ -386,9 +376,9 @@ contract MarketHandler is Test {
             econ: MarketTypes.Economics({
                 feeBps: 500,
                 creatorFeeShareBps: 1000,
-                maxTotalPool: 100000e18,
+                maxTotalPool: 100_000e18,
                 timeDecayBps: 0 // No time decay for fuzz tests
-            }),
+             }),
             isProtocolMarket: true
         });
 

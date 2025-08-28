@@ -27,7 +27,7 @@ contract MockHyperLiquidStaking is IHyperLiquidStaking {
         totalStaked -= amount;
 
         // Add some rewards (1% for testing)
-        uint256 rewards = (amount * rewardRate) / 10000;
+        uint256 rewards = (amount * rewardRate) / 10_000;
         uint256 totalAmount = amount + rewards;
 
         // Send native HYPE back with rewards
@@ -37,7 +37,7 @@ contract MockHyperLiquidStaking is IHyperLiquidStaking {
 
     function getRewards(address account) external view override returns (uint256) {
         // Simulate 1% rewards on staked balance
-        return (balanceOf[account] * rewardRate) / 10000;
+        return (balanceOf[account] * rewardRate) / 10_000;
     }
 
     function setRewardRate(uint256 newRate) external {

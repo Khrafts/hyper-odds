@@ -10,13 +10,13 @@ import { ParimutuelMarketImplementation } from "./ParimutuelMarketImplementation
  * @title MarketRouter
  * @notice Central routing contract for all market interactions
  * @dev Single point of interaction for deposits and claims across all markets
- * 
+ *
  * Key Benefits:
  * - One-time USDC approval for all markets
  * - Unified interface for deposits and claims
  * - Batch operations support
  * - Simplified frontend integration
- * 
+ *
  * Architecture:
  * - Users approve USDC to Router once
  * - Router uses depositFor() to maintain user attribution
@@ -35,17 +35,11 @@ contract MarketRouter {
     event RouterDeposit(address indexed user, address indexed market, uint8 outcome, uint256 amount);
     event RouterClaim(address indexed user, address indexed market, uint256 payout);
 
-    function depositToMarket(
-        address market,
-        uint8 outcome,
-        uint256 amount
-    ) external {
+    function depositToMarket(address market, uint8 outcome, uint256 amount) external {
         _deposit(market, outcome, amount);
     }
 
-    function depositToMultiple(
-        DepositParams[] calldata deposits
-    ) external {
+    function depositToMultiple(DepositParams[] calldata deposits) external {
         for (uint256 i = 0; i < deposits.length; i++) {
             _deposit(deposits[i].market, deposits[i].outcome, deposits[i].amount);
         }
@@ -59,19 +53,13 @@ contract MarketRouter {
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) external {
+    )
+        external
+    {
         IERC20 token = ParimutuelMarketImplementation(market).stakeToken();
-        
-        IERC20Permit(address(token)).permit(
-            msg.sender,
-            address(this),
-            amount,
-            deadline,
-            v,
-            r,
-            s
-        );
-        
+
+        IERC20Permit(address(token)).permit(msg.sender, address(this), amount, deadline, v, r, s);
+
         _deposit(market, outcome, amount);
     }
 
@@ -82,74 +70,64 @@ contract MarketRouter {
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) external {
+    )
+        external
+    {
         require(deposits.length > 0, "Empty deposits");
-        
+
         IERC20 token = ParimutuelMarketImplementation(deposits[0].market).stakeToken();
-        
-        IERC20Permit(address(token)).permit(
-            msg.sender,
-            address(this),
-            totalAmount,
-            deadline,
-            v,
-            r,
-            s
-        );
-        
+
+        IERC20Permit(address(token)).permit(msg.sender, address(this), totalAmount, deadline, v, r, s);
+
         for (uint256 i = 0; i < deposits.length; i++) {
             _deposit(deposits[i].market, deposits[i].outcome, deposits[i].amount);
         }
     }
 
-    function _deposit(
-        address market,
-        uint8 outcome,
-        uint256 amount
-    ) private {
+    function _deposit(address market, uint8 outcome, uint256 amount) private {
         IERC20 token = ParimutuelMarketImplementation(market).stakeToken();
-        
+
         // Transfer from user to router
         token.safeTransferFrom(msg.sender, address(this), amount);
-        
+
         // Approve market to spend
         token.safeIncreaseAllowance(market, amount);
-        
+
         // Deposit on behalf of the actual user
         ParimutuelMarketImplementation(market).depositFor(msg.sender, outcome, amount);
-        
+
         emit RouterDeposit(msg.sender, market, outcome, amount);
     }
 
     function claimFromMarket(address market) external {
         _claim(market);
     }
-    
+
     function claimFromMultiple(address[] calldata markets) external {
         for (uint256 i = 0; i < markets.length; i++) {
             _claim(markets[i]);
         }
     }
-    
+
     function _claim(address market) private {
         // Get initial balance
         IERC20 token = ParimutuelMarketImplementation(market).stakeToken();
         uint256 balanceBefore = token.balanceOf(address(this));
-        
+
         // Claim on behalf of user (market will send payout to router)
         ParimutuelMarketImplementation(market).claimFor(msg.sender);
-        
+
         // Calculate payout received
         uint256 balanceAfter = token.balanceOf(address(this));
         uint256 payout = balanceAfter - balanceBefore;
-        
+
         if (payout > 0) {
             // Transfer payout to user
             token.safeTransfer(msg.sender, payout);
             emit RouterClaim(msg.sender, market, payout);
         }
     }
-    
+
     function rescueToken(address token, address to, uint256 amount) external {
         require(msg.sender == to, "Can only rescue to self");
         IERC20(token).safeTransfer(to, amount);

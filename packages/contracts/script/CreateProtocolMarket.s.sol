@@ -26,10 +26,7 @@ contract CreateProtocolMarket is Script {
                 tokenIdentifier: "",
                 valueDecimals: 18
             }),
-            predicate: MarketTypes.PredicateParams({
-                op: MarketTypes.PredicateOp.GT,
-                threshold: int256(500_000_000e18)
-            }),
+            predicate: MarketTypes.PredicateParams({ op: MarketTypes.PredicateOp.GT, threshold: int256(500_000_000e18) }),
             window: MarketTypes.WindowParams({
                 kind: MarketTypes.WindowKind.SNAPSHOT_AT,
                 tStart: uint64(block.timestamp),
@@ -47,7 +44,7 @@ contract CreateProtocolMarket is Script {
                 creatorFeeShareBps: 1000,
                 maxTotalPool: 10_000_000e18,
                 timeDecayBps: 1000 // 10% time decay spread for protocol markets
-            }),
+             }),
             isProtocolMarket: true
         });
 
@@ -61,10 +58,7 @@ contract CreateProtocolMarket is Script {
                 tokenIdentifier: "hyperliquid",
                 valueDecimals: 18
             }),
-            predicate: MarketTypes.PredicateParams({
-                op: MarketTypes.PredicateOp.GT,
-                threshold: int256(30e18)
-            }),
+            predicate: MarketTypes.PredicateParams({ op: MarketTypes.PredicateOp.GT, threshold: int256(30e18) }),
             window: MarketTypes.WindowParams({
                 kind: MarketTypes.WindowKind.SNAPSHOT_AT,
                 tStart: uint64(block.timestamp),
@@ -82,7 +76,7 @@ contract CreateProtocolMarket is Script {
                 creatorFeeShareBps: 1000,
                 maxTotalPool: 5_000_000e18,
                 timeDecayBps: 1000 // 10% time decay spread for protocol markets
-            }),
+             }),
             isProtocolMarket: true
         });
 
@@ -96,10 +90,7 @@ contract CreateProtocolMarket is Script {
                 tokenIdentifier: "",
                 valueDecimals: 18
             }),
-            predicate: MarketTypes.PredicateParams({
-                op: MarketTypes.PredicateOp.GT,
-                threshold: int256(1_000_000_000e18)
-            }),
+            predicate: MarketTypes.PredicateParams({ op: MarketTypes.PredicateOp.GT, threshold: int256(1_000_000_000e18) }),
             window: MarketTypes.WindowParams({
                 kind: MarketTypes.WindowKind.SNAPSHOT_AT,
                 tStart: uint64(block.timestamp),
@@ -117,7 +108,7 @@ contract CreateProtocolMarket is Script {
                 creatorFeeShareBps: 1000,
                 maxTotalPool: 10_000_000e18,
                 timeDecayBps: 1000 // 10% time decay spread for protocol markets
-            }),
+             }),
             isProtocolMarket: true
         });
 
@@ -130,7 +121,7 @@ contract CreateProtocolMarket is Script {
         for (uint256 i = 0; i < markets.length; i++) {
             console.log("Creating market", i + 1, ":", markets[i].title);
             address market = factory.createProtocolMarket(
-                markets[i], 
+                markets[i],
                 MarketFactory.MarketType.PARIMUTUEL,
                 0 // no liquidity needed for parimutuel
             );

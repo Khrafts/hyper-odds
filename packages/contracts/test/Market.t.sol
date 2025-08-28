@@ -9,7 +9,7 @@ import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 
 contract MockERC20 is ERC20 {
     constructor() ERC20("Mock Token", "MOCK") {
-        _mint(msg.sender, 1000000e18);
+        _mint(msg.sender, 1_000_000e18);
     }
 
     function mint(address to, uint256 amount) external {
@@ -217,7 +217,7 @@ contract MarketTest is Test {
             keccak256("predicate"),
             keccak256("window")
         );
-        
+
         // Verify initialization succeeded with zero max pool
         assertEq(market.maxTotalPool(), 0);
     }
@@ -312,7 +312,7 @@ contract MarketTest is Test {
         // Second deposit should succeed now that pool caps are removed
         market.deposit(1, 200e18);
         vm.stopPrank();
-        
+
         // Verify total pool is now above the old cap
         assertEq(market.totalPool(), 1100e18);
     }
@@ -761,8 +761,7 @@ contract MarketTest is Test {
 
         // Verify total conservation
         uint256 totalPaid = (stakeToken.balanceOf(user1) - balanceBefore1)
-            + (stakeToken.balanceOf(user3) - balanceBefore3)
-            + (stakeToken.balanceOf(treasury) - treasuryBefore)
+            + (stakeToken.balanceOf(user3) - balanceBefore3) + (stakeToken.balanceOf(treasury) - treasuryBefore)
             + (stakeToken.balanceOf(creator) - creatorBefore);
         assertEq(totalPaid, 600e18);
     }

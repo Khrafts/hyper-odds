@@ -30,7 +30,7 @@ jobs:
       - name: Install Forge dependencies
         working-directory: packages/contracts
         run: |
-          forge install --no-commit
+          forge install
 
       - name: Run Forge fmt
         working-directory: packages/contracts

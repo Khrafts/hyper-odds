@@ -14,24 +14,24 @@ import { MarketFactory } from "./MarketFactory.sol";
  */
 contract UniversalMarketRouter {
     using SafeERC20 for IERC20;
-    
+
     struct Deposit {
         address market;
         uint8 outcome;
         uint256 amount;
     }
-    
+
     // Events
     event RouterDeposit(address indexed user, address indexed market, uint8 outcome, uint256 amount);
     event RouterClaim(address indexed user, address indexed market, uint256 payout);
-    
+
     // Market factory for determining market types
     MarketFactory public immutable factory;
-    
+
     constructor(address _factory) {
         factory = MarketFactory(_factory);
     }
-    
+
     /**
      * @notice Get the stake token for a given market
      * @param market The market address
@@ -39,7 +39,7 @@ contract UniversalMarketRouter {
      */
     function getStakeToken(address market) public view returns (IERC20 token) {
         MarketFactory.MarketType marketType = factory.marketType(market);
-        
+
         if (marketType == MarketFactory.MarketType.PARIMUTUEL) {
             token = ParimutuelMarketImplementation(market).stakeToken();
         } else if (marketType == MarketFactory.MarketType.CPMM) {
@@ -48,47 +48,43 @@ contract UniversalMarketRouter {
             revert("Unknown market type");
         }
     }
-    
+
     /**
      * @notice Deposit to a single market (works with both PARIMUTUEL and CPMM)
      * @param market Market address
      * @param outcome Outcome to bet on (0=NO, 1=YES)
      * @param amount Amount to deposit
      */
-    function depositToMarket(
-        address market,
-        uint8 outcome,
-        uint256 amount
-    ) external {
+    function depositToMarket(address market, uint8 outcome, uint256 amount) external {
         _deposit(market, outcome, amount);
     }
-    
+
     /**
      * @notice Deposit to multiple markets in a single transaction
      * @param deposits Array of deposit parameters
      */
     function depositToMultiple(Deposit[] calldata deposits) external {
         require(deposits.length > 0, "No deposits provided");
-        
+
         // Get stake token from the first market (assuming all markets use the same token)
         IERC20 token = getStakeToken(deposits[0].market);
-        
+
         // Calculate total amount needed
         uint256 totalAmount = 0;
         for (uint256 i = 0; i < deposits.length; i++) {
             totalAmount += deposits[i].amount;
         }
-        
+
         // Transfer total amount from user to router
         token.safeTransferFrom(msg.sender, address(this), totalAmount);
-        
+
         // Execute individual deposits
         for (uint256 i = 0; i < deposits.length; i++) {
             _executeDeposit(deposits[i].market, deposits[i].outcome, deposits[i].amount);
             emit RouterDeposit(msg.sender, deposits[i].market, deposits[i].outcome, deposits[i].amount);
         }
     }
-    
+
     /**
      * @notice Deposit with permit (gasless approval)
      * @param market Market address
@@ -107,16 +103,18 @@ contract UniversalMarketRouter {
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) external {
+    )
+        external
+    {
         IERC20 token = getStakeToken(market);
-        
+
         // Use permit for gasless approval (requires ERC20Permit)
         // Note: This assumes the stake token supports ERC20Permit
         // IERC20Permit(address(token)).permit(msg.sender, address(this), amount, deadline, v, r, s);
-        
+
         _deposit(market, outcome, amount);
     }
-    
+
     /**
      * @notice Claim winnings from a single market (works with both market types)
      * @param market Market address
@@ -124,7 +122,7 @@ contract UniversalMarketRouter {
     function claimFromMarket(address market) external {
         MarketFactory.MarketType marketType = factory.marketType(market);
         uint256 balanceBefore = getStakeToken(market).balanceOf(msg.sender);
-        
+
         if (marketType == MarketFactory.MarketType.PARIMUTUEL) {
             ParimutuelMarketImplementation(market).claimFor(msg.sender);
         } else if (marketType == MarketFactory.MarketType.CPMM) {
@@ -132,13 +130,13 @@ contract UniversalMarketRouter {
         } else {
             revert("Unknown market type");
         }
-        
+
         uint256 balanceAfter = getStakeToken(market).balanceOf(msg.sender);
         uint256 payout = balanceAfter - balanceBefore;
-        
+
         emit RouterClaim(msg.sender, market, payout);
     }
-    
+
     /**
      * @notice Claim winnings from multiple markets
      * @param markets Array of market addresses
@@ -153,37 +151,29 @@ contract UniversalMarketRouter {
             }
         }
     }
-    
+
     /**
      * @notice Internal function to handle deposits with token transfers
      */
-    function _deposit(
-        address market,
-        uint8 outcome,
-        uint256 amount
-    ) private {
+    function _deposit(address market, uint8 outcome, uint256 amount) private {
         IERC20 token = getStakeToken(market);
-        
+
         // Transfer from user to router
         token.safeTransferFrom(msg.sender, address(this), amount);
-        
+
         // Execute the deposit
         _executeDeposit(market, outcome, amount);
-        
+
         emit RouterDeposit(msg.sender, market, outcome, amount);
     }
-    
+
     /**
      * @notice Internal function to execute deposit based on market type
      */
-    function _executeDeposit(
-        address market,
-        uint8 outcome,
-        uint256 amount
-    ) private {
+    function _executeDeposit(address market, uint8 outcome, uint256 amount) private {
         MarketFactory.MarketType marketType = factory.marketType(market);
         IERC20 token = getStakeToken(market);
-        
+
         if (marketType == MarketFactory.MarketType.PARIMUTUEL) {
             // Approve the market to spend tokens
             token.approve(market, amount);

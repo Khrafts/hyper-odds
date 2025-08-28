@@ -17,50 +17,50 @@ contract TestnetDeploy is Script {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address deployer = vm.addr(deployerPrivateKey);
-        
+
         // Get config from env (use deployer as default instead of zero)
         address treasury = vm.envOr("TREASURY", deployer);
         address resolverEOA = vm.envOr("RESOLVER_EOA", deployer);
-        
+
         // Override zero addresses with deployer for testnet
         if (treasury == address(0)) treasury = deployer;
         if (resolverEOA == address(0)) resolverEOA = deployer;
-        
+
         console.log("Deploying to testnet with:");
         console.log("  Deployer:", deployer);
         console.log("  Treasury:", treasury);
         console.log("  Resolver:", resolverEOA);
-        
+
         vm.startBroadcast(deployerPrivateKey);
-        
+
         // 1. Deploy Mock tokens for testnet
         console.log("\n1. Deploying Mock Tokens...");
         MockWHYPE whype = new MockWHYPE();
         console.log("  MockWHYPE:", address(whype));
-        
+
         MockERC20 mockUSDC = new MockERC20("Mock USDC", "USDC", 6);
         console.log("  MockUSDC:", address(mockUSDC));
-        
+
         MockHyperLiquidStaking hlStaking = new MockHyperLiquidStaking();
         console.log("  MockHLStaking:", address(hlStaking));
-        
+
         // 2. Deploy stHYPE
         console.log("\n2. Deploying stHYPE...");
         stHYPE stHypeToken = new stHYPE(address(whype), address(hlStaking));
         console.log("  stHYPE:", address(stHypeToken));
-        
+
         // 3. Deploy Oracle
         console.log("\n3. Deploying Oracle...");
         SimpleOracle oracle = new SimpleOracle(600); // 10 minute dispute window for testnet
         oracle.setResolver(resolverEOA, true);
         console.log("  Oracle:", address(oracle));
         console.log("  Resolver added:", resolverEOA);
-        
+
         // 4. Deploy Market Implementation
         console.log("\n4. Deploying Market Implementation...");
         ParimutuelMarketImplementation implementation = new ParimutuelMarketImplementation();
         console.log("  Implementation:", address(implementation));
-        
+
         // 5. Deploy Factory
         console.log("\n5. Deploying MarketFactory...");
         MarketFactory factory = new MarketFactory(
@@ -69,40 +69,40 @@ contract TestnetDeploy is Script {
             treasury, // treasury
             address(oracle) // oracle
         );
-        
+
         // Set the implementation
         factory.setImplementation(address(implementation));
         console.log("  Factory:", address(factory));
-        
+
         // Deploy Router
         console.log("\n5b. Deploying MarketRouter...");
         MarketRouter router = new MarketRouter();
         console.log("  Router:", address(router));
-        
+
         // 6. Mint test tokens
         console.log("\n6. Minting test tokens...");
-        
+
         // Mint WHYPE and USDC for testing
         whype.mint(deployer, 2000 ether); // 2000 WHYPE for multiple markets
-        mockUSDC.mint(deployer, 10000 * 1e6); // 10,000 USDC
-        
+        mockUSDC.mint(deployer, 10_000 * 1e6); // 10,000 USDC
+
         console.log("  Minted 2000 WHYPE to deployer");
         console.log("  Minted 10,000 USDC to deployer");
-        
+
         // 7. Mint stHYPE for market creation (skip complex deposit mechanics for testnet)
         console.log("\n7. Minting stHYPE for market testing...");
-        
+
         // Directly mint stHYPE for testing (1500 stHYPE)
         stHypeToken.testnetMint(deployer, 1500 ether);
         uint256 stHypeBalance = stHypeToken.balanceOf(deployer);
         console.log("  stHYPE balance:", stHypeBalance);
-        
+
         // 8. Create test market
         console.log("\n8. Creating test market...");
-        
+
         // Approve factory to spend stHYPE (1000 stHYPE minimum)
         stHypeToken.approve(address(factory), 1001 ether);
-        
+
         // Create market params using MarketTypes library
         MarketTypes.MarketParams memory params = MarketTypes.MarketParams({
             title: "Will ETH be above $3000 in 1 hour?",
@@ -116,7 +116,7 @@ contract TestnetDeploy is Script {
             predicate: MarketTypes.PredicateParams({
                 op: MarketTypes.PredicateOp.GT,
                 threshold: 3000 * 1e8 // $3000 with 8 decimals
-            }),
+             }),
             window: MarketTypes.WindowParams({
                 kind: MarketTypes.WindowKind.SNAPSHOT_AT,
                 tStart: uint64(block.timestamp),
@@ -134,15 +134,15 @@ contract TestnetDeploy is Script {
                 creatorFeeShareBps: 2000, // 20% of fees
                 maxTotalPool: 10 * 1e6, // 10 USDC max for testing
                 timeDecayBps: 2500 // 25% time decay spread
-            }),
+             }),
             isProtocolMarket: false
         });
-        
+
         address market = factory.createParimutuelMarket(params);
         console.log("  Test market created:", market);
-        
+
         vm.stopBroadcast();
-        
+
         // Print summary
         console.log("\n========================================");
         console.log("TESTNET DEPLOYMENT COMPLETE!");
