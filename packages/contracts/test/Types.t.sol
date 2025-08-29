@@ -14,7 +14,7 @@ contract TypesTest is Test {
             subject: MarketTypes.SubjectParams({
                 kind: MarketTypes.SubjectKind.HL_METRIC,
                 metricId: keccak256("volume_24h"),
-                token: address(0),
+                tokenIdentifier: "",
                 valueDecimals: 2
             }),
             predicate: MarketTypes.PredicateParams({
@@ -38,7 +38,7 @@ contract TypesTest is Test {
                 creatorFeeShareBps: 1000, // 10% of protocol fee
                 maxTotalPool: 1_000_000e18,
                 timeDecayBps: 0 // No time decay for type tests
-            }),
+             }),
             isProtocolMarket: false
         });
 
@@ -47,7 +47,7 @@ contract TypesTest is Test {
         assertEq(params.description, "Resolves YES if Hyperliquid 24h volume exceeds $1 billion");
         assertEq(uint8(params.subject.kind), uint8(MarketTypes.SubjectKind.HL_METRIC));
         assertEq(params.subject.metricId, keccak256("volume_24h"));
-        assertEq(params.subject.token, address(0));
+        assertEq(params.subject.tokenIdentifier, "");
         assertEq(params.subject.valueDecimals, 2);
         assertEq(uint8(params.predicate.op), uint8(MarketTypes.PredicateOp.GT));
         assertEq(params.predicate.threshold, 1_000_000_000 * 100);
@@ -89,7 +89,7 @@ contract TypesTest is Test {
             subject: MarketTypes.SubjectParams({
                 kind: MarketTypes.SubjectKind.HL_METRIC,
                 metricId: keccak256("volume_24h"),
-                token: address(0),
+                tokenIdentifier: "",
                 valueDecimals: 2
             }),
             predicate: MarketTypes.PredicateParams({
@@ -113,7 +113,7 @@ contract TypesTest is Test {
                 creatorFeeShareBps: 1000, // Fixed 10% of protocol fee
                 maxTotalPool: 10_000_000e18,
                 timeDecayBps: 0 // No time decay for type tests
-            }),
+             }),
             isProtocolMarket: true
         });
 
@@ -129,7 +129,7 @@ contract TypesTest is Test {
             subject: MarketTypes.SubjectParams({
                 kind: MarketTypes.SubjectKind.TOKEN_PRICE,
                 metricId: bytes32(0),
-                token: address(0x456), // HYPE token address
+                tokenIdentifier: "test-token", // HYPE token identifier
                 valueDecimals: 8
             }),
             predicate: MarketTypes.PredicateParams({
@@ -153,12 +153,12 @@ contract TypesTest is Test {
                 creatorFeeShareBps: 1000,
                 maxTotalPool: 500_000e18,
                 timeDecayBps: 0 // No time decay for type tests
-            }),
+             }),
             isProtocolMarket: false
         });
 
         assertEq(uint8(params.subject.kind), uint8(MarketTypes.SubjectKind.TOKEN_PRICE));
-        assertEq(params.subject.token, address(0x456));
+        assertEq(params.subject.tokenIdentifier, "test-token");
         assertEq(params.predicate.threshold, 30 * 10 ** 8);
         assertEq(uint8(params.predicate.op), uint8(MarketTypes.PredicateOp.GTE));
     }

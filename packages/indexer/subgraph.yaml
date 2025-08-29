@@ -6,9 +6,9 @@ dataSources:
     name: MarketFactory
     network: arbitrum-sepolia
     source:
-      address: "0x3d2519A17eAe6323CaA36fB07ecEcDc96457aFf1" # Factory with title/description in MarketCreated event
+      address: "0x40DefEEa8e5F418Bf86B19eD72615dC35386Fae4"
       abi: MarketFactory
-      startBlock: 185235728
+      startBlock: 187015060
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
@@ -26,18 +26,20 @@ dataSources:
         - name: CPMMMarketImplementation
           file: ./abis/CPMMMarketImplementation.json
       eventHandlers:
-        - event: MarketCreated(indexed address,indexed address,indexed uint8,(string,string,(uint8,bytes32,address,uint8),(uint8,int256),(uint8,uint64,uint64),(bytes32,bytes32,uint8),uint64,address,(uint16,uint16,uint256,uint16),bool))
+        - event: MarketCreated(indexed address,indexed address,indexed uint8,(string,string,(uint8,bytes32,string,uint8),(uint8,int256),(uint8,uint64,uint64),(bytes32,bytes32,uint8),uint64,address,(uint16,uint16,uint256,uint16),bool))
           handler: handleMarketCreated
         - event: StakeReleased(indexed address,indexed address,uint256)
           handler: handleStakeReleased
+        - event: MinCPMMLiquidityUpdated(uint256)
+          handler: handleMinCPMMLiquidityUpdated
       file: ./src/factory.ts
   - kind: ethereum
     name: MarketRouter
     network: arbitrum-sepolia
     source:
-      address: "0x52dE5EEcD112E57a13Bc41633B30336846b897cc"
+      address: "0xe049685cC6aDe34918c719982D7e0337b10B951A"
       abi: MarketRouter
-      startBlock: 185235728
+      startBlock: 186923984
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7

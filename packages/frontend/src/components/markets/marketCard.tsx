@@ -6,11 +6,12 @@ import { Badge } from '../ui/badge'
 import { Progress } from '../ui/progress'
 import { Button } from '../ui/button'
 import { Separator } from '../ui/separator'
-import { Market } from '@/hooks/useMarkets'
+import { Market } from '@/types/market'
 import { formatEther } from 'viem'
-import { TrendingUp, Clock, Users } from 'lucide-react'
+import { TrendingUp, Clock, Users, Layers } from 'lucide-react'
 import { ComponentErrorBoundary, InlineError } from '../error'
-import { calculateMarketProbabilities } from '@/lib/probability'
+import { getMarketProbability } from '@/lib/pricing'
+import { getMarketType } from '@/lib/web3/contracts'
 
 interface MarketCardProps {
   market: Market
@@ -21,53 +22,87 @@ interface MarketCardProps {
 export function MarketCard({ market, onClick, onTrade }: MarketCardProps) {
   const [tradeError, setTradeError] = useState<string | null>(null)
 
-  // Calculate probabilities using shared utility for consistency
-  const { yesProb, noProb, yesDisplay, noDisplay } = calculateMarketProbabilities(
-    market.poolYes || '0',
-    market.poolNo || '0',
-    1 // 1 decimal place
-  )
-
-  // Format volume - using totalPool from GraphQL schema
-  const volume = parseFloat(market.totalPool || '0')
-  const formattedVolume = volume >= 1000000 
-    ? `$${(volume / 1000000).toFixed(1)}M`
-    : volume >= 1000 
-    ? `$${(volume / 1000).toFixed(1)}K`
-    : `$${volume.toFixed(0)}`
-
-  // Check if expired - using cutoffTime from GraphQL schema
-  const isExpired = market.cutoffTime && new Date(parseInt(market.cutoffTime) * 1000) < new Date()
-  const isResolved = market.resolved
-
-  const handleTrade = async (outcome: 'YES' | 'NO') => {
-    try {
-      setTradeError(null)
-      await onTrade?.(market, outcome)
-    } catch (error) {
-      setTradeError(error instanceof Error ? error.message : 'Failed to process trade')
-    }
+  // Defensive null checks - log for debugging
+  if (!market) {
+    console.error('MarketCard: market is null/undefined')
+    return null
   }
 
-  return (
-    <ComponentErrorBoundary componentName="MarketCard">
-      <Card 
-        className="hover:shadow-lg transition-smooth hover-lift cursor-pointer group"
-        onClick={onClick}
-      >
+  try {
+    // Get market type and calculate probabilities
+    const marketType = getMarketType(market)
+    const yesProb = getMarketProbability(market)
+    const noProb = 100 - yesProb
+    const yesDisplay = `${yesProb.toFixed(1)}%`
+    const noDisplay = `${noProb.toFixed(1)}%`
+
+    // Format volume - different fields based on market type
+    let volume = 0
+    if (marketType === 'CPMM') {
+      // For CPMM, use total reserves as volume proxy
+      const reserveYes = parseFloat(market.reserveYes || '0')
+      const reserveNo = parseFloat(market.reserveNo || '0')
+      volume = reserveYes + reserveNo
+    } else {
+      // For Parimutuel, use totalPool
+      volume = parseFloat(market.totalPool || '0')
+    }
+    
+    const formattedVolume = volume >= 1000000 
+      ? `$${(volume / 1000000).toFixed(1)}M`
+      : volume >= 1000 
+      ? `$${(volume / 1000).toFixed(1)}K`
+      : `$${volume.toFixed(0)}`
+
+    // Check if expired - using cutoffTime from GraphQL schema
+    const isExpired = market.cutoffTime && new Date(parseInt(market.cutoffTime) * 1000) < new Date()
+    const isResolved = market.resolved
+
+    const handleTrade = async (outcome: 'YES' | 'NO') => {
+      try {
+        setTradeError(null)
+        await onTrade?.(market, outcome)
+      } catch (error) {
+        setTradeError(error instanceof Error ? error.message : 'Failed to process trade')
+      }
+    }
+
+    return (
+      <ComponentErrorBoundary componentName="MarketCard">
+        <Card 
+          className="hover:shadow-lg transition-smooth hover-lift cursor-pointer group"
+          onClick={onClick}
+        >
         <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-lg line-clamp-2">
-            {market.title}
-          </CardTitle>
-          {isResolved && (
-            <Badge variant={market.winningOutcome === 1 ? 'default' : 'secondary'}>
-              {market.winningOutcome === 1 ? 'YES' : 'NO'}
-            </Badge>
-          )}
-          {!isResolved && isExpired && (
-            <Badge variant="destructive">Expired</Badge>
-          )}
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <Badge 
+                variant="outline" 
+                className={`text-xs ${
+                  marketType === 'CPMM' 
+                    ? 'border-blue-200 text-blue-700 dark:border-blue-800 dark:text-blue-300' 
+                    : 'border-purple-200 text-purple-700 dark:border-purple-800 dark:text-purple-300'
+                }`}
+              >
+                <Layers className="h-3 w-3 mr-1" />
+                {marketType}
+              </Badge>
+            </div>
+            <CardTitle className="text-lg line-clamp-2">
+              {market.title}
+            </CardTitle>
+          </div>
+          <div className="flex flex-col gap-1">
+            {isResolved && (
+              <Badge variant={market.winningOutcome === 1 ? 'default' : 'secondary'}>
+                {market.winningOutcome === 1 ? 'YES' : 'NO'}
+              </Badge>
+            )}
+            {!isResolved && isExpired && (
+              <Badge variant="destructive">Expired</Badge>
+            )}
+          </div>
         </div>
       </CardHeader>
 
@@ -96,7 +131,7 @@ export function MarketCard({ market, onClick, onTrade }: MarketCardProps) {
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-2 text-sm">
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1" title={marketType === 'CPMM' ? 'Total Liquidity' : 'Total Volume'}>
             <TrendingUp className="h-3 w-3 text-muted-foreground" />
             <span className="text-muted-foreground">{formattedVolume}</span>
           </div>
@@ -136,7 +171,7 @@ export function MarketCard({ market, onClick, onTrade }: MarketCardProps) {
                 handleTrade('YES')
               }}
             >
-              Buy YES
+              {marketType === 'CPMM' ? 'Buy YES' : 'Bet YES'}
             </Button>
             <Button
               size="sm"
@@ -147,16 +182,31 @@ export function MarketCard({ market, onClick, onTrade }: MarketCardProps) {
                 handleTrade('NO')
               }}
             >
-              Buy NO
+              {marketType === 'CPMM' ? 'Buy NO' : 'Bet NO'}
             </Button>
           </div>
         )}
       </CardContent>
 
-      {/* Categories not yet available in GraphQL schema */}
+        {/* Categories not yet available in GraphQL schema */}
+        </Card>
+      </ComponentErrorBoundary>
+    )
+  } catch (error) {
+    console.error('MarketCard error:', error, 'Market data:', market)
+    return (
+      <Card className="border-red-200 bg-red-50 dark:bg-red-950/20">
+        <CardContent className="p-4">
+          <div className="text-sm text-red-900 dark:text-red-100">
+            Error loading market card
+          </div>
+          <div className="text-xs text-red-700 dark:text-red-300 mt-1">
+            {error instanceof Error ? error.message : 'Unknown error'}
+          </div>
+        </CardContent>
       </Card>
-    </ComponentErrorBoundary>
-  )
+    )
+  }
 }
 
 function getTimeRemaining(cutoffTime: string): string {

@@ -93,8 +93,9 @@ export function handleMarketInitialized(event: MarketInitialized): void {
     return
   }
   
-  // Update market with initial liquidity info
-  let liquidityDecimal = BigDecimal.fromString(event.params.liquidityAmount.toString())
+  // Update market with initial liquidity info (convert from USDC 6-decimal format)
+  let liquidityRaw = BigDecimal.fromString(event.params.liquidityAmount.toString())
+  let liquidityDecimal = liquidityRaw.div(BigDecimal.fromString("1000000")) // Convert from 6 decimals to human readable
   market.initialLiquidity = liquidityDecimal
   market.reserveYes = liquidityDecimal.div(BigDecimal.fromString("2"))
   market.reserveNo = liquidityDecimal.div(BigDecimal.fromString("2"))
@@ -138,9 +139,9 @@ export function handleSharesPurchased(event: SharesPurchased): void {
     event.block.timestamp
   )
   
-  // Update position with new shares
-  let sharesOut = BigDecimal.fromString(event.params.sharesOut.toString())
-  let amountIn = BigDecimal.fromString(event.params.amountIn.toString())
+  // Update position with new shares (convert from USDC 6-decimal format)
+  let sharesOut = BigDecimal.fromString(event.params.sharesOut.toString()).div(BigDecimal.fromString("1000000"))
+  let amountIn = BigDecimal.fromString(event.params.amountIn.toString()).div(BigDecimal.fromString("1000000"))
   
   if (event.params.outcome == 1) {
     position.sharesYes = position.sharesYes.plus(sharesOut)
@@ -152,15 +153,16 @@ export function handleSharesPurchased(event: SharesPurchased): void {
   position.updatedAt = event.block.timestamp
   position.save()
   
-  // Update market reserves and price from contract
+  // Update market reserves and price from contract (convert from USDC 6-decimal format)
   let contract = CPMMMarketImplementation.bind(event.address)
   let reserveYes = contract.try_reserveYES()
   let reserveNo = contract.try_reserveNO()
   let totalFees = contract.try_totalFeesCollected()
   
   if (!reserveYes.reverted && !reserveNo.reverted) {
-    market.reserveYes = BigDecimal.fromString(reserveYes.value.toString())
-    market.reserveNo = BigDecimal.fromString(reserveNo.value.toString())
+    // Convert reserves from 6-decimal USDC format to human readable
+    market.reserveYes = BigDecimal.fromString(reserveYes.value.toString()).div(BigDecimal.fromString("1000000"))
+    market.reserveNo = BigDecimal.fromString(reserveNo.value.toString()).div(BigDecimal.fromString("1000000"))
     
     // Calculate spot price: reserveYes / (reserveYes + reserveNo)
     let totalReserves = market.reserveYes.plus(market.reserveNo)
@@ -170,7 +172,8 @@ export function handleSharesPurchased(event: SharesPurchased): void {
   }
   
   if (!totalFees.reverted) {
-    market.totalFeesCollected = BigDecimal.fromString(totalFees.value.toString())
+    // Convert fees from 6-decimal USDC format to human readable
+    market.totalFeesCollected = BigDecimal.fromString(totalFees.value.toString()).div(BigDecimal.fromString("1000000"))
   }
   
   market.save()
@@ -184,8 +187,8 @@ export function handleSharesPurchased(event: SharesPurchased): void {
   purchaseEvent.outcome = event.params.outcome
   purchaseEvent.amountIn = amountIn
   purchaseEvent.sharesOut = sharesOut
-  purchaseEvent.feeAmount = BigDecimal.fromString(event.params.feeAmount.toString())
-  purchaseEvent.spotPrice = BigDecimal.fromString(event.params.newPrice.toString())
+  purchaseEvent.feeAmount = BigDecimal.fromString(event.params.feeAmount.toString()).div(BigDecimal.fromString("1000000"))
+  purchaseEvent.spotPrice = BigDecimal.fromString(event.params.newPrice.toString()).div(BigDecimal.fromString("1000000"))
   purchaseEvent.timestamp = event.block.timestamp
   purchaseEvent.blockNumber = event.block.number
   purchaseEvent.transactionHash = event.transaction.hash
@@ -224,9 +227,9 @@ export function handleSharesSold(event: SharesSold): void {
     return
   }
   
-  // Update position with sold shares
-  let sharesIn = BigDecimal.fromString(event.params.sharesIn.toString())
-  let amountOut = BigDecimal.fromString(event.params.amountOut.toString())
+  // Update position with sold shares (convert from USDC 6-decimal format)
+  let sharesIn = BigDecimal.fromString(event.params.sharesIn.toString()).div(BigDecimal.fromString("1000000"))
+  let amountOut = BigDecimal.fromString(event.params.amountOut.toString()).div(BigDecimal.fromString("1000000"))
   
   if (event.params.outcome == 1) {
     position.sharesYes = position.sharesYes.minus(sharesIn)
@@ -237,15 +240,16 @@ export function handleSharesSold(event: SharesSold): void {
   position.updatedAt = event.block.timestamp
   position.save()
   
-  // Update market reserves and price
+  // Update market reserves and price (convert from USDC 6-decimal format)
   let contract = CPMMMarketImplementation.bind(event.address)
   let reserveYes = contract.try_reserveYES()
   let reserveNo = contract.try_reserveNO()
   let totalFees = contract.try_totalFeesCollected()
   
   if (!reserveYes.reverted && !reserveNo.reverted) {
-    market.reserveYes = BigDecimal.fromString(reserveYes.value.toString())
-    market.reserveNo = BigDecimal.fromString(reserveNo.value.toString())
+    // Convert reserves from 6-decimal USDC format to human readable
+    market.reserveYes = BigDecimal.fromString(reserveYes.value.toString()).div(BigDecimal.fromString("1000000"))
+    market.reserveNo = BigDecimal.fromString(reserveNo.value.toString()).div(BigDecimal.fromString("1000000"))
     
     // Calculate spot price
     let totalReserves = market.reserveYes.plus(market.reserveNo)
@@ -255,7 +259,8 @@ export function handleSharesSold(event: SharesSold): void {
   }
   
   if (!totalFees.reverted) {
-    market.totalFeesCollected = BigDecimal.fromString(totalFees.value.toString())
+    // Convert fees from 6-decimal USDC format to human readable
+    market.totalFeesCollected = BigDecimal.fromString(totalFees.value.toString()).div(BigDecimal.fromString("1000000"))
   }
   
   market.save()
@@ -269,8 +274,8 @@ export function handleSharesSold(event: SharesSold): void {
   sellEvent.outcome = event.params.outcome
   sellEvent.sharesIn = sharesIn
   sellEvent.amountOut = amountOut
-  sellEvent.feeAmount = BigDecimal.fromString(event.params.feeAmount.toString())
-  sellEvent.spotPrice = BigDecimal.fromString(event.params.newPrice.toString())
+  sellEvent.feeAmount = BigDecimal.fromString(event.params.feeAmount.toString()).div(BigDecimal.fromString("1000000"))
+  sellEvent.spotPrice = BigDecimal.fromString(event.params.newPrice.toString()).div(BigDecimal.fromString("1000000"))
   sellEvent.timestamp = event.block.timestamp
   sellEvent.blockNumber = event.block.number
   sellEvent.transactionHash = event.transaction.hash
@@ -346,8 +351,8 @@ export function handleClaimed(event: Claimed): void {
     return
   }
   
-  // Update position with claim
-  let payout = BigDecimal.fromString(event.params.payout.toString())
+  // Update position with claim (convert from USDC 6-decimal format)
+  let payout = BigDecimal.fromString(event.params.payout.toString()).div(BigDecimal.fromString("1000000"))
   position.claimed = true
   position.payout = payout
   position.profit = payout.minus(position.totalSpent)

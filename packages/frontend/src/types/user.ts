@@ -152,9 +152,35 @@ export interface Claim {
 }
 
 /**
- * Enhanced position with calculated fields
+ * Enhanced position with calculated fields for Parimutuel markets
  */
-export interface PositionWithStats extends Position {
+export interface ParimutuelPositionWithStats {
+  // Base position data
+  id: string
+  market: Market
+  user: User
+  
+  // Stakes
+  stakeNo: string
+  stakeYes: string
+  totalStake: string
+  
+  // Effective Stakes (with time decay)
+  effectiveStakeNo: string
+  effectiveStakeYes: string
+  totalEffectiveStake: string
+  
+  // Outcome
+  claimed: boolean
+  payout: string
+  profit: string
+  
+  // Metadata
+  createdAt: string
+  updatedAt: string
+  claimedAt?: string
+  
+  // Calculated fields
   currentProbabilityYes: number
   currentProbabilityNo: number
   potentialPayout: string
@@ -162,6 +188,47 @@ export interface PositionWithStats extends Position {
   status: 'active' | 'won' | 'lost' | 'pending' | 'claimable'
   unrealizedPnl: string
 }
+
+/**
+ * Enhanced position with calculated fields for CPMM markets
+ */
+export interface CPMMPositionWithStats {
+  // Base position data
+  id: string
+  market: Market
+  user: User
+  
+  // Shares
+  sharesYes: string
+  sharesNo: string
+  totalShares: string
+  
+  // Value
+  currentValue: string
+  averageCost: string
+  profit: string
+  
+  // Outcome (if resolved)
+  claimed: boolean
+  payout: string
+  
+  // Metadata
+  createdAt: string
+  updatedAt: string
+  claimedAt?: string
+  
+  // Calculated fields
+  currentProbabilityYes: number
+  currentProbabilityNo: number
+  roi: number
+  status: 'active' | 'won' | 'lost' | 'pending' | 'claimable'
+  unrealizedPnl: string
+}
+
+/**
+ * Union type for positions with stats
+ */
+export type PositionWithStats = ParimutuelPositionWithStats | CPMMPositionWithStats
 
 /**
  * Legacy UserPosition interface for backward compatibility

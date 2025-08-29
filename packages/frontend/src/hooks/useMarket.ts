@@ -11,12 +11,23 @@ const GET_MARKET = gql`
       id
       title
       description
+      marketType
+      
+      # Parimutuel fields
       poolYes
       poolNo
       totalPool
       effectivePoolYes
       effectivePoolNo
       totalEffectivePool
+      
+      # CPMM fields
+      reserveYes
+      reserveNo
+      initialLiquidity
+      totalFeesCollected
+      spotPrice
+      
       resolved
       cancelled
       winningOutcome
@@ -32,7 +43,7 @@ const GET_MARKET = gql`
       creator {
         id
       }
-      deposits(first: 10, orderBy: timestamp, orderDirection: desc) {
+      deposits(first: 20, orderBy: timestamp, orderDirection: desc) {
         id
         user {
           id
@@ -42,6 +53,7 @@ const GET_MARKET = gql`
         timestamp
         transactionHash
       }
+      
       priceHistory(first: 50, orderBy: timestamp, orderDirection: desc) {
         id
         timestamp

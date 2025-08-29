@@ -1,12 +1,12 @@
 import { http, createConfig } from 'wagmi'
-import { arbitrumSepolia } from 'wagmi/chains'
+import { arbitrum, arbitrumSepolia } from 'wagmi/chains'
 import { injected, walletConnect } from 'wagmi/connectors'
 
 /**
  * Wagmi configuration for Privy integration with better MetaMask handling
  */
 export const wagmiConfig = createConfig({
-  chains: [arbitrumSepolia],
+  chains: [arbitrumSepolia, arbitrum],
   connectors: [
     // More specific injected connector with better error handling
     injected({
@@ -28,8 +28,11 @@ export const wagmiConfig = createConfig({
   transports: {
     [arbitrumSepolia.id]: http(
       process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC || 
-      process.env.NEXT_PUBLIC_ARBITRUM_RPC || 
       'https://arbitrum-sepolia-rpc.publicnode.com'
+    ),
+    [arbitrum.id]: http(
+      process.env.NEXT_PUBLIC_ARBITRUM_RPC || 
+      'https://arbitrum-one-rpc.publicnode.com'
     ),
   },
   multiInjectedProviderDiscovery: false, // Prevent conflicts with multiple injected providers
@@ -50,7 +53,7 @@ export const privyConfig = {
       showWalletLoginFirst: false, // Show email first for easier onboarding
     },
     defaultChain: arbitrumSepolia,
-    supportedChains: [arbitrumSepolia],
+    supportedChains: [arbitrumSepolia, arbitrum],
     embeddedWallets: {
       createOnLogin: 'users-without-wallets' as const, // Create wallets for email users
       requireUserPasswordOnCreate: false,

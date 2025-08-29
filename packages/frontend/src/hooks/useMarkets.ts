@@ -9,9 +9,14 @@ const MARKET_FRAGMENT = gql`
     id
     title
     description
+    marketType
     poolYes
     poolNo
     totalPool
+    reserveYes
+    reserveNo
+    spotPrice
+    initialLiquidity
     resolved
     winningOutcome
     cutoffTime
@@ -49,9 +54,14 @@ const GET_MARKETS_SIMPLE = gql`
       id
       title
       description
+      marketType
       poolYes
       poolNo
       totalPool
+      reserveYes
+      reserveNo
+      spotPrice
+      initialLiquidity
       resolved
       cutoffTime
       resolveTime
@@ -84,9 +94,14 @@ export interface Market {
   id: string
   title: string
   description: string
+  marketType: string
   poolYes: string
   poolNo: string
   totalPool: string
+  reserveYes: string
+  reserveNo: string
+  spotPrice: string
+  initialLiquidity: string
   effectivePoolYes?: string
   effectivePoolNo?: string
   totalEffectivePool?: string

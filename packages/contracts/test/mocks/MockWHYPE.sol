@@ -20,7 +20,7 @@ contract MockWHYPE is ERC20, IWHYPE {
     function withdraw(uint256 wad) public override {
         require(balanceOf(msg.sender) >= wad, "Insufficient balance");
         _burn(msg.sender, wad);
-        
+
         // For testnet: only send ETH if we have enough balance
         if (address(this).balance >= wad) {
             payable(msg.sender).transfer(wad);

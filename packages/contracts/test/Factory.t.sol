@@ -14,7 +14,7 @@ import { MockHyperLiquidStaking as MockHLS } from "./mocks/MockHyperLiquidStakin
 
 contract MockERC20 is ERC20 {
     constructor(string memory name, string memory symbol) ERC20(name, symbol) {
-        _mint(msg.sender, 1000000e18);
+        _mint(msg.sender, 1_000_000e18);
     }
 
     function mint(address to, uint256 amount) external {
@@ -42,7 +42,7 @@ contract FactoryTest is Test {
         hlStaking = new MockHLS();
 
         // Fund staking contract with native HYPE for rewards
-        vm.deal(address(hlStaking), 10000e18);
+        vm.deal(address(hlStaking), 10_000e18);
 
         // Deploy stHYPE
         stHypeToken = new stHYPE(address(whype), address(hlStaking));
@@ -54,8 +54,7 @@ contract FactoryTest is Test {
         implementation = new ParimutuelMarketImplementation();
 
         // Deploy factory
-        factory =
-            new MarketFactory(address(stakeToken), address(stHypeToken), treasury, address(oracle));
+        factory = new MarketFactory(address(stakeToken), address(stHypeToken), treasury, address(oracle));
 
         // Set implementation
         factory.setImplementation(address(implementation));
@@ -68,13 +67,10 @@ contract FactoryTest is Test {
             subject: MarketTypes.SubjectParams({
                 kind: MarketTypes.SubjectKind.HL_METRIC,
                 metricId: keccak256("volume"),
-                token: address(0),
+                tokenIdentifier: "",
                 valueDecimals: 18
             }),
-            predicate: MarketTypes.PredicateParams({
-                op: MarketTypes.PredicateOp.GT,
-                threshold: 1000000e18
-            }),
+            predicate: MarketTypes.PredicateParams({ op: MarketTypes.PredicateOp.GT, threshold: 1_000_000e18 }),
             window: MarketTypes.WindowParams({
                 kind: MarketTypes.WindowKind.SNAPSHOT_AT,
                 tStart: uint64(block.timestamp),
@@ -90,9 +86,9 @@ contract FactoryTest is Test {
             econ: MarketTypes.Economics({
                 feeBps: 500,
                 creatorFeeShareBps: 1000,
-                maxTotalPool: 1000000e18,
+                maxTotalPool: 1_000_000e18,
                 timeDecayBps: 0 // No time decay for factory tests
-            }),
+             }),
             isProtocolMarket: false
         });
     }
@@ -187,15 +183,12 @@ contract FactoryTest is Test {
         uint256 nonce = stHypeToken.nonces(signer);
 
         // Create permit signature using EIP-712
-        bytes32 PERMIT_TYPEHASH = keccak256(
-            "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
-        );
+        bytes32 PERMIT_TYPEHASH =
+            keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
 
-        bytes32 structHash =
-            keccak256(abi.encode(PERMIT_TYPEHASH, signer, address(factory), value, nonce, deadline));
+        bytes32 structHash = keccak256(abi.encode(PERMIT_TYPEHASH, signer, address(factory), value, nonce, deadline));
 
-        bytes32 digest =
-            keccak256(abi.encodePacked("\x19\x01", stHypeToken.DOMAIN_SEPARATOR(), structHash));
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", stHypeToken.DOMAIN_SEPARATOR(), structHash));
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
 
@@ -205,7 +198,8 @@ contract FactoryTest is Test {
 
         // Create market with permit (no prior approval needed!)
         vm.prank(signer);
-        address market = factory.createMarketWithPermit(params, MarketFactory.MarketType.PARIMUTUEL, 0, deadline, v, r, s);
+        address market =
+            factory.createMarketWithPermit(params, MarketFactory.MarketType.PARIMUTUEL, 0, deadline, v, r, s);
 
         // Verify market was created and stake locked
         assertEq(factory.marketCreator(market), signer);

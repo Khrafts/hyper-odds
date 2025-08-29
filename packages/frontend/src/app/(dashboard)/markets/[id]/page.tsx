@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { MarketHeader } from '@/components/markets/market-detail/marketHeader'
-import { TradingInterface } from '@/components/markets/market-detail/tradingInterface'
+import { TradingInterfaceRouter } from '@/components/markets/market-detail/TradingInterfaceRouter'
 import { ActivityFeed } from '@/components/markets/market-detail/activityFeed'
 import { ProbabilityChart } from '@/components/charts/probabilityChart'
 import { PageErrorBoundary, AsyncBoundary, NotFoundError } from '@/components/error'
@@ -59,13 +59,34 @@ function MarketDetailContent({ marketId }: { marketId: string }) {
     return () => document.removeEventListener('keydown', handleEscape)
   }, [])
   
-  // Calculate current probabilities using shared utility for consistency (use GraphQL data only)
-  const { yesProb, noProb, yesDisplay, noDisplay } = market ? 
-    calculateMarketProbabilities(market.poolYes || '0', market.poolNo || '0', 1) :
-    { yesProb: 50, noProb: 50, yesDisplay: '50.0%', noDisplay: '50.0%' }
+  // Calculate current probabilities using shared utility for consistency
+  // Use appropriate fields based on market type (CPMM uses reserves, Parimutuel uses pools)
+  const { yesProb, noProb, yesDisplay, noDisplay } = market ? (() => {
+    if (market.marketType === 'CPMM' && market.spotPrice) {
+      // For CPMM markets, spotPrice = reserveYes / totalReserves
+      // YES probability = reserveNo / totalReserves = (1 - spotPrice)
+      // NO probability = reserveYes / totalReserves = spotPrice
+      const spotPrice = parseFloat(market.spotPrice)
+      return {
+        yesProb: (1 - spotPrice) * 100,
+        noProb: spotPrice * 100,
+        yesDisplay: `${((1 - spotPrice) * 100).toFixed(1)}%`,
+        noDisplay: `${(spotPrice * 100).toFixed(1)}%`
+      }
+    } else {
+      // For Parimutuel markets, use pool calculation
+      return calculateMarketProbabilities(market.poolYes || '0', market.poolNo || '0', 1)
+    }
+  })() : { yesProb: 50, noProb: 50, yesDisplay: '50.0%', noDisplay: '50.0%' }
   
-  // Calculate total pool for display purposes
-  const totalPool = market ? parseFloat(market.poolYes || '0') + parseFloat(market.poolNo || '0') : 0
+  // Calculate total pool/reserves for display purposes
+  const totalPool = market ? (() => {
+    if (market.marketType === 'CPMM') {
+      return parseFloat(market.reserveYes || '0') + parseFloat(market.reserveNo || '0')
+    } else {
+      return parseFloat(market.poolYes || '0') + parseFloat(market.poolNo || '0')
+    }
+  })() : 0
 
   return (
     <AsyncBoundary
@@ -82,7 +103,7 @@ function MarketDetailContent({ marketId }: { marketId: string }) {
       {market ? (
         <div className={cn(
           "transition-all duration-300 ease-in-out",
-          isTradingSidebarOpen ? "mr-96" : "mr-0"
+          isTradingSidebarOpen ? "lg:mr-[480px]" : "mr-0"
         )}>
           <div className="space-y-8">
             {/* Navigation */}
@@ -203,17 +224,29 @@ function MarketDetailContent({ marketId }: { marketId: string }) {
                   <CardContent>
                     <ActivityFeed 
                       marketId={marketId} 
-                      trades={market?.deposits?.map((deposit: any) => ({
-                        id: deposit.id,
-                        trader: deposit.user.id,
-                        outcome: deposit.outcome === 1 ? 'YES' : 'NO' as 'YES' | 'NO',
-                        type: 'buy' as 'buy' | 'sell', // Deposits are always buys in this context
-                        shares: BigInt(deposit.amount), // Using amount as shares for now
-                        amount: BigInt(Math.round(parseFloat(deposit.amount) * 1e6)), // Convert to USDC (6 decimals)
-                        price: 0, // Price calculation removed - will not display
-                        timestamp: new Date(parseInt(deposit.timestamp) * 1000),
-                        txHash: deposit.transactionHash
-                      }))}
+                      trades={market?.deposits?.map((deposit: any) => {
+                        // Convert deposits to trade format
+                        // For CPMM markets, deposits represent buy/sell operations
+                        // For Parimutuel markets, deposits are always buys
+                        const isCPMM = market.marketType === 'CPMM'
+                        const amount = parseFloat(deposit.amount)
+                        
+                        return {
+                          id: deposit.id,
+                          trader: deposit.user.id,
+                          outcome: deposit.outcome === 1 ? 'YES' : 'NO',
+                          type: 'buy' as const,
+                          shares: BigInt(Math.round(amount * 1e6)),
+                          amount: BigInt(Math.round(amount * 1e6)),
+                          price: isCPMM && market.spotPrice ? 
+                            (deposit.outcome === 1 ? 
+                              1 - parseFloat(market.spotPrice) :
+                              parseFloat(market.spotPrice)) :
+                            0,
+                          timestamp: new Date(parseInt(deposit.timestamp) * 1000),
+                          txHash: deposit.transactionHash
+                        }
+                      })}
                     />
                   </CardContent>
                 </Card>
@@ -262,19 +295,82 @@ function MarketDetailContent({ marketId }: { marketId: string }) {
                     <Separator />
                     
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">YES Pool</span>
-                      <span className="font-medium">{parseFloat(market.poolYes || '0').toFixed(2)} USDC</span>
+                      <span className="text-muted-foreground">
+                        YES {market.marketType === 'CPMM' ? 'Reserve' : 'Pool'}
+                      </span>
+                      <span className="font-medium">
+                        {market.marketType === 'CPMM' 
+                          ? parseFloat(market.reserveYes || '0').toFixed(2) 
+                          : parseFloat(market.poolYes || '0').toFixed(2)
+                        } USDC
+                      </span>
                     </div>
                     
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">NO Pool</span>
-                      <span className="font-medium">{parseFloat(market.poolNo || '0').toFixed(2)} USDC</span>
+                      <span className="text-muted-foreground">
+                        NO {market.marketType === 'CPMM' ? 'Reserve' : 'Pool'}
+                      </span>
+                      <span className="font-medium">
+                        {market.marketType === 'CPMM' 
+                          ? parseFloat(market.reserveNo || '0').toFixed(2) 
+                          : parseFloat(market.poolNo || '0').toFixed(2)
+                        } USDC
+                      </span>
                     </div>
                     
                     <div className="flex justify-between text-sm font-medium">
-                      <span className="text-muted-foreground">Total Pool</span>
+                      <span className="text-muted-foreground">
+                        {market.marketType === 'CPMM' ? 'Total Liquidity' : 'Total Pool'}
+                      </span>
                       <span>{totalPool.toFixed(2)} USDC</span>
                     </div>
+                    
+                    {/* CPMM-specific stats */}
+                    {market.marketType === 'CPMM' && (
+                      <>
+                        <Separator />
+                        
+                        {market.totalFeesCollected && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Fees Collected</span>
+                            <span className="font-medium">
+                              {parseFloat(market.totalFeesCollected).toFixed(2)} USDC
+                            </span>
+                          </div>
+                        )}
+                        
+                        {market.feeBps && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Trading Fee</span>
+                            <span className="font-medium">
+                              {(market.feeBps / 100).toFixed(1)}%
+                            </span>
+                          </div>
+                        )}
+                        
+                        {market.spotPrice && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Spot Price</span>
+                            <span className="font-medium">
+                              ${parseFloat(market.spotPrice).toFixed(4)}
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                    
+                    {/* Parimutuel-specific stats */}
+                    {market.marketType !== 'CPMM' && market.timeDecayBps && (
+                      <>
+                        <Separator />
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Time Decay</span>
+                          <span className="font-medium">
+                            {(market.timeDecayBps / 100).toFixed(1)}%
+                          </span>
+                        </div>
+                      </>
+                    )}
                   </CardContent>
                 </Card>
               </div>
@@ -299,7 +395,7 @@ function MarketDetailContent({ marketId }: { marketId: string }) {
       {/* Trading Sidebar */}
       {market && (
         <div className={cn(
-          "fixed top-0 right-0 h-full w-96 bg-background border-l shadow-xl z-50 transform transition-transform duration-300 ease-in-out overflow-y-auto",
+          "fixed top-0 right-0 h-full w-full lg:w-[480px] bg-background border-l shadow-xl z-50 transform transition-transform duration-300 ease-in-out overflow-y-auto",
           isTradingSidebarOpen ? "translate-x-0" : "translate-x-full"
         )}>
           <div className="p-6">
@@ -329,17 +425,9 @@ function MarketDetailContent({ marketId }: { marketId: string }) {
             </div>
 
             {/* Trading Interface */}
-            <TradingInterface 
+            <TradingInterfaceRouter 
               market={market}
-              yesDisplay={yesDisplay}
-              noDisplay={noDisplay}
-              yesProb={yesProb}
-              noProb={noProb}
-              onTrade={async (side, amount) => {
-                console.log(`Trading ${side} for ${amount} USDC`)
-                // Trading will be handled by the TradingInterface component
-              }}
-              onTransactionSuccess={handleTransactionSuccess}
+              className="w-full"
             />
           </div>
         </div>

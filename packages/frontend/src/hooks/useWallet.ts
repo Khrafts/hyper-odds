@@ -1,5 +1,6 @@
-import { usePrivy } from '@privy-io/react-auth'
-import { useChainId as useWagmiChainId } from 'wagmi'
+import { usePrivy, useWallets } from '@privy-io/react-auth'
+import { useChainId as useWagmiChainId, useAccount } from 'wagmi'
+import { useEffect } from 'react'
 
 /**
  * Unified wallet hook that provides consistent connection state across the app
@@ -7,9 +8,22 @@ import { useChainId as useWagmiChainId } from 'wagmi'
  */
 export function useWallet() {
   const { ready, authenticated, user, login, logout } = usePrivy()
+  const { wallets } = useWallets()
+  const wagmiAccount = useAccount()
 
   const walletAddress = user?.wallet?.address
   const isConnected = authenticated && !!walletAddress
+  
+  // Auto-connect wallet to wagmi when Privy is authenticated
+  useEffect(() => {
+    if (authenticated && wallets.length > 0 && !wagmiAccount.isConnected) {
+      const wallet = wallets[0] // Use first wallet
+      if (wallet.connectorType === 'injected' || wallet.connectorType === 'wallet_connect') {
+        // The wallet should auto-connect via Privy's wagmi integration
+        console.log('Privy wallet detected, should auto-connect to wagmi')
+      }
+    }
+  }, [authenticated, wallets, wagmiAccount.isConnected])
 
   return {
     // Connection state
@@ -24,6 +38,10 @@ export function useWallet() {
     // Actions
     connect: login,
     disconnect: logout,
+    
+    // Debug info
+    wagmiConnected: wagmiAccount.isConnected,
+    wagmiAddress: wagmiAccount.address,
   }
 }
 

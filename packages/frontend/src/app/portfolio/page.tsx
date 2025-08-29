@@ -122,7 +122,7 @@ function PortfolioPageContent() {
 
           <TabsContent value="claimable" className="space-y-6">
             <ClaimRewards 
-              userId={effectiveAddress}
+              userId={effectiveAddress || undefined}
             />
           </TabsContent>
 

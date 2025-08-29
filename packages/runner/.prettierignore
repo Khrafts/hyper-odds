@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+coverage/
+
+# Generated files
+src/generated/
+
+# Database
+*.db
+*.sqlite
+
+# Logs
+logs/
+*.log
+
+# Environment files
+.env*
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Prisma
+prisma/migrations/
+
+# Docker
+Dockerfile*
+docker-compose*.yml

@@ -16,7 +16,15 @@ export enum WindowKind {
   WINDOW_COUNT = 2,
 }
 
+export enum MarketType {
+  PARIMUTUEL = 0,
+  CPMM = 1,
+}
+
 export interface MarketFormData {
+  // Market type selection
+  marketType: MarketType;
+  
   // Basic info
   title: string;
   description: string;
@@ -24,7 +32,9 @@ export interface MarketFormData {
   // Subject
   subjectKind: SubjectKind;
   metricId: string; // for HL_METRIC
-  token: string; // for TOKEN_PRICE
+  token: string; // CMC ID as string for TOKEN_PRICE (changed from address)
+  tokenSymbol: string; // Token symbol for display
+  tokenName: string; // Token name for display
   valueDecimals: number;
   
   // Predicate
@@ -47,9 +57,26 @@ export interface MarketFormData {
   maxTotalPool: string;
   timeDecayBps: number;
   
+  // CPMM-specific fields
+  initialLiquidity: string; // Required for CPMM
+  initialProbability: number; // Initial market probability (1-99%)
+  
   // Timing
   cutoffTime: string; // datetime-local
 }
+
+export const MARKET_TYPE_OPTIONS = [
+  { 
+    value: MarketType.PARIMUTUEL, 
+    label: 'Parimutuel Pool',
+    description: 'Pool-based betting where winners split the losing pool. No upfront liquidity required.'
+  },
+  { 
+    value: MarketType.CPMM, 
+    label: 'CPMM AMM',
+    description: 'Automated Market Maker with instant trading. Requires initial liquidity from creator.'
+  },
+];
 
 export const SUBJECT_KIND_OPTIONS = [
   { value: SubjectKind.HL_METRIC, label: 'HyperLiquid Metric' },
@@ -109,6 +136,9 @@ export const getDefaultFormData = (): MarketFormData => {
   windowEnd.setMinutes(windowEnd.getMinutes() + 1);
   
   return {
+    // Market type
+    marketType: MarketType.PARIMUTUEL,
+    
     // Basic info
     title: '',
     description: '',
@@ -117,6 +147,8 @@ export const getDefaultFormData = (): MarketFormData => {
     subjectKind: SubjectKind.HL_METRIC,
     metricId: '',
     token: '',
+    tokenSymbol: '',
+    tokenName: '',
     valueDecimals: 8,
     
     // Predicate
@@ -138,6 +170,10 @@ export const getDefaultFormData = (): MarketFormData => {
     creatorFeeShareBps: 1000, // 10%
     maxTotalPool: '10000',
     timeDecayBps: 1000, // 10%
+    
+    // CPMM-specific fields
+    initialLiquidity: '1000',
+    initialProbability: 50, // 50% default probability
     
     // Timing
     cutoffTime: formatDateForInput(tomorrow),

@@ -4,6 +4,7 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { SSRSafeConnectButton, SSRSafeSimpleConnectButton } from '../web3/connectButton'
+import { NetworkSwitcher } from '../web3/networkSwitcher'
 import { Button } from '../ui/button'
 import { 
   DropdownMenu,
@@ -188,12 +189,15 @@ export function Header() {
             </DropdownMenuContent>
           </DropdownMenu>
 
+          {/* Network Switcher */}
+          <NetworkSwitcher variant="compact" showUnsupportedWarning={false} />
+
           {/* Wallet Connect */}
           <SSRSafeConnectButton 
             size="sm" 
             variant="outline" 
             showBalance={true}
-            showChain={true}
+            showChain={false}
           />
         </div>
 
@@ -262,7 +266,16 @@ export function Header() {
                 </Link>
               </Button>
 
-              <SSRSafeSimpleConnectButton className="w-full justify-start" />
+              <div className="space-y-3">
+                <SSRSafeSimpleConnectButton className="w-full justify-start" />
+                
+                <div>
+                  <div className="text-xs text-muted-foreground mb-2 px-3">Network</div>
+                  <div className="px-3">
+                    <NetworkSwitcher variant="compact" showUnsupportedWarning={false} />
+                  </div>
+                </div>
+              </div>
 
               <Button
                 variant="ghost"

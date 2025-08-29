@@ -71,11 +71,23 @@ export function ProbabilityChart({
       const timestamp = parseInt(point.timestamp) * 1000 // Convert to milliseconds
       const volume = parseFloat(point.cumulativeVolume || '0')
       
-      // Use corrected probability calculation based on pool values
-      const { yesProb, noProb } = calculateMarketProbabilities(
-        point.poolYes || '0', 
-        point.poolNo || '0'
-      )
+      // Check if this is a CPMM market by looking for probability fields directly
+      let yesProb: number
+      let noProb: number
+      
+      if (point.probabilityYes && point.probabilityNo) {
+        // Direct probability values from GraphQL (for CPMM markets)
+        yesProb = parseFloat(point.probabilityYes) * 100
+        noProb = parseFloat(point.probabilityNo) * 100
+      } else {
+        // Calculate from pool values (for Parimutuel markets)
+        const calculated = calculateMarketProbabilities(
+          point.poolYes || '0', 
+          point.poolNo || '0'
+        )
+        yesProb = calculated.yesProb
+        noProb = calculated.noProb
+      }
       
       return {
         timestamp,

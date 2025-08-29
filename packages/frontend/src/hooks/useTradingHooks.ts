@@ -73,7 +73,7 @@ export function useTradingHooks(marketAddress?: Address) {
 
   const routerAddress = useMemo(() => {
     try {
-      return getContractAddress(chainId as any, 'MarketRouter')
+      return getContractAddress(chainId as any, 'UniversalRouter')
     } catch {
       return undefined
     }
@@ -257,10 +257,10 @@ export function useTradingHooks(marketAddress?: Address) {
       const outcomeValue = outcome === 'YES' ? 1 : 0 // 0=NO, 1=YES as per contract
       const amountInUSDC = parseUnits(amount, 6) // USDC has 6 decimals
 
-      // Use Router contract for deposits
+      // Use Universal Router contract for deposits (works with both PARIMUTUEL and CPMM)
       await writeContract({
         address: routerAddress,
-        abi: CONTRACTS.MarketRouter.abi,
+        abi: CONTRACTS.UniversalRouter.abi,
         functionName: 'depositToMarket',
         args: [marketAddress, outcomeValue, amountInUSDC],
       })

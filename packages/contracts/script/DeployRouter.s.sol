@@ -8,17 +8,17 @@ contract DeployRouter is Script {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address deployer = vm.addr(deployerPrivateKey);
-        
+
         console.log("Deploying Router with:");
         console.log("  Deployer:", deployer);
-        
+
         vm.startBroadcast(deployerPrivateKey);
-        
+
         MarketRouter router = new MarketRouter();
         console.log("Router deployed at:", address(router));
-        
+
         vm.stopBroadcast();
-        
+
         console.log("\n========================================");
         console.log("ROUTER DEPLOYMENT COMPLETE!");
         console.log("========================================");

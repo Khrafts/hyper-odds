@@ -19,9 +19,10 @@ import {
   BarChart3,
   Target
 } from 'lucide-react'
-import { PositionWithStats } from '@/types/user'
+import { PositionWithStats, ParimutuelPositionWithStats, CPMMPositionWithStats } from '@/types/user'
 import { cn } from '@/lib/utils'
 import { formatEther } from 'viem'
+import { getMarketType } from '@/lib/web3/contracts'
 
 interface PositionCardProps {
   position: PositionWithStats
@@ -40,19 +41,38 @@ export function PositionCard({
   compact = false,
   showActions = true
 }: PositionCardProps) {
+  // Type guards
+  const marketType = getMarketType(position.market)
+  const isParimutuel = (pos: PositionWithStats): pos is ParimutuelPositionWithStats => 
+    marketType === 'PARIMUTUEL'
+  const isCPMM = (pos: PositionWithStats): pos is CPMMPositionWithStats => 
+    marketType === 'CPMM'
+
   const pnl = parseFloat(position.unrealizedPnl || '0')
   const pnlPercent = position.roi || 0
-  const stakeYes = parseFloat(position.stakeYes || '0')
-  const stakeNo = parseFloat(position.stakeNo || '0')
-  const totalStake = parseFloat(position.totalStake || '0')
-  const potentialPayout = parseFloat(position.potentialPayout || '0')
+  
+  // Get position values based on market type
+  let stakeYes = 0, stakeNo = 0, totalInvested = 0, dominantOutcome = 'YES'
+  
+  if (isParimutuel(position)) {
+    stakeYes = parseFloat(position.stakeYes || '0')
+    stakeNo = parseFloat(position.stakeNo || '0') 
+    totalInvested = parseFloat(position.totalStake || '0')
+    dominantOutcome = stakeYes > stakeNo ? 'YES' : 'NO'
+  } else if (isCPMM(position)) {
+    const sharesYes = parseFloat(position.sharesYes || '0')
+    const sharesNo = parseFloat(position.sharesNo || '0')
+    totalInvested = parseFloat(position.averageCost || '0')
+    dominantOutcome = sharesYes > sharesNo ? 'YES' : 'NO'
+    // For display, show share counts as "stake" equivalent  
+    stakeYes = sharesYes
+    stakeNo = sharesNo
+  }
 
   const pnlColor = pnl >= 0 ? 'text-green-600' : 'text-red-600'
   const pnlBgColor = pnl >= 0 ? 'bg-green-50 dark:bg-green-950' : 'bg-red-50 dark:bg-red-950'
   const pnlIcon = pnl >= 0 ? TrendingUp : TrendingDown
   const PnlIcon = pnlIcon
-
-  const dominantOutcome = stakeYes > stakeNo ? 'YES' : 'NO'
   const outcomeColor = dominantOutcome === 'YES' ? 'bg-green-600' : 'bg-red-600'
   const isResolved = position.market.resolved || position.market.cancelled
   const canClaim = position.status === 'claimable'
@@ -96,16 +116,28 @@ export function PositionCard({
             </div>
             
             <div className="flex flex-col items-end gap-2">
+              {/* Market type indicator */}
+              <Badge 
+                variant="outline" 
+                className={`text-xs ${
+                  marketType === 'CPMM' 
+                    ? 'border-blue-200 text-blue-700 dark:border-blue-800 dark:text-blue-300' 
+                    : 'border-purple-200 text-purple-700 dark:border-purple-800 dark:text-purple-300'
+                }`}
+              >
+                {marketType}
+              </Badge>
+              
               {/* Show both positions if user has stakes in both YES and NO */}
               <div className="flex gap-1">
                 {stakeYes > 0 && (
                   <Badge className="text-white bg-green-600 text-xs">
-                    YES: ${stakeYes.toFixed(0)}
+                    YES: {isParimutuel(position) ? '$' : ''}{stakeYes.toFixed(isParimutuel(position) ? 0 : 4)}{isCPMM(position) ? ' shares' : ''}
                   </Badge>
                 )}
                 {stakeNo > 0 && (
                   <Badge className="text-white bg-red-600 text-xs">
-                    NO: ${stakeNo.toFixed(0)}
+                    NO: {isParimutuel(position) ? '$' : ''}{stakeNo.toFixed(isParimutuel(position) ? 0 : 4)}{isCPMM(position) ? ' shares' : ''}
                   </Badge>
                 )}
               </div>
@@ -127,9 +159,11 @@ export function PositionCard({
           {/* Position Summary */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">Total Stake</p>
+              <p className="text-sm text-muted-foreground">
+                {isParimutuel(position) ? 'Total Stake' : 'Cost Basis'}
+              </p>
               <p className="text-lg font-semibold">
-                ${totalStake.toFixed(2)}
+                ${totalInvested.toFixed(2)}
               </p>
             </div>
             
@@ -204,28 +238,32 @@ export function PositionCard({
                   size="sm"
                 >
                   <Trophy className="h-4 w-4 mr-2" />
-                  Claim ${potentialPayout.toFixed(2)}
+                  Claim Winnings
                 </Button>
               )}
               
               {position.status === 'active' && (
                 <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => onSell?.(totalStake.toString())}
-                  >
-                    Sell All
-                  </Button>
+                  {/* Only show sell button for CPMM markets */}
+                  {isCPMM(position) && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => onSell?.(stakeYes > stakeNo ? position.sharesYes : position.sharesNo)}
+                    >
+                      Sell Shares
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"
                     asChild
+                    className={isCPMM(position) ? "" : "flex-1"}
                   >
                     <Link href={`/markets/${position.market.id}`}>
                       <Target className="h-4 w-4 mr-1" />
-                      Trade
+                      {isParimutuel(position) ? 'Bet More' : 'Trade'}
                     </Link>
                   </Button>
                 </div>

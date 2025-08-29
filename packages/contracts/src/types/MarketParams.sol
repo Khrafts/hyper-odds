@@ -23,7 +23,7 @@ library MarketTypes {
     struct SubjectParams {
         SubjectKind kind;
         bytes32 metricId;
-        address token;
+        string tokenIdentifier; // Changed from address to string for CMC ID/symbol
         uint8 valueDecimals;
     }
 

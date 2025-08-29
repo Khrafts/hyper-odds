@@ -1,0 +1,68 @@
+{
+  "name": "@hyper-odds/runner",
+  "version": "1.0.0",
+  "description": "Market resolution runner service for Hyper-Odds prediction markets",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "typecheck": "tsc --noEmit",
+    "docker:dev": "docker-compose up -d",
+    "docker:dev:logs": "docker-compose logs -f runner",
+    "docker:dev:stop": "docker-compose down",
+    "docker:dev:restart": "docker-compose restart runner",
+    "docker:tools": "docker-compose --profile tools up -d",
+    "docker:tools:stop": "docker-compose --profile tools down",
+    "docker:build": "docker build -f Dockerfile -t market-runner ../../",
+    "docker:prod": "docker-compose -f docker-compose.prod.yml up -d",
+    "docker:clean": "docker-compose down -v && docker system prune -f"
+  },
+  "dependencies": {
+    "@hyper-odds/shared": "workspace:*",
+    "@prisma/client": "^6.14.0",
+    "axios": "^1.6.0",
+    "bullmq": "^5.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.0",
+    "ethers": "^6.9.0",
+    "express": "^5.1.0",
+    "node-cron": "^3.0.3",
+    "prisma": "^6.14.0",
+    "redis": "^4.6.0",
+    "viem": "^2.21.0",
+    "winston": "^3.11.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/jest": "^29.5.0",
+    "@types/node": "^20.10.0",
+    "@types/node-cron": "^3.0.11",
+    "@typescript-eslint/eslint-plugin": "^6.14.0",
+    "@typescript-eslint/parser": "^6.14.0",
+    "eslint": "^8.55.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.0",
+    "tsx": "^4.6.0",
+    "typescript": "^5.3.0"
+  },
+  "keywords": [
+    "prediction-markets",
+    "blockchain",
+    "arbitrum",
+    "market-resolution",
+    "oracle"
+  ],
+  "author": "Hyper-Odds Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

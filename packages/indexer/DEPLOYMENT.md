@@ -21,8 +21,8 @@ vim subgraph.yaml
 Update:
 ```yaml
 source:
-  address: "0xYOUR_FACTORY_ADDRESS"
-  startBlock: YOUR_DEPLOYMENT_BLOCK
+  address: "0xab2632A369366Fc5b0EAb208c5e5AebfAD8F8920"  # Latest Factory - Dec 2024
+  startBlock: 186758658  # Block of latest deployment
 ```
 
 ### 2. Install Goldsky CLI

@@ -72,12 +72,22 @@ function getOrCreatePosition(
     position = new Position(positionId)
     position.market = marketId
     position.user = userId
+    
+    // Initialize parimutuel fields
     position.stakeNo = BigDecimal.fromString("0")
     position.stakeYes = BigDecimal.fromString("0")
     position.totalStake = BigDecimal.fromString("0")
     position.effectiveStakeNo = BigDecimal.fromString("0")
     position.effectiveStakeYes = BigDecimal.fromString("0")
     position.totalEffectiveStake = BigDecimal.fromString("0")
+    
+    // Initialize CPMM fields (required by schema)
+    position.sharesNo = BigDecimal.fromString("0")
+    position.sharesYes = BigDecimal.fromString("0")
+    position.totalShares = BigDecimal.fromString("0")
+    position.totalSpent = BigDecimal.fromString("0")
+    
+    // Initialize common fields
     position.claimed = false
     position.payout = BigDecimal.fromString("0")
     position.profit = BigDecimal.fromString("0")

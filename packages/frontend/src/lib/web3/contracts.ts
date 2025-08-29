@@ -1,18 +1,22 @@
 import { Address } from 'viem'
+import FactoryABI from './MarketFactoryABI'
+import UniversalRouterABI from './UniversalRouterABI'
 
 /**
  * Contract addresses for different networks
  */
 export const CONTRACT_ADDRESSES = {
-  // Arbitrum Sepolia testnet - Updated to match fe package
   421614: {
-    ParimutuelMarketFactory: '0x3d2519A17eAe6323CaA36fB07ecEcDc96457aFf1' as Address,
-    ParimutuelMarket: '0x89b371a0a56713C3E660C9eFCe659853c755dDF9' as Address, // Test market
-    MarketImplementation: '0xC6364ccdbd7c26130ce63001Ed874b1F91669462' as Address,
-    StakeToken: '0x019a0cD76A076DDd0D105101d77bD1833321BF5A' as Address, // MockUSDC from fe
-    MarketRouter: '0x52dE5EEcD112E57a13Bc41633B30336846b897cc' as Address, // Router contract
-    Oracle: '0x964c2247112Bbf53619b78deD036Fe1b285efaE7' as Address,
-    StHYPE: '0xa027E10C1808eE077989DfD560D5Ac00870d7963' as Address, // Updated from fe
+    ParimutuelMarketFactory: '0x40DefEEa8e5F418Bf86B19eD72615dC35386Fae4' as Address,
+    ParimutuelMarket: '0x89b371a0a56713C3E660C9eFCe659853c755dDF9' as Address, // Test market (will be updated after creation)
+    MarketImplementation: '0x06Bfe7f7234252687C22B2f2C3F005a030A00875' as Address, // ParimutuelMarketImplementation
+    CPMMImplementation: '0xd0282D1751d64D20AF6820160D2926e3B4e357BD' as Address, // CPMMMarketImplementation (with router support)
+    StakeToken: '0x380e784a7262d9c8b0deda2AB7436659E9514A39' as Address, // MockUSDC
+    MarketRouter: '0xe049685cC6aDe34918c719982D7e0337b10B951A' as Address, // Old router (Parimutuel only)
+    UniversalRouter: '0x487Db9105BFB3211a7761e5367C4E3C59B0B0bDf' as Address, // New universal router
+    Oracle: '0xf462a61C6a48303e281486bDD309C06cC64a56A3' as Address,
+    StHYPE: '0x7efF83564686F013a8A1e270240281B99cB7559D' as Address,
+    WHYPE: '0xcd751fd7fE968Bb59D6Aa22f5F2de5C18bC9232e' as Address, // MockWHYPE
   },
   // Arbitrum One mainnet (placeholder)
   42161: {
@@ -25,6 +29,122 @@ export const CONTRACT_ADDRESSES = {
     StHYPE: '0x0000000000000000000000000000000000000000' as Address,
   },
 } as const
+
+/**
+ * CPMMMarket contract ABI
+ * Core functions for CPMM market interactions
+ */
+export const CPMM_MARKET_ABI = [
+  // Initialize function
+  {
+    inputs: [
+      { internalType: 'uint256', name: '_liquidityAmount', type: 'uint256' },
+      { internalType: 'uint256', name: '_initialProbBps', type: 'uint256' },
+    ],
+    name: 'initialize',
+    outputs: [],
+    stateMutability: 'payable',
+    type: 'function',
+  },
+  // Buy shares
+  {
+    inputs: [
+      { internalType: 'uint8', name: '_outcome', type: 'uint8' },
+      { internalType: 'uint256', name: '_amountIn', type: 'uint256' },
+      { internalType: 'uint256', name: '_minSharesOut', type: 'uint256' },
+    ],
+    name: 'buyShares',
+    outputs: [{ internalType: 'uint256', name: 'sharesOut', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  // Sell shares
+  {
+    inputs: [
+      { internalType: 'uint8', name: '_outcome', type: 'uint8' },
+      { internalType: 'uint256', name: '_sharesIn', type: 'uint256' },
+      { internalType: 'uint256', name: '_minAmountOut', type: 'uint256' },
+    ],
+    name: 'sellShares',
+    outputs: [{ internalType: 'uint256', name: 'amountOut', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  // Get price
+  {
+    inputs: [],
+    name: 'getSpotPrice',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  // Get reserves
+  {
+    inputs: [],
+    name: 'reserveYES',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'reserveNO',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  // Get user shares
+  {
+    inputs: [{ internalType: 'address', name: '', type: 'address' }],
+    name: 'sharesYES',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'address', name: '', type: 'address' }],
+    name: 'sharesNO',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  // Claim winnings
+  {
+    inputs: [],
+    name: 'claimWinnings',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  // Calculate buy amount
+  {
+    inputs: [
+      { internalType: 'uint8', name: '_outcome', type: 'uint8' },
+      { internalType: 'uint256', name: '_amountIn', type: 'uint256' },
+    ],
+    name: 'calculateBuyAmount',
+    outputs: [
+      { internalType: 'uint256', name: 'sharesOut', type: 'uint256' },
+      { internalType: 'uint256', name: 'feeAmount', type: 'uint256' },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  // Calculate sell amount
+  {
+    inputs: [
+      { internalType: 'uint8', name: '_outcome', type: 'uint8' },
+      { internalType: 'uint256', name: '_sharesIn', type: 'uint256' },
+    ],
+    name: 'calculateSellAmount',
+    outputs: [
+      { internalType: 'uint256', name: 'amountOut', type: 'uint256' },
+      { internalType: 'uint256', name: 'feeAmount', type: 'uint256' },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+] as const
 
 /**
  * ParimutuelMarket contract ABI
@@ -238,34 +358,40 @@ export const ERC20_ABI = [
 ] as const
 
 /**
- * ParimutuelMarketFactory contract ABI
+ * ParimutuelMarketFactory contract ABI - Import from compiled contract
  * Factory contract for creating new prediction markets with complex parameters
  */
-export const PARIMUTUEL_MARKET_FACTORY_ABI = [
+export const PARIMUTUEL_MARKET_FACTORY_ABI = FactoryABI
+
+/**
+ * Legacy ABI for reference (replaced with imported ABI above)
+ * @deprecated Use PARIMUTUEL_MARKET_FACTORY_ABI instead
+ */
+export const PARIMUTUEL_MARKET_FACTORY_ABI_LEGACY = [
   // Read functions
   {
     inputs: [],
-    name: 'marketCount',
-    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    name: 'stakeToken',
+    outputs: [{ internalType: 'contract IERC20', name: '', type: 'address' }],
     stateMutability: 'view',
     type: 'function',
   },
   {
-    inputs: [{ internalType: 'uint256', name: 'index', type: 'uint256' }],
-    name: 'markets',
+    inputs: [],
+    name: 'parimutuelImplementation',
     outputs: [{ internalType: 'address', name: '', type: 'address' }],
     stateMutability: 'view',
     type: 'function',
   },
   {
     inputs: [],
-    name: 'getAllMarkets',
-    outputs: [{ internalType: 'address[]', name: '', type: 'address[]' }],
+    name: 'cpmmImplementation',
+    outputs: [{ internalType: 'address', name: '', type: 'address' }],
     stateMutability: 'view',
     type: 'function',
   },
 
-  // Write functions - Complex market creation
+  // Write functions - Market creation with updated structure
   {
     inputs: [
       {
@@ -276,7 +402,76 @@ export const PARIMUTUEL_MARKET_FACTORY_ABI = [
             components: [
               { name: 'kind', type: 'uint8' },
               { name: 'metricId', type: 'bytes32' },
-              { name: 'token', type: 'address' },
+              { name: 'tokenIdentifier', type: 'string' },
+              { name: 'valueDecimals', type: 'uint8' }
+            ],
+            name: 'subject',
+            type: 'tuple'
+          },
+          {
+            components: [
+              { name: 'op', type: 'uint8' },
+              { name: 'threshold', type: 'int256' }
+            ],
+            name: 'predicate',
+            type: 'tuple'
+          },
+          {
+            components: [
+              { name: 'kind', type: 'uint8' },
+              { name: 'tStart', type: 'uint64' },
+              { name: 'tEnd', type: 'uint64' }
+            ],
+            name: 'window',
+            type: 'tuple'
+          },
+          {
+            components: [
+              { name: 'primarySourceId', type: 'bytes32' },
+              { name: 'fallbackSourceId', type: 'bytes32' },
+              { name: 'roundingDecimals', type: 'uint8' }
+            ],
+            name: 'oracle',
+            type: 'tuple'
+          },
+          { name: 'cutoffTime', type: 'uint64' },
+          { name: 'creator', type: 'address' },
+          {
+            components: [
+              { name: 'feeBps', type: 'uint16' },
+              { name: 'creatorFeeShareBps', type: 'uint16' },
+              { name: 'maxTotalPool', type: 'uint256' },
+              { name: 'timeDecayBps', type: 'uint16' }
+            ],
+            name: 'econ',
+            type: 'tuple'
+          },
+          { name: 'isProtocolMarket', type: 'bool' }
+        ],
+        name: 'p',
+        type: 'tuple'
+      },
+      { name: '_marketType', type: 'uint8' },
+      { name: 'liquidityAmount', type: 'uint256' }
+    ],
+    name: 'createMarket',
+    outputs: [{ name: '', type: 'address' }],
+    stateMutability: 'nonpayable',
+    type: 'function'
+  },
+  
+  // Specific market type creation functions
+  {
+    inputs: [
+      {
+        components: [
+          { name: 'title', type: 'string' },
+          { name: 'description', type: 'string' },
+          {
+            components: [
+              { name: 'kind', type: 'uint8' },
+              { name: 'metricId', type: 'bytes32' },
+              { name: 'tokenIdentifier', type: 'string' },
               { name: 'valueDecimals', type: 'uint8' }
             ],
             name: 'subject',
@@ -326,21 +521,143 @@ export const PARIMUTUEL_MARKET_FACTORY_ABI = [
         type: 'tuple'
       }
     ],
-    name: 'createMarket',
+    name: 'createParimutuelMarket',
+    outputs: [{ name: '', type: 'address' }],
+    stateMutability: 'nonpayable',
+    type: 'function'
+  },
+  
+  {
+    inputs: [
+      {
+        components: [
+          { name: 'title', type: 'string' },
+          { name: 'description', type: 'string' },
+          {
+            components: [
+              { name: 'kind', type: 'uint8' },
+              { name: 'metricId', type: 'bytes32' },
+              { name: 'tokenIdentifier', type: 'string' },
+              { name: 'valueDecimals', type: 'uint8' }
+            ],
+            name: 'subject',
+            type: 'tuple'
+          },
+          {
+            components: [
+              { name: 'op', type: 'uint8' },
+              { name: 'threshold', type: 'int256' }
+            ],
+            name: 'predicate',
+            type: 'tuple'
+          },
+          {
+            components: [
+              { name: 'kind', type: 'uint8' },
+              { name: 'tStart', type: 'uint64' },
+              { name: 'tEnd', type: 'uint64' }
+            ],
+            name: 'window',
+            type: 'tuple'
+          },
+          {
+            components: [
+              { name: 'primarySourceId', type: 'bytes32' },
+              { name: 'fallbackSourceId', type: 'bytes32' },
+              { name: 'roundingDecimals', type: 'uint8' }
+            ],
+            name: 'oracle',
+            type: 'tuple'
+          },
+          { name: 'cutoffTime', type: 'uint64' },
+          { name: 'creator', type: 'address' },
+          {
+            components: [
+              { name: 'feeBps', type: 'uint16' },
+              { name: 'creatorFeeShareBps', type: 'uint16' },
+              { name: 'maxTotalPool', type: 'uint256' },
+              { name: 'timeDecayBps', type: 'uint16' }
+            ],
+            name: 'econ',
+            type: 'tuple'
+          },
+          { name: 'isProtocolMarket', type: 'bool' }
+        ],
+        name: 'p',
+        type: 'tuple'
+      },
+      { name: 'liquidityAmount', type: 'uint256' }
+    ],
+    name: 'createCPMMMarket',
     outputs: [{ name: '', type: 'address' }],
     stateMutability: 'nonpayable',
     type: 'function'
   },
 
-  // Events
+  // Events - Updated event signature
   {
     anonymous: false,
     inputs: [
       { indexed: true, internalType: 'address', name: 'market', type: 'address' },
       { indexed: true, internalType: 'address', name: 'creator', type: 'address' },
-      { indexed: false, internalType: 'string', name: 'question', type: 'string' },
-      { indexed: false, internalType: 'uint256', name: 'cutoffTime', type: 'uint256' },
-      { indexed: false, internalType: 'uint256', name: 'resolveTime', type: 'uint256' },
+      { indexed: true, internalType: 'uint8', name: 'marketType', type: 'uint8' },
+      {
+        components: [
+          { name: 'title', type: 'string' },
+          { name: 'description', type: 'string' },
+          {
+            components: [
+              { name: 'kind', type: 'uint8' },
+              { name: 'metricId', type: 'bytes32' },
+              { name: 'tokenIdentifier', type: 'string' },
+              { name: 'valueDecimals', type: 'uint8' }
+            ],
+            name: 'subject',
+            type: 'tuple'
+          },
+          {
+            components: [
+              { name: 'op', type: 'uint8' },
+              { name: 'threshold', type: 'int256' }
+            ],
+            name: 'predicate',
+            type: 'tuple'
+          },
+          {
+            components: [
+              { name: 'kind', type: 'uint8' },
+              { name: 'tStart', type: 'uint64' },
+              { name: 'tEnd', type: 'uint64' }
+            ],
+            name: 'window',
+            type: 'tuple'
+          },
+          {
+            components: [
+              { name: 'primarySourceId', type: 'bytes32' },
+              { name: 'fallbackSourceId', type: 'bytes32' },
+              { name: 'roundingDecimals', type: 'uint8' }
+            ],
+            name: 'oracle',
+            type: 'tuple'
+          },
+          { name: 'cutoffTime', type: 'uint64' },
+          { name: 'creator', type: 'address' },
+          {
+            components: [
+              { name: 'feeBps', type: 'uint16' },
+              { name: 'creatorFeeShareBps', type: 'uint16' },
+              { name: 'maxTotalPool', type: 'uint256' },
+              { name: 'timeDecayBps', type: 'uint16' }
+            ],
+            name: 'econ',
+            type: 'tuple'
+          },
+          { name: 'isProtocolMarket', type: 'bool' }
+        ],
+        name: 'params',
+        type: 'tuple'
+      },
     ],
     name: 'MarketCreated',
     type: 'event',
@@ -348,7 +665,13 @@ export const PARIMUTUEL_MARKET_FACTORY_ABI = [
 ] as const
 
 /**
- * MarketRouter contract ABI
+ * UniversalMarketRouter contract ABI
+ * Universal router that works with both PARIMUTUEL and CPMM markets
+ */
+export const UNIVERSAL_MARKET_ROUTER_ABI = UniversalRouterABI
+
+/**
+ * MarketRouter contract ABI (Legacy - Parimutuel only)
  * Router contract for handling deposits and claims with user attribution
  */
 export const MARKET_ROUTER_ABI = [
@@ -429,7 +752,8 @@ export function getContractAddress(
   
   const address = addresses[contractName]
   if (!address || address === '0x0000000000000000000000000000000000000000') {
-    throw new Error(`Contract ${contractName} not deployed on chain ${chainId}`)
+    const chainName = chainId === 42161 ? 'Arbitrum One' : chainId === 421614 ? 'Arbitrum Sepolia' : `Chain ${chainId}`;
+    throw new Error(`Contract ${contractName} not yet deployed on ${chainName}. Currently only available on Arbitrum Sepolia.`)
   }
   
   return address
@@ -462,6 +786,9 @@ export const CONTRACTS = {
   MarketRouter: {
     abi: MARKET_ROUTER_ABI,
   },
+  UniversalRouter: {
+    abi: UNIVERSAL_MARKET_ROUTER_ABI,
+  },
   StakeToken: {
     abi: ERC20_ABI,
   },
@@ -480,3 +807,27 @@ export const OUTCOME = {
 } as const
 
 export type Outcome = typeof OUTCOME[keyof typeof OUTCOME]
+
+/**
+ * Helper to detect market type from market data
+ */
+export function getMarketType(market: { marketType?: string; reserveYes?: string; poolYes?: string }): 'PARIMUTUEL' | 'CPMM' {
+  // Explicit type field (from GraphQL)
+  if (market.marketType) {
+    return market.marketType as 'PARIMUTUEL' | 'CPMM'
+  }
+  
+  // Fallback: detect by field presence
+  if (market.reserveYes && market.reserveYes !== '0') {
+    return 'CPMM'
+  }
+  
+  return 'PARIMUTUEL'
+}
+
+/**
+ * Get appropriate ABI for market type
+ */
+export function getMarketABI(marketType: 'PARIMUTUEL' | 'CPMM') {
+  return marketType === 'CPMM' ? CPMM_MARKET_ABI : PARIMUTUEL_MARKET_ABI
+}

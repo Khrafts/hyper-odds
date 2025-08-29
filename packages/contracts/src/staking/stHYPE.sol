@@ -29,7 +29,10 @@ contract stHYPE is ERC4626, ERC20Permit, IstHYPE {
     error ZeroShares();
     error TransferFailed();
 
-    constructor(address _whype, address _hyperLiquidStaking)
+    constructor(
+        address _whype,
+        address _hyperLiquidStaking
+    )
         ERC4626(IERC20(_whype)) // Use WHYPE as the asset
         ERC20("Staked HYPE", "stHYPE")
         ERC20Permit("Staked HYPE")
@@ -40,7 +43,7 @@ contract stHYPE is ERC4626, ERC20Permit, IstHYPE {
 
     // ============ ERC4626 Overrides ============
 
-    function totalAssets() public view override(ERC4626, IERC4626) returns (uint256) {
+    function totalAssets() public view override (ERC4626, IERC4626) returns (uint256) {
         // Include staked balance plus any pending rewards
         uint256 stakedBalance = hyperLiquidStaking.balanceOf(address(this));
         uint256 rewards = hyperLiquidStaking.getRewards(address(this));
@@ -48,10 +51,7 @@ contract stHYPE is ERC4626, ERC20Permit, IstHYPE {
         return stakedBalance + rewards + unstakedBalance;
     }
 
-    function _deposit(address caller, address receiver, uint256 assets, uint256 shares)
-        internal
-        override
-    {
+    function _deposit(address caller, address receiver, uint256 assets, uint256 shares) internal override {
         // Transfer WHYPE from caller
         SafeERC20.safeTransferFrom(IERC20(asset()), caller, address(this), assets);
 
@@ -74,7 +74,10 @@ contract stHYPE is ERC4626, ERC20Permit, IstHYPE {
         address owner,
         uint256 assets,
         uint256 shares
-    ) internal override {
+    )
+        internal
+        override
+    {
         if (caller != owner) {
             _spendAllowance(owner, caller, shares);
         }
@@ -119,21 +122,16 @@ contract stHYPE is ERC4626, ERC20Permit, IstHYPE {
 
     // ============ Required Overrides ============
 
-    function decimals() public view override(ERC4626, ERC20, IERC20Metadata) returns (uint8) {
+    function decimals() public view override (ERC4626, ERC20, IERC20Metadata) returns (uint8) {
         return super.decimals();
     }
 
-    function nonces(address owner)
-        public
-        view
-        override(ERC20Permit, IERC20Permit)
-        returns (uint256)
-    {
+    function nonces(address owner) public view override (ERC20Permit, IERC20Permit) returns (uint256) {
         return super.nonces(owner);
     }
 
     // ============ Testnet Functions ============
-    
+
     // Testnet mint function for easy testing (skip the complex ETH mechanics)
     function testnetMint(address to, uint256 amount) external {
         _mint(to, amount);
